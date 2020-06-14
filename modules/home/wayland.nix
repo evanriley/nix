@@ -16,7 +16,9 @@
 
  environment = {
    etc = {
-     "sway/config".source = /home/evan/nix/dotfiles/config/sway/config;
+     "sway/config".source = ../../dotfiles/config/sway/config;
+     "xdg/waybar/config".source = ../../dotfiles/config/waybar/config;
+     "xdg/waybar/style.css".source = ../../dotfiles/config/waybar/style.css;
    };
  };
 
