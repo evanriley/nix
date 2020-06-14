@@ -16,13 +16,11 @@
       timeout = 0;
     };
 
-    initrd.luks.devices = [
+    initrd.luks.devices.luksroot = 
       {
-        name = "root";
         device = "/dev/nvme0n1p2";
         preLVM = true;
-      }
-    ];
+      };
   };
 
   networking.hostName = "zeus"; # Define host name
