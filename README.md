@@ -12,13 +12,13 @@ configuration.nix is left empty except for:
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
-      /home/evan/nix/modules/hosts/<host>.nix
+      <home-manager/nixos>
+      /home/evan/nix/modules/hosts/zeus.nix
     ];
 }
-
 ```
 
-where <host> is, well, your current host.
+where 'host' is, well, your current host.
 
 Currently this requires these channels
 
