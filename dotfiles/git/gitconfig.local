@@ -1,0 +1,5 @@
+[user]
+        name = Evan Riley
+        email = me
+[credential]
+        helper = cache

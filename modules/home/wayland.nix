@@ -14,13 +14,6 @@
     ];
  };
 
- environment = {
-   etc = {
-     "sway/config".source = ../../dotfiles/config/sway/config;
-     "xdg/waybar/config".source = ../../dotfiles/config/waybar/config;
-     "xdg/waybar/style.css".source = ../../dotfiles/config/waybar/style.css;
-   };
- };
 
 
   systemd.user.targets.sway-session = {

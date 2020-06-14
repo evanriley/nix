@@ -43,6 +43,7 @@
 
     # terminal and editors
     kitty alacritty neovim vim
+    emacs
 
     # CLI a/v stuff
     ffmpeg imagemagick

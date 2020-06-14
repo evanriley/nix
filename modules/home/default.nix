@@ -2,7 +2,7 @@
 
 {
   imports = [
-    ./emacs.nix
+    ./dotfiles.nix
     ./home.nix
     ./hardware.nix
     ./packages.nix
