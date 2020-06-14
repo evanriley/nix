@@ -12,7 +12,7 @@
     git
 
     # utils
-    rustfmt clang-tools graphviz ripgrep fzf starship
+    rustfmt graphviz ripgrep fzf starship
     gnupg pinentry
 
     # Wayland utils
@@ -23,7 +23,8 @@
     xclip maim slop lxrandr xscreensaver
 
     # Build systems
-    gnumake cmake gradle
+    gnumake cmake gradle meson ninja pkg-config
+    clang clang-tools llvm
 
     # nix utils
     nix-prefetch-scripts nix-du

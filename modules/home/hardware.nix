@@ -15,12 +15,16 @@
   };
 
   sound.enable = true;
+
   hardware = {
     pulseaudio.enable = true;
 
     # 32 bit sound for steam
     opengl.driSupport32Bit = true;
     pulseaudio.support32Bit = true;
+
+    # use OpenRazer to help with my Razer Viper Ultimate mouse
+    openrazer.enable = true;
   };
 
 }
