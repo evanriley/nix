@@ -14,6 +14,7 @@
     # utils
     rustfmt graphviz ripgrep fzf starship
     gnupg pinentry-qt coreutils-prefixed
+    sqlite
 
     # Wayland utils
     grim slurp wf-recorder wl-clipboard
@@ -48,6 +49,9 @@
 
     # networking
     openssh networkmanagerapplet
+
+    # fonts
+    source-code-pro
 
     # other
     bitwarden bitwarden-cli

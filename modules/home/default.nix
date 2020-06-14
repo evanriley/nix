@@ -2,6 +2,8 @@
 
 {
   imports = [
+    ./emacs.nix
+    ./home.nix
     ./hardware.nix
     ./packages.nix
     ./shell.nix
