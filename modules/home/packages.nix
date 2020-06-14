@@ -13,6 +13,7 @@
 
     # utils
     rustfmt clang-tools graphviz ripgrep fzf starship
+    gnupg pinentry
 
     # Wayland utils
     grim slurp wf-recorder wl-clipboard
