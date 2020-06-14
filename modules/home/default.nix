@@ -29,6 +29,9 @@
   # Time Zone
   time.timeZone = "America/New_York";
 
+  # enable gnupg
+  programs.gnupg.agent.enable = true;
+
   # The NixOS release version
   system.stateVersion = "20.03";
 
