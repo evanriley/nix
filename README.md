@@ -1,9 +1,22 @@
 # nix
 
-My NixOS config files. Largely based on
-[CrazedProgrammer's](https://github.com/CrazedProgrammer/nix) config
+My NixOS config files.
 
 # Building
+
+configuration.nix is left empty except for:
+
+```
+{
+
+  imports =
+    [ # Include the results of the hardware scan.
+      ./hardware-configuration.nix
+      /home/evan/nix/modules/hosts/zeus.nix
+    ];
+}
+
+```
 
 Currently this requires both of these channels
 
