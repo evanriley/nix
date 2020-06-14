@@ -32,8 +32,9 @@
     nodejs clojure leiningen clj-kondo rustup cargo rls
     go julia python27 python3 elixir
 
-    # games & stuff
+    # multimedia
     steam steam-run discord
+    spotify
 
     # browsers
     firefox google-chrome chromium
@@ -48,7 +49,7 @@
     openssh networkmanagerapplet
 
     # other
-    bitwarden
+    bitwarden bitwarden-cli
 
   ]);
 }
