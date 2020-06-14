@@ -16,7 +16,6 @@
       recursive = true;
     };
 
-
     # swaywm and its friends
     home.file.".config/sway" = {
       source = ../../dotfiles/config/sway;
@@ -47,6 +46,12 @@
     home.file.".gitconfig".source = ../../dotfiles/git/gitconfig;
     home.file.".gitconfig.local".source = ../../dotfiles/git/gitconfig.local;
     home.file.".gitignore".source = ../../dotfiles/git/gitignore;
+
+    # vim
+    home.file.".config/nvim" = {
+      source = ../../dotfiles/nvim;
+      recursive = true;
+    };
 
   };
 }
