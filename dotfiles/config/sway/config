@@ -206,6 +206,13 @@ mode "resize" {
 }
 bindsym $mod+r mode "resize"
 
+# Screenshot everything
+bindsym $mod+p exec grim | wl-copy -t image/png
+# Screenshot specified area
+bindsym $mod+Ctrl+p exec grim -g "$(slurp -d)" - | wl-copy -t image/png
+# Screenshot focused monitor
+bindsym $mod+Shift+p exec grim -o $(swaymsg -t get_outputs | jq -r '.[] | select(.focused) | .name') - | wl-copy -t image/png
+
 #
 # Status Bar:
 #

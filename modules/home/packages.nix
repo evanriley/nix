@@ -15,6 +15,7 @@
     rustfmt graphviz ripgrep fzf starship
     gnupg pinentry-qt coreutils coreutils-prefixed
     sqlite fd openrazer-daemon
+    neofetch
 
     # Wayland utils
     grim slurp wf-recorder wl-clipboard

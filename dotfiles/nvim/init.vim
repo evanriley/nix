@@ -677,11 +677,11 @@ let g:floaterm_keymap_toggle = '<Leader>T'
 " colo seoul256
 
 let ayucolor="dark" 
-colorscheme ayu
+colorscheme challenger_deep
 
 
 if has('nvim') || has('termguicolors')
   set termguicolors
 endif
 
-let g:lightline = { 'colorscheme': 'ayu' }
+let g:lightline = { 'colorscheme': 'challenger_deep' }
