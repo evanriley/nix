@@ -52,11 +52,13 @@
     # networking
     openssh networkmanagerapplet
 
-    # fonts
-    source-code-pro
-
     # other
     bitwarden bitwarden-cli
 
   ]);
+
+  fonts.fonts = with pkgs; [
+    source-code-pro
+    fira-code
+  ];
 }
