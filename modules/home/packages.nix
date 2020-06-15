@@ -37,7 +37,7 @@
 
     # multimedia
     steam steam-run discord
-    spotify
+    spotify spotifyd spotify-tui
 
     # browsers
     firefox google-chrome chromium
