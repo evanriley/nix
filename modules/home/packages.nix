@@ -14,7 +14,7 @@
     # utils
     rustfmt graphviz ripgrep fzf starship
     gnupg pinentry-qt coreutils coreutils-prefixed
-    sqlite fd openrazer-daemon
+    sqlite fd
     neofetch
 
     # Wayland utils
