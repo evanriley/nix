@@ -8,11 +8,11 @@ markup=1
 
 padding=6
 
-background-color=#689d6a
+background-color=#100e23
 progress-color=#ebdbb2
-text-color=#1d2021
+text-color=#cbe3e7
 
-border-color=#ebdbb2
+border-color=#565575
 border-size=3
 border-radius=2
 

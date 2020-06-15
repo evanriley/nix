@@ -42,6 +42,12 @@
       source= ../../dotfiles/config/starship/starship.toml;
     };
 
+    # kitty
+    home.file.".config/kitty" = {
+      source = ../../dotfiles/config/kitty;
+      recursive = true;
+    };
+
     # git
     home.file.".gitconfig".source = ../../dotfiles/git/gitconfig;
     home.file.".gitconfig.local".source = ../../dotfiles/git/gitconfig.local;

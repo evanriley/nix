@@ -6,63 +6,9 @@ set $mod Mod4
 ### Notification service
 exec mako
 
-# colors
-#
 
-set $c1 #fd472f
-set $c2 #d79921
-set $c3 #99a2ea
-set $c4 #333142
-set $c5 #342f73
-
-
-set $white #f4f4f8
-set $dark #333333
-set $dim #666666
-
-
-set $focused_bgcolor $c2
-set $focused_textcolor $dark
-set $focused_indicator $c3
-
-set $inactive_bgcolor $c5
-set $inactive_textcolor $white
-set $inactive_indicator $c5
-
-set $unfocused_bgcolor $c4
-set $unfocused_textcolor $dim
-set $unfocused_indicator $c5
-
-set $urgent_bgcolor $c1
-set $urgent_textcolor $c4
-set $urgent_indicator $c3
-
-#
-# Appearance:
-#
-
-# Set inner/outer gaps
-default_border normal 0
-gaps inner 2
-gaps outer 2
-
-# Smart gaps (gaps used if only more than one container on the workspace)
-smart_gaps on
-
-# Smart borders (draw borders around container only if it is not the only container on this workspace) 
-smart_borders on
-
-# Hide Title Bars
-for_window [app_id="^.*"] opacity 0.95
-default_border pixel 2
-default_floating_border pixel 4
-hide_edge_borders smart
-
-client.focused $focused_bgcolor $focused_bgcolor $focused_textcolor $focused_indicator $focused_bgcolor
-client.focused_inactive $inactive_bgcolor $inactive_bgcolor $inactive_textcolor $inactive_indicator $inactive_bgcolor
-client.unfocused $unfocused_bgcolor $unfocused_bgcolor $unfocused_textcolor $unfocused_indicator $unfocused_bgcolor
-client.urgent $urgent_bgcolor $urgent_bgcolor $urgent_textcolor $urgent_indicator $urgent_bgcolor
-
+### Import theme
+include ./themes/challenger-deep
 
 # Home row direction keys, like vim
 set $left h
@@ -80,7 +26,7 @@ set $menu wofi --show run
 ### Output configuration
 #
 # Default wallpaper
-#output * bg ~/.config/sway/backgrounds/Sway_Wallpaper_Blue_1920x1080.png fill
+output * bg ~/nix/dotfiles/config/sway/wallpaper/pale-blue-dot.jpg fill
 #
 # Example configuration:
 #
@@ -97,10 +43,12 @@ output DP-1 pos 3640,0 res 2560x1440@59Hz
 # Example configuration:
 #
  exec swayidle -w \
-          timeout 300 'swaylock -f -c 000000' \
+          timeout 300 '/home/evan/nix/dotfiles/config/sway/scripts/lock.sh' \
           timeout 600 'swaymsg "output * dpms off"' \
                resume 'swaymsg "output * dpms on"' \
-          before-sleep 'swaylock -f -c 000000'
+          before-sleep '/home/evan/nix/dotfiles/config/sway/scripts/lock.sh'
+
+bindsym $mod+Ctrl+i exec "/home/evan/nix/dotfiles/config/sway/scripts/lock.sh"
 
 # This will lock your screen after 300 seconds of inactivity, then turn off
 # your displays after another 300 seconds, and turn your screens back on when
