@@ -38,6 +38,11 @@ output DP-2 pos 0,0 res 1080x1920@144Hz transform 270
 output DP-3 pos 1080,0 res 2560x1440@144Hz
 output DP-1 pos 3640,0 res 2560x1440@59Hz
 
+# Disable mouse accel
+input "5426:123:Razer_Razer_Viper_Ultimate_Dongle_Consumer_Control" {
+  pointer_accel -1
+}
+
 ### Idle configuration
 #
 # Example configuration:

@@ -3,7 +3,6 @@
 {
   # Use neovim for editing
   environment.variables = {
-    EDITOR = lib.mkOverride 900 "nvim";
     PROJECTS = "~/Code";
     TERMINAL = "kitty";
   };
