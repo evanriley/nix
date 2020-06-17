@@ -209,8 +209,8 @@ Plug 'moll/vim-node'				" Node tools
 " Clojure
 Plug 'eraserhd/parinfer-rust', {'do':
         \  'cargo build --release'}		" Makes using lisp easier
+
 " Plug 'tpope/vim-fireplace', {'for': 'clojure'}
-Plug 'liquidz/vim-iced', {'for': 'clojure'}
 
 
 " Tools to fix my crap code
