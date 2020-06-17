@@ -24,6 +24,7 @@
 
     # X utils
     xclip maim slop lxrandr xscreensaver
+    glxinfo
 
     # Build systems
     gnumake cmake gradle meson ninja pkg-config
@@ -39,6 +40,7 @@
     # multimedia
     steam steam-run discord
     spotify spotifyd spotify-tui
+    mpv
 
     # browsers
     firefox google-chrome chromium
@@ -55,6 +57,7 @@
 
     # other
     bitwarden bitwarden-cli
+    obs-studio obs-wlrobs
 
   ]);
 
