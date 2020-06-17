@@ -33,7 +33,7 @@
 
     # Languages
     nodejs clojure leiningen clj-kondo rustup cargo rls
-    go julia python27 python3 elixir
+    go julia python27 python3 elixir adoptopenjdk-bin
 
     # multimedia
     steam steam-run discord
