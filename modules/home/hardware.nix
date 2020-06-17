@@ -24,7 +24,12 @@
     pulseaudio.support32Bit = true;
 
     # use OpenRazer to help with my Razer Viper Ultimate mouse
-    openrazer.enable = true;
+    openrazer = {
+      enable = true;
+      devicesOffOnScreensaver = true;
+      mouseBatteryNotifier = true;
+      keyStatistics = true;
+    };
   };
 
 }

@@ -7,6 +7,7 @@
   environment.systemPackages = (with pkgs; [
     # basics
     wget curl jq htop p7zip which
+    tree
 
     # vc
     git
