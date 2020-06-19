@@ -210,10 +210,10 @@ Plug 'moll/vim-node'				" Node tools
 Plug 'eraserhd/parinfer-rust', {'do':
         \ 'nix-shell --run \"cargo build --release \"'} " I'm bad at parens
 Plug 'guns/vim-sexp', {'for': 'clojure'} " Helpful tool for S-expressions
-Plug 'liquidz/vim-iced', {'for': 'clojure'} " Clojure interactive development environment
+Plug 'Olical/conjure', {'tag': 'v3.5.0'} " Interactive evalutation for neovim
 
-" Plug 'tpope/vim-fireplace', {'for': 'clojure'}
-
+" Fennel
+Plug 'bakpakin/fennel.vim'
 
 " Tools to fix my crap code
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
