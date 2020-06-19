@@ -1,5 +1,6 @@
 {config, lib, pkgs, ...}:
 
+
 {
   # enable unfree packages.
   nixpkgs.config.allowUnfree = true;
@@ -7,7 +8,7 @@
   environment.systemPackages = (with pkgs; [
     # basics
     wget curl jq htop p7zip which
-    tree
+    tree bash_5
 
     # vc
     git
@@ -37,10 +38,10 @@
     nodejs clojure leiningen clj-kondo rustup cargo rls
     go julia python27 python3 elixir adoptopenjdk-bin
 
-    # multimedia
+    # multimedia and chats
     steam steam-run discord
     spotify spotifyd spotify-tui
-    mpv
+    mpv slack
 
     # browsers
     firefox google-chrome chromium

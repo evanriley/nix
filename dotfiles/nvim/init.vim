@@ -209,6 +209,8 @@ Plug 'moll/vim-node'				" Node tools
 " Clojure
 Plug 'eraserhd/parinfer-rust', {'do':
         \  'cargo build --release'}		" Makes using lisp easier
+Plug 'guns/vim-sexp', {'for': 'clojure'} " Helpful tool for S-expressions
+Plug 'liquidz/vim-iced', {'for': 'clojure'} " Clojure interactive development environment
 
 " Plug 'tpope/vim-fireplace', {'for': 'clojure'}
 
