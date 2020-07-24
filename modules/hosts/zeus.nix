@@ -2,7 +2,7 @@
 
 { 
   imports = [
-    ../home
+    ../zeus
   ];
 
   boot = {
