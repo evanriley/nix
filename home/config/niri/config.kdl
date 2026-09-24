@@ -20,6 +20,9 @@ input {
     workspace-auto-back-and-forth
 }
 cursor { xcursor-size 24; }
+output "DP-2" {
+    variable-refresh-rate on-demand=true
+}
 layout {
     gaps 6
     center-focused-column "never"
@@ -64,6 +67,12 @@ window-rule {
     match app-id="^steam_app_default$" title="(?i)^Battle\\.net"
     match app-id="(?i)(faugus|battle\\.net)"
     open-on-workspace "game"
+}
+window-rule {
+    match app-id="^steam_app_[0-9]+$"
+    match app-id="^steam_app_default$"
+    match app-id="^gamescope$"
+    variable-refresh-rate true
 }
 window-rule {
     match title="^Picture-in-Picture$"

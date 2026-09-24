@@ -17,5 +17,12 @@ in
       users.users.${user.name}.extraGroups = [ "gamemode" ];
 
       environment.systemPackages = [ pkgs.faugus-launcher ];
+
+      boot.kernelModules = [ "ntsync" ];
+      services.udev.extraRules = ''
+        KERNEL=="ntsync", MODE="0666"
+      '';
+
+      boot.kernel.sysctl."kernel.split_lock_mitigate" = 0;
     };
 }
