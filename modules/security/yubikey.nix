@@ -17,7 +17,7 @@
       ];
 
       age.secrets.u2f-mappings = {
-        file = inputs.self + "/secrets/u2f-mappings.age";
+        file = inputs.self + "/secrets/${config.networking.hostName}/u2f-mappings.age";
         mode = "0444";
       };
 

@@ -238,8 +238,10 @@ sudo cat /root/migration-system/etc/ssh/ssh_host_ed25519_key.pub
 ### 4.3 Fill in the recipients
 
 Edit `~/nix/secrets/secrets.nix`. Replace the placeholders with the two
-`age1yubikey1…` recipients, the paper `age1…` public key and the host
-`ssh-ed25519 …` line. Only public keys go in this file.
+`age1yubikey1…` recipients, the paper `age1…` public key and the
+`hosts.cinderace` `ssh-ed25519 …` line. Only public keys go in this file.
+Secrets bound to one machine live in `secrets/<hostname>/`; the user
+password and the ListenBrainz token are shared by all hosts.
 
 ### 4.4 Encrypt each secret
 
@@ -250,22 +252,22 @@ before this phase; remove them first. Do this from `~/nix/secrets`:
 
 ```bash
 cd ~/nix/secrets
-rm -f -- *.age
+rm -f -- *.age cinderace/*.age
 enc() { EDITOR="cp -- $2" agenix -e "$1"; }
 ```
 
 | Secret file | Source | How |
 | --- | --- | --- |
 | `evan-password.age` | Your login password as a yescrypt hash | See below |
-| `u2f-mappings.age` | `/etc/security/yubikey-u2f` (pam-u2f registrations) | `sudo cat /etc/security/yubikey-u2f > /tmp/u2f; enc u2f-mappings.age /tmp/u2f; shred -u /tmp/u2f` |
-| `borg-passphrase.age` | `~/.local/share/borgmatic-secrets/repository-passphrase` | `enc borg-passphrase.age <that path>` |
-| `borg-ssh-key.age` | `~/.local/share/borgmatic-secrets/id_ed25519-borgbase` | `enc borg-ssh-key.age <that path>` |
-| `syncthing-cert.age` | `~/.local/state/syncthing/cert.pem` | `enc …` (keeps the device ID) |
-| `syncthing-key.age` | `~/.local/state/syncthing/key.pem` | `enc …` |
+| `cinderace/u2f-mappings.age` | `/etc/security/yubikey-u2f` (pam-u2f registrations) | `sudo cat /etc/security/yubikey-u2f > /tmp/u2f; enc cinderace/u2f-mappings.age /tmp/u2f; shred -u /tmp/u2f` |
+| `cinderace/borg-passphrase.age` | `~/.local/share/borgmatic-secrets/repository-passphrase` | `enc cinderace/borg-passphrase.age <that path>` |
+| `cinderace/borg-ssh-key.age` | `~/.local/share/borgmatic-secrets/id_ed25519-borgbase` | `enc cinderace/borg-ssh-key.age <that path>` |
+| `cinderace/syncthing-cert.age` | `~/.local/state/syncthing/cert.pem` | `enc …` (keeps the device ID) |
+| `cinderace/syncthing-key.age` | `~/.local/state/syncthing/key.pem` | `enc …` |
 | `listenbrainz-token.age` | `~/.config/listenbrainz-mpd/token` | `enc …` |
-| `lidarr.env.age` | `ApiKey` from `~/.local/share/media-stack/lidarr/config.xml` | See below |
-| `slskd.env.age` | Credentials in `~/.local/share/media-stack/slskd/slskd.yml` | See below |
-| `soularr-config.age` | `~/.local/share/media-stack/soularr/config.ini`, edited | See below |
+| `cinderace/lidarr.env.age` | `ApiKey` from `~/.local/share/media-stack/lidarr/config.xml` | See below |
+| `cinderace/slskd.env.age` | Credentials in `~/.local/share/media-stack/slskd/slskd.yml` | See below |
+| `cinderace/soularr-config.age` | `~/.local/share/media-stack/soularr/config.ini`, edited | See below |
 
 **Password hash.** Use the **same password as now** so the restored GNOME
 keyring still unlocks at login:
@@ -301,7 +303,7 @@ then `shred -u` it.
 
 ```bash
 cd ~/nix/secrets
-for f in *.age; do
+for f in *.age cinderace/*.age; do
   agenix -d "$f" -i ~/.config/age/yubikeys.txt >/dev/null \
     && echo "ok $f" || echo "FAIL $f"
 done

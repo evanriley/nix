@@ -8,11 +8,10 @@
   "height": 30,
   "spacing": 8,
   "modules-left": [
-    "sway/workspaces",
-    "sway/mode"
+    "niri/workspaces"
   ],
   "modules-center": [
-    "sway/window"
+    "niri/window"
   ],
   "modules-right": [
     "cpu",
@@ -24,24 +23,12 @@
     "clock",
     "custom/notifications"
   ],
-  "sway/workspaces": {
-    "disable-scroll": true,
-    "all-outputs": false,
+  "niri/workspaces": {
     "format": "{name}",
-    "persistent-workspaces": {
-      "1:web": [],
-      "2:social": [],
-      "3:game": [],
-      "4:misc": [],
-      "5:system": [],
-      "6:extra": []
-    }
+    "all-outputs": false
   },
-  "sway/window": {
+  "niri/window": {
     "max-length": 55
-  },
-  "sway/mode": {
-    "format": "{}"
   },
   "cpu": {
     "format": "CPU {usage}%",

@@ -7,13 +7,13 @@ verbose = false
 
 [[triggers]]
 event = "HeadsetPowerOn"
-script = "/home/evan/.config/scripts/scapectl-audio scape"
+script = "/home/evan/.config/scapectl/switch-audio scape"
 enabled = true
 cooldown = 5
 
 [[triggers]]
 event = "HeadsetPowerOff"
-script = "/home/evan/.config/scripts/scapectl-audio dx5"
+script = "/home/evan/.config/scapectl/switch-audio dx5"
 enabled = true
 cooldown = 5
 

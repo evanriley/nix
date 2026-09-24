@@ -9,11 +9,11 @@ in
     {
       age.secrets = {
         syncthing-cert = {
-          file = inputs.self + "/secrets/syncthing-cert.age";
+          file = inputs.self + "/secrets/${config.networking.hostName}/syncthing-cert.age";
           owner = user.name;
         };
         syncthing-key = {
-          file = inputs.self + "/secrets/syncthing-key.age";
+          file = inputs.self + "/secrets/${config.networking.hostName}/syncthing-key.age";
           owner = user.name;
         };
       };
@@ -31,6 +31,7 @@ in
         overrideFolders = true;
         settings = {
           devices = {
+            cinderace.id = "FBEDWXO-5RKRXQM-X7UBGPV-K4CBHTF-W7T7PM4-PZF3P57-RJAR4CX-UUAASAB";
             ninetales.id = "AQYX6BX-U36AVLK-S7H52BJ-QR4QBFG-TGF6YVC-TAQCTN4-AL6D66X-DPE7XQZ";
             iPad.id = "DXC5NZS-75FMHF2-67UFBCN-6DXVDTW-WUBPDGC-MQHVY4Z-WSEAKNR-WAQVNAP";
             phone = {
@@ -42,6 +43,7 @@ in
             label = "Cloud";
             path = "${home}/sync";
             devices = [
+              "cinderace"
               "ninetales"
               "iPad"
               "phone"

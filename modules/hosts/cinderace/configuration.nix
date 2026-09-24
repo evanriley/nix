@@ -27,6 +27,7 @@ in
       shell
       gaming
       media
+      music
       backup
       syncthing
       vm
@@ -40,15 +41,23 @@ in
       appid = "pam://cinderance";
     };
 
-    home-manager.users.${user}.imports = with homeManager; [
-      base
-      dotfiles
-      shell
-      kakoune
-      session
-      apps
-      music
-    ];
+    home-manager.users.${user} = {
+      imports = with homeManager; [
+        base
+        dotfiles
+        shell
+        kakoune
+        session
+        apps
+        music
+      ];
+
+      services.mpd.musicDirectory = "/mnt/Media/Music";
+      # watch-media browses /mnt/Media.
+      dotfiles.config = [ "scripts" ];
+      # Existing profile restored from the Arch home.
+      programs.firefox.profiles.default.path = "b437d468.default-release";
+    };
 
     system.stateVersion = "26.05";
   };

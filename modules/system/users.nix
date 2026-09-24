@@ -23,6 +23,6 @@ in
         hashedPasswordFile = config.age.secrets.user-password.path;
       };
 
-      age.secrets.user-password.file = inputs.self + "/secrets/evan-password.age";
+      age.secrets.user-password.file = inputs.self + "/secrets/${user.name}-password.age";
     };
 }

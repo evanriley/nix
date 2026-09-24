@@ -1,12 +1,12 @@
 { config, inputs, ... }:
 let
   inherit (config.meta) user;
-  secret = name: inputs.self + "/secrets/${name}.age";
 in
 {
   flake.modules.nixos.media =
     { config, pkgs, ... }:
     let
+      secret = name: inputs.self + "/secrets/${config.networking.hostName}/${name}.age";
       listenbrainzRecommendations =
         pkgs.runCommand "listenbrainz-recommendations"
           {
@@ -26,10 +26,6 @@ in
         lidarr-env.file = secret "lidarr.env";
         slskd-env.file = secret "slskd.env";
         soularr-config.file = secret "soularr-config";
-        listenbrainz-token = {
-          file = secret "listenbrainz-token";
-          owner = user.name;
-        };
       };
 
       services.lidarr = {
@@ -75,7 +71,7 @@ in
           volumes = [
             "/var/lib/soularr:/data"
             "${config.age.secrets.soularr-config.path}:/data/config.ini:ro"
-            "/mnt/Media/Downloads/slskd/complete:/downloads"
+            "/data/Downloads/slskd/complete:/downloads"
           ];
           # soularr-config points at Lidarr and slskd on 127.0.0.1.
           extraOptions = [ "--network=host" ];
@@ -86,7 +82,7 @@ in
           "lidarr.service"
           "slskd.service"
         ];
-        unitConfig.RequiresMountsFor = [ "/mnt/Media" ];
+        unitConfig.RequiresMountsFor = [ "/data" ];
       };
       systemd.tmpfiles.rules = [ "d /var/lib/soularr 0750 root root -" ];
 

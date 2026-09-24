@@ -11,6 +11,17 @@
   flake.modules.homeManager.shell =
     { pkgs, ... }:
     {
+      dotfiles.config = [
+        "btop"
+        "direnv"
+        "fastfetch"
+        "fish"
+        "git"
+        "nvim"
+        "tmux"
+      ];
+      dotfiles.bin = [ "git-ssh-keygen" ];
+
       home.packages = with pkgs; [
         bat
         btop

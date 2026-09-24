@@ -1,57 +1,45 @@
+{ inputs, config, ... }:
+let
+  inherit (config.meta) user;
+in
 {
+  flake.modules.nixos.music = {
+    age.secrets.listenbrainz-token = {
+      file = inputs.self + "/secrets/listenbrainz-token.age";
+      owner = user.name;
+    };
+  };
+
   flake.modules.homeManager.music =
     { config, pkgs, ... }:
-    let
-      home = config.home.homeDirectory;
-    in
     {
-      home.packages = [
-        pkgs.mpd
-        pkgs.rmpc
-      ];
+      dotfiles.config = [ "rmpc" ];
+      home.packages = [ pkgs.rmpc ];
 
-      systemd.user.services = {
-        mpd = {
-          Unit = {
-            Description = "Music Player Daemon";
-            After = [ "network.target" ];
-          };
-          Service = {
-            ExecStart = "${pkgs.mpd}/bin/mpd --no-daemon ${home}/.config/mpd/mpd.conf";
-            Restart = "on-failure";
-          };
-          Install.WantedBy = [ "default.target" ];
-        };
+      services.mpd = {
+        enable = true;
+        network.listenAddress = "127.0.0.1";
+        playlistDirectory = "${config.services.mpd.dataDir}/playlists";
+        extraConfig = ''
+          auto_update "yes"
+          audio_output {
+            type "pulse"
+            name "PipeWire"
+            mixer_type "software"
+          }
+        '';
+      };
 
-        mpd-mpris = {
-          Unit = {
-            Description = "MPRIS bridge for MPD";
-            Requires = [ "mpd.service" ];
-            After = [ "mpd.service" ];
-          };
-          Service = {
-            Type = "dbus";
-            BusName = "org.mpris.MediaPlayer2.mpd";
-            ExecStart = "${pkgs.mpd-mpris}/bin/mpd-mpris -host 127.0.0.1 -no-instance";
-            Restart = "on-failure";
-          };
-          Install.WantedBy = [ "default.target" ];
-        };
+      services.mpd-mpris = {
+        enable = true;
+        mpd.useLocal = true;
+      };
 
-        listenbrainz-mpd = {
-          Unit = {
-            Description = "ListenBrainz scrobbler for MPD";
-            Requires = [ "mpd.service" ];
-            After = [ "mpd.service" ];
-            ConditionPathExists = "/run/agenix/listenbrainz-token";
-          };
-          Service = {
-            Type = "notify";
-            ExecStart = "${pkgs.listenbrainz-mpd}/bin/listenbrainz-mpd";
-            Restart = "on-failure";
-            RestartSec = 5;
-          };
-          Install.WantedBy = [ "default.target" ];
+      services.listenbrainz-mpd = {
+        enable = true;
+        settings = {
+          submission.token_file = "/run/agenix/listenbrainz-token";
+          mpd.address = "127.0.0.1:6600";
         };
       };
     };

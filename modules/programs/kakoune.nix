@@ -175,6 +175,7 @@
   flake.modules.homeManager.kakoune =
     { pkgs, ... }:
     {
+      dotfiles.config = [ "kak" ];
       home.packages = [ inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.kakoune ];
     };
 }

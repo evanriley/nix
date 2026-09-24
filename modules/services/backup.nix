@@ -9,8 +9,8 @@ in
     { config, lib, ... }:
     {
       age.secrets = {
-        borg-passphrase.file = inputs.self + "/secrets/borg-passphrase.age";
-        borg-ssh-key.file = inputs.self + "/secrets/borg-ssh-key.age";
+        borg-passphrase.file = inputs.self + "/secrets/${config.networking.hostName}/borg-passphrase.age";
+        borg-ssh-key.file = inputs.self + "/secrets/${config.networking.hostName}/borg-ssh-key.age";
       };
 
       programs.ssh.knownHosts.borgbase = {

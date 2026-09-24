@@ -3,25 +3,41 @@ let
   yubikey-primary = "age1yubikey1-REPLACE-20477902";
   yubikey-backup = "age1yubikey1-REPLACE-20477782";
   paper = "age1-REPLACE-paper";
-
-  cinderace = "ssh-ed25519 REPLACE root@cinderace";
-
   admins = [
     yubikey-primary
     yubikey-backup
     paper
   ];
-  cinderaceSecret.publicKeys = admins ++ [ cinderace ];
+
+  # /etc/ssh/ssh_host_ed25519_key.pub of each host.
+  hosts = {
+    cinderace = "ssh-ed25519 REPLACE root@cinderace";
+  };
+
+  shared = names: {
+    ${names} = {
+      publicKeys = admins ++ builtins.attrValues hosts;
+    };
+  };
+
+  hostSecrets =
+    host: names:
+    builtins.listToAttrs (
+      map (name: {
+        name = "${host}/${name}";
+        value.publicKeys = admins ++ [ hosts.${host} ];
+      }) names
+    );
 in
-{
-  "evan-password.age" = cinderaceSecret;
-  "u2f-mappings.age" = cinderaceSecret;
-  "borg-passphrase.age" = cinderaceSecret;
-  "borg-ssh-key.age" = cinderaceSecret;
-  "syncthing-cert.age" = cinderaceSecret;
-  "syncthing-key.age" = cinderaceSecret;
-  "listenbrainz-token.age" = cinderaceSecret;
-  "lidarr.env.age" = cinderaceSecret;
-  "slskd.env.age" = cinderaceSecret;
-  "soularr-config.age" = cinderaceSecret;
-}
+shared "evan-password.age"
+// shared "listenbrainz-token.age"
+// hostSecrets "cinderace" [
+  "u2f-mappings.age"
+  "borg-passphrase.age"
+  "borg-ssh-key.age"
+  "syncthing-cert.age"
+  "syncthing-key.age"
+  "lidarr.env.age"
+  "slskd.env.age"
+  "soularr-config.age"
+]
