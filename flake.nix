@@ -28,6 +28,14 @@
       url = "github:nix-community/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    monobiome = {
+      url = "github:endofunctorio/monobiome/2f2d196a71ec885e836a9c1cdd04bfd01b2fb0f4";
+      flake = false;
+    };
+    nvf = {
+      url = "github:notashelf/nvf";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     lanzaboote = {
       url = "github:nix-community/lanzaboote/v1.1.0";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -15,7 +15,6 @@
         "btop"
         "fastfetch"
         "fish"
-        "nvim"
         "tmux"
       ];
 
@@ -31,7 +30,6 @@
         lazygit
         man-pages
         mise
-        neovim
         ripgrep
         rsync
         tmux

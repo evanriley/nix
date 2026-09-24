@@ -50,6 +50,7 @@ in
       shell
       git
       kakoune
+      neovim
       session
       theme
       apps
