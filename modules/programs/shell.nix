@@ -13,25 +13,20 @@
     {
       dotfiles.config = [
         "btop"
-        "direnv"
         "fastfetch"
         "fish"
-        "git"
         "nvim"
         "tmux"
       ];
-      dotfiles.bin = [ "git-ssh-keygen" ];
 
       home.packages = with pkgs; [
         bat
         btop
-        delta
         eza
         fastfetch
         fd
         fzf
         gh
-        git
         jq
         lazygit
         man-pages

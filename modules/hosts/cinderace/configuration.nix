@@ -48,6 +48,7 @@ in
       base
       dotfiles
       shell
+      git
       kakoune
       session
       theme
