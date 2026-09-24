@@ -1,0 +1,121 @@
+#!/bin/sh
+set -eu
+
+media_root="/mnt/Media"
+video_extensions='mkv mp4 m4v avi webm'
+
+choose() {
+    fuzzel --dmenu --prompt="$1: " --minimal-lines
+}
+
+list_dirs() {
+    dir_root="$1"
+
+    (
+        cd "$dir_root"
+        find . -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null |
+            sed 's#^\./##' |
+            sort
+    )
+}
+
+list_videos() {
+    video_root="$1"
+
+    set --
+    for extension in $video_extensions; do
+        [ "$#" -eq 0 ] || set -- "$@" -o
+        set -- "$@" -iname "*.$extension"
+    done
+
+    (
+        cd "$video_root"
+        find . -type f \( "$@" \) -print 2>/dev/null |
+            sed 's#^\./##' |
+            sort
+    )
+}
+
+play() {
+    [ -n "$1" ] || exit 0
+
+    mpv "$1" >/dev/null 2>&1 &
+}
+
+play_episode() {
+    show="$1"
+
+    season="$(list_dirs "$media_root/TV/$show" | choose "$show")"
+    [ -n "$season" ] || exit 0
+
+    episode="$(list_videos "$media_root/TV/$show/$season" | choose "$season")"
+    [ -n "$episode" ] || exit 0
+
+    play "$media_root/TV/$show/$season/$episode"
+}
+
+play_movie() {
+    movie="$1"
+
+    movie_file="$(list_videos "$media_root/Movies/$movie" | choose "$movie")"
+    [ -n "$movie_file" ] || exit 0
+
+    play "$media_root/Movies/$movie/$movie_file"
+}
+
+watch_tv() {
+    selected_show="$(list_dirs "$media_root/TV" | choose 'Show')"
+    [ -n "$selected_show" ] || exit 0
+
+    play_episode "$selected_show"
+}
+
+watch_movies() {
+    selected_movie="$(list_dirs "$media_root/Movies" | choose 'Movie')"
+    [ -n "$selected_movie" ] || exit 0
+
+    play_movie "$selected_movie"
+}
+
+watch_all() {
+    selection="$(
+        {
+            list_dirs "$media_root/TV" | sed 's#^#TV/#'
+            list_dirs "$media_root/Movies" | sed 's#^#Movies/#'
+        } | choose 'Watch'
+    )"
+
+    case "$selection" in
+        TV/*)
+            play_episode "${selection#TV/}"
+            ;;
+
+        Movies/*)
+            play_movie "${selection#Movies/}"
+            ;;
+
+        *)
+            exit 0
+            ;;
+    esac
+}
+
+kind="$(
+    printf 'TV\nMovies\nAll\n' |
+        choose 'Watch'
+)"
+
+case "$kind" in
+    TV)
+        watch_tv
+        ;;
+    Movies)
+        watch_movies
+        ;;
+    All)
+        watch_all
+        ;;
+    *)
+        exit 0
+        ;;
+esac

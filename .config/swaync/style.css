@@ -1,0 +1,272 @@
+@import url("file:///home/evan/.local/state/darkman/palette.css");
+
+* {
+  all: unset;
+  font-size: 14px;
+  font-family: "Noto Sans", "Symbols Nerd Font";
+  transition: 200ms;
+}
+
+.floating-notifications.background .notification-row .notification-background {
+  box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.8), inset 0 0 0 1px @background_alt;
+  border-radius: 12.6px;
+  margin: 18px;
+  background-color: @background;
+  color: @foreground;
+  padding: 0;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification {
+  padding: 7px;
+  border-radius: 12.6px;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification.critical {
+  box-shadow: inset 0 0 7px 0 @error;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification .notification-content {
+  margin: 7px;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification .notification-content .summary {
+  color: @foreground;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification .notification-content .time {
+  color: @success;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification .notification-content .body {
+  color: @foreground;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification > *:last-child > * {
+  min-height: 3.4em;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification > *:last-child > * .notification-action {
+  border-radius: 7px;
+  color: @foreground;
+  background-color: @background_alt;
+  box-shadow: inset 0 0 0 1px @border;
+  margin: 7px;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification > *:last-child > * .notification-action:hover {
+  box-shadow: inset 0 0 0 1px @border;
+  background-color: @background_alt;
+  color: @foreground;
+}
+
+.floating-notifications.background .notification-row .notification-background .notification > *:last-child > * .notification-action:active {
+  box-shadow: inset 0 0 0 1px @border;
+  background-color: @primary;
+  color: @foreground;
+}
+
+.floating-notifications.background .notification-row .notification-background .close-button {
+  margin: 7px;
+  padding: 2px;
+  border-radius: 6.3px;
+  color: @background;
+  background-color: @error;
+}
+
+.floating-notifications.background .notification-row .notification-background .close-button:hover {
+  background-color: @foreground;
+  color: @background;
+}
+
+.floating-notifications.background .notification-row .notification-background .close-button:active {
+  background-color: @error;
+  color: @background;
+}
+
+.control-center {
+  box-shadow: 0 0 8px 0 rgba(0, 0, 0, 0.8), inset 0 0 0 1px @background_alt;
+  border-radius: 12.6px;
+  margin: 18px;
+  background-color: @background;
+  color: @foreground;
+  padding: 14px;
+}
+
+.control-center .widget-title {
+  color: @foreground;
+  font-size: 1.3em;
+}
+
+.control-center .widget-title button {
+  border-radius: 7px;
+  color: @foreground;
+  background-color: @background_alt;
+  box-shadow: inset 0 0 0 1px @border;
+  padding: 8px;
+}
+
+.control-center .widget-title button:hover {
+  box-shadow: inset 0 0 0 1px @border;
+  background-color: @accent;
+  color: @foreground;
+}
+
+.control-center .widget-title button:active {
+  box-shadow: inset 0 0 0 1px @border;
+  background-color: @primary;
+  color: @background;
+}
+
+.control-center .notification-row .notification-background {
+  border-radius: 7px;
+  color: @foreground;
+  background-color: @background_alt;
+  box-shadow: inset 0 0 0 1px @border;
+  margin-top: 14px;
+}
+
+.control-center .notification-row .notification-background .notification {
+  padding: 7px;
+  border-radius: 7px;
+}
+
+.control-center .notification-row .notification-background .notification.critical {
+  box-shadow: inset 0 0 7px 0 @error;
+}
+
+.control-center .notification-row .notification-background .notification .notification-content {
+  margin: 7px;
+}
+
+.control-center .notification-row .notification-background .notification .notification-content .summary {
+  color: @foreground;
+}
+
+.control-center .notification-row .notification-background .notification .notification-content .time {
+  color: @success;
+}
+
+.control-center .notification-row .notification-background .notification .notification-content .body {
+  color: @foreground;
+}
+
+.control-center .notification-row .notification-background .notification > *:last-child > * {
+  min-height: 3.4em;
+}
+
+.control-center .notification-row .notification-background .notification > *:last-child > * .notification-action {
+  border-radius: 7px;
+  color: @foreground;
+  background-color: @background_alt;
+  box-shadow: inset 0 0 0 1px @border;
+  margin: 7px;
+}
+
+.control-center .notification-row .notification-background .notification > *:last-child > * .notification-action:hover {
+  box-shadow: inset 0 0 0 1px @border;
+  background-color: @background_alt;
+  color: @foreground;
+}
+
+.control-center .notification-row .notification-background .notification > *:last-child > * .notification-action:active {
+  box-shadow: inset 0 0 0 1px @border;
+  background-color: @primary;
+  color: @foreground;
+}
+
+.control-center .notification-row .notification-background .close-button {
+  margin: 7px;
+  padding: 2px;
+  border-radius: 6.3px;
+  color: @background;
+  background-color: @foreground;
+}
+
+.control-center .notification-row .notification-background .close-button:hover {
+  background-color: @error;
+  color: @background;
+}
+
+.control-center .notification-row .notification-background .close-button:active {
+  background-color: @error;
+  color: @background;
+}
+
+.control-center .notification-row .notification-background:hover {
+  box-shadow: inset 0 0 0 1px @border;
+  background-color: @primary;
+  color: @foreground;
+}
+
+.control-center .notification-row .notification-background:active {
+  box-shadow: inset 0 0 0 1px @border;
+  background-color: @primary;
+  color: @foreground;
+}
+
+progressbar,
+progress,
+trough {
+  border-radius: 12.6px;
+}
+
+progressbar {
+  box-shadow: inset 0 0 0 1px @border;
+}
+
+.notification.critical progress {
+  background-color: @error;
+}
+
+.notification.low progress,
+.notification.normal progress {
+  background-color: @primary;
+}
+
+trough {
+  background-color: @background_alt;
+}
+
+.control-center trough {
+  background-color: @border;
+}
+
+.control-center-dnd {
+  margin-top: 5px;
+  border-radius: 8px;
+  background: @background_alt;
+  border: 1px solid @border;
+  box-shadow: none;
+}
+
+.control-center-dnd:checked {
+  background: @background_alt;
+}
+
+.control-center-dnd slider {
+  background: @border;
+  border-radius: 8px;
+}
+
+.widget-dnd {
+  margin: 0px;
+  font-size: 1.1rem;
+}
+
+.widget-dnd > switch {
+  font-size: initial;
+  border-radius: 8px;
+  background: @background_alt;
+  border: 1px solid @border;
+  box-shadow: none;
+}
+
+.widget-dnd > switch:checked {
+  background: @background_alt;
+}
+
+.widget-dnd > switch slider {
+  background: @border;
+  border-radius: 8px;
+  border: 1px solid @warning;
+}

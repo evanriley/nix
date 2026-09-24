@@ -1,0 +1,527 @@
+#!/bin/sh
+
+set -eu
+
+mode=${1:?expected light or dark}
+case ${XDG_CURRENT_DESKTOP:-} in
+*niri*|*sway*) ;;
+*)
+    printf 'darkman: ignoring %s transition outside Niri or Sway\n' "$mode" >&2
+    exit 0
+    ;;
+esac
+state_root=${XDG_STATE_HOME:-$HOME/.local/state}/darkman
+mkdir -p "$state_root"
+
+case "$mode" in
+dark)
+    bg=262626       # alpine l27: oklch(27% 0 0)
+    bg_alt=333333   # alpine l32: oklch(32% 0 0)
+    selection=404040 # alpine l37: oklch(37% 0 0)
+    border=4d4d4d   # alpine l42: oklch(42% 0 0)
+    muted=777777    # alpine l57: oklch(57% 0 0)
+    fg_dim=b4b4b4   # alpine l77: oklch(77% 0 0)
+    fg=c4c4c4       # alpine l82: oklch(82% 0 0)
+    fg_bright=d4d4d4 # alpine l87: oklch(87% 0 0)
+    fg_max=e4e4e4   # alpine l92: oklch(92% 0 0)
+    red=e15344      # badlands l63: oklch(63% .1799 29)
+    red_bright=fa8979 # badlands l75: oklch(75% .1402 29)
+    orange=c38141   # chaparral l66: oklch(66% .1141 62.5)
+    orange_bright=dfa36d # chaparral l76: oklch(76% .0996 62.5)
+    yellow=9e9858   # savanna l67: oklch(67% .0856 104)
+    yellow_bright=bdb778 # savanna l77: oklch(77% .0830 104)
+    green=64a46e    # grassland l66: oklch(66% .1025 148)
+    green_bright=87c28f # grassland l76: oklch(76% .0946 148)
+    blue=5e8de4     # tundra l65: oklch(65% .1406 262)
+    blue_bright=8ab1f8 # tundra l76: oklch(76% .1118 262)
+    color_scheme=prefer-dark
+    gtk_dark=true
+    foot_signal=USR1
+    ;;
+light)
+    bg=f5f5f5       # alpine l97: oklch(97% 0 0)
+    bg_alt=e4e4e4   # alpine l92: oklch(92% 0 0)
+    selection=d4d4d4 # alpine l87: oklch(87% 0 0)
+    border=c4c4c4   # alpine l82: oklch(82% 0 0)
+    muted=959595    # alpine l67: oklch(67% 0 0)
+    fg_dim=5b5b5b   # alpine l47: oklch(47% 0 0)
+    fg=4d4d4d       # alpine l42: oklch(42% 0 0)
+    fg_bright=404040 # alpine l37: oklch(37% 0 0)
+    fg_max=333333   # alpine l32: oklch(32% 0 0)
+    red=db4b3d      # badlands l61: oklch(61% .1826 29)
+    red_bright=b62920 # badlands l51: oklch(51% .1789 29)
+    orange=a4672a   # chaparral l57: oklch(57% .1082 62.5)
+    orange_bright=83501b # chaparral l48: oklch(48% .0948 62.5)
+    yellow=7f7a42   # savanna l57: oklch(57% .0770 104)
+    yellow_bright=615d2f # savanna l47: oklch(47% .0651 104)
+    green=4e8757    # grassland l57: oklch(57% .0949 148)
+    green_bright=396740 # grassland l47: oklch(47% .0808 148)
+    blue=4d7ad1     # tundra l59: oklch(59% .1424 262)
+    blue_bright=365da9 # tundra l49: oklch(49% .1290 262)
+    color_scheme=default
+    gtk_dark=false
+    foot_signal=USR2
+    ;;
+*)
+    printf 'darkman: unsupported mode: %s\n' "$mode" >&2
+    exit 2
+    ;;
+esac
+
+cat >"$state_root/palette.css.new" <<EOF
+@define-color background #$bg;
+@define-color background_alt #$bg_alt;
+@define-color background_soft #$selection;
+@define-color surface #$border;
+@define-color selection #$selection;
+@define-color border #$border;
+@define-color muted #$muted;
+@define-color foreground #$fg;
+@define-color foreground_bright #$fg_max;
+@define-color primary #$blue;
+@define-color accent #$orange;
+@define-color success #$green;
+@define-color warning #$yellow;
+@define-color error #$red;
+EOF
+mv -f "$state_root/palette.css.new" "$state_root/palette.css"
+
+cat >"$state_root/foot.ini.new" <<EOF
+[main]
+initial-color-theme=$mode
+EOF
+mv -f "$state_root/foot.ini.new" "$state_root/foot.ini"
+
+cat >"$state_root/fuzzel.ini.new" <<EOF
+[colors]
+background=${bg}fa
+text=${fg_max}ff
+prompt=${yellow}ff
+placeholder=${muted}ff
+border=${blue}ff
+selection=${selection}ff
+selection-text=${fg_max}ff
+match=${red}ff
+selection-match=${orange}ff
+EOF
+mv -f "$state_root/fuzzel.ini.new" "$state_root/fuzzel.ini"
+
+cat >"$state_root/niri.kdl.new" <<EOF
+layout {
+    background-color "#$bg"
+    border {
+        active-color "#$blue"
+        inactive-color "#$border"
+        urgent-color "#$red"
+    }
+    tab-indicator {
+        active-color "#$blue"
+        inactive-color "#$border"
+        urgent-color "#$red"
+    }
+}
+overview { backdrop-color "#$bg_alt"; }
+window-rule {
+    match is-window-cast-target=true
+    focus-ring { on; width 3; active-color "#$red"; inactive-color "#$red"; }
+}
+EOF
+mv -f "$state_root/niri.kdl.new" "$state_root/niri.kdl"
+
+cat >"$state_root/sway.conf.new" <<EOF
+client.focused #$blue #$bg #$fg_max #$blue #$blue
+client.focused_inactive #$border #$bg #$fg_dim #$border #$border
+client.unfocused #$border #$bg #$fg_dim #$border #$border
+client.urgent #$red #$red #$bg #$red #$red
+output * bg #$bg solid_color
+EOF
+mv -f "$state_root/sway.conf.new" "$state_root/sway.conf"
+
+if [ -n "${SWAYSOCK:-}" ]; then
+    while IFS= read -r command; do
+        swaymsg "$command" >/dev/null 2>&1 || true
+    done <"$state_root/sway.conf"
+fi
+
+cat >"$state_root/swaylock.conf.new" <<EOF
+color=$bg
+image=$HOME/.config/darkman/lockscreen-$mode.png
+scaling=fill
+font=Berkeley Mono
+font-size=24
+indicator-radius=72
+indicator-thickness=8
+indicator-caps-lock
+show-failed-attempts
+inside-color=${bg}f2
+inside-clear-color=${bg_alt}f2
+inside-caps-lock-color=${bg_alt}f2
+inside-ver-color=${bg_alt}f2
+inside-wrong-color=${bg_alt}f2
+ring-color=$blue
+ring-clear-color=$green
+ring-caps-lock-color=$yellow
+ring-ver-color=$blue_bright
+ring-wrong-color=$red
+key-hl-color=$orange
+bs-hl-color=$red
+separator-color=00000000
+line-color=00000000
+text-color=$fg_max
+text-clear-color=$fg_max
+text-caps-lock-color=$yellow
+text-ver-color=$blue_bright
+text-wrong-color=$red
+layout-bg-color=${bg_alt}f2
+layout-border-color=$border
+layout-text-color=$fg_max
+EOF
+mv -f "$state_root/swaylock.conf.new" "$state_root/swaylock.conf"
+
+cat >"$state_root/tmux.conf.new" <<EOF
+set -g @theme-bg '#$bg'
+set -g @theme-bg-alt '#$bg_alt'
+set -g @theme-selection '#$selection'
+set -g @theme-border '#$border'
+set -g @theme-muted '#$muted'
+set -g @theme-fg '#$fg_max'
+set -g @theme-blue '#$blue'
+set -g @theme-red '#$red'
+EOF
+mv -f "$state_root/tmux.conf.new" "$state_root/tmux.conf"
+
+cat >"$state_root/fzf.fish.new" <<EOF
+set -gx FZF_DEFAULT_OPTS \
+    '--color=fg:#$fg_max,bg:#$bg,hl:#$red' \
+    '--color=fg+:#$fg_max,bg+:#$selection,hl+:#$red_bright' \
+    '--color=info:#$yellow,prompt:#$green,pointer:#$blue' \
+    '--color=marker:#$green,spinner:#$yellow,header:#$blue'
+EOF
+mv -f "$state_root/fzf.fish.new" "$state_root/fzf.fish"
+
+cat >"$state_root/delta.gitconfig.new" <<EOF
+[delta]
+    dark = $(test "$mode" = dark && printf true || printf false)
+    light = $(test "$mode" = light && printf true || printf false)
+    syntax-theme = none
+    file-style = bold "#$blue"
+    file-decoration-style = "#$border" ul
+    hunk-header-style = file line-number syntax
+    hunk-header-file-style = "#$fg"
+    hunk-header-line-number-style = "#$orange"
+    hunk-header-decoration-style = "#$border" box
+    commit-style = raw
+    commit-decoration-style = "#$border" box
+    zero-style = "#$fg_max"
+    plus-style = "#$green"
+    plus-emph-style = "#$green_bright" bold
+    minus-style = "#$red"
+    minus-emph-style = "#$red_bright" bold
+    line-numbers = true
+    line-numbers-zero-style = "#$muted"
+    line-numbers-minus-style = "#$red"
+    line-numbers-plus-style = "#$green"
+    whitespace-error-style = "#$bg" "#$red"
+    blame-palette = "#$bg #$bg_alt #$selection #$border"
+EOF
+mv -f "$state_root/delta.gitconfig.new" "$state_root/delta.gitconfig"
+
+cat >"$state_root/mpv.conf.new" <<EOF
+osd-color='#$fg_max'
+osd-border-color='#$bg'
+osd-shadow-color='#$bg'
+EOF
+mv -f "$state_root/mpv.conf.new" "$state_root/mpv.conf"
+
+cat >"$state_root/qutebrowser.conf.new" <<EOF
+mode=$mode
+bg=#$bg
+bg_alt=#$bg_alt
+bg_soft=#$selection
+selection=#$selection
+border=#$border
+muted=#$muted
+fg=#$fg_max
+fg_alt=#$fg_bright
+blue=#$blue
+green=#$green
+green_alt=#$green_bright
+magenta=#$orange
+yellow=#$yellow
+yellow_bright=#$yellow_bright
+red=#$red
+rust=#$orange
+EOF
+mv -f "$state_root/qutebrowser.conf.new" "$state_root/qutebrowser.conf"
+
+cat >"$state_root/zathurarc.new" <<EOF
+set default-bg "#$bg"
+set default-fg "#$fg_max"
+set statusbar-bg "#$bg_alt"
+set statusbar-fg "#$fg_max"
+set inputbar-bg "#$bg_alt"
+set inputbar-fg "#$fg_max"
+set completion-bg "#$bg"
+set completion-fg "#$fg_max"
+set completion-group-bg "#$bg_alt"
+set completion-group-fg "#$muted"
+set completion-highlight-bg "#$selection"
+set completion-highlight-fg "#$fg_max"
+set notification-bg "#$bg_alt"
+set notification-fg "#$fg_max"
+set notification-error-bg "#$bg_alt"
+set notification-error-fg "#$red"
+set notification-warning-bg "#$bg_alt"
+set notification-warning-fg "#$yellow"
+set index-bg "#$bg"
+set index-fg "#$fg_max"
+set index-active-bg "#$selection"
+set index-active-fg "#$fg_max"
+set highlight-color "#$selection"
+set highlight-active-color "#$yellow"
+set highlight-fg "#$fg_max"
+set render-loading-bg "#$bg"
+set render-loading-fg "#$fg_max"
+set signature-error-color "#$red"
+set signature-warning-color "#$yellow"
+set signature-success-color "#$green"
+set recolor $(test "$mode" = dark && printf true || printf false)
+set recolor-darkcolor "#$fg_max"
+set recolor-lightcolor "#$bg"
+set recolor-keephue true
+set recolor-adjust-lightness true
+set recolor-reverse-video true
+EOF
+mv -f "$state_root/zathurarc.new" "$state_root/zathurarc"
+
+cat >"$state_root/btop.theme.new" <<EOF
+theme[main_bg]="#$bg"
+theme[main_fg]="#$fg_max"
+theme[title]="#$blue"
+theme[hi_fg]="#$red_bright"
+theme[selected_bg]="#$selection"
+theme[selected_fg]="#$fg_max"
+theme[inactive_fg]="#$muted"
+theme[proc_misc]="#$blue_bright"
+theme[cpu_box]="#$border"
+theme[mem_box]="#$border"
+theme[net_box]="#$border"
+theme[proc_box]="#$border"
+theme[div_line]="#$border"
+theme[temp_start]="#$green"
+theme[temp_mid]="#$yellow"
+theme[temp_end]="#$red"
+theme[cpu_start]="#$green"
+theme[cpu_mid]="#$yellow"
+theme[cpu_end]="#$red"
+theme[free_start]="#$green"
+theme[free_mid]="#$blue"
+theme[free_end]="#$blue_bright"
+theme[cached_start]="#$fg_dim"
+theme[cached_mid]="#$orange"
+theme[cached_end]="#$orange_bright"
+theme[available_start]="#$green"
+theme[available_mid]="#$blue"
+theme[available_end]="#$blue_bright"
+theme[used_start]="#$green"
+theme[used_mid]="#$yellow"
+theme[used_end]="#$red"
+theme[download_start]="#$green"
+theme[download_mid]="#$blue"
+theme[download_end]="#$blue_bright"
+theme[upload_start]="#$orange"
+theme[upload_mid]="#$red"
+theme[upload_end]="#$red_bright"
+EOF
+mv -f "$state_root/btop.theme.new" "$state_root/btop.theme"
+
+cat >"$state_root/rmpc.ron.new" <<EOF
+#![enable(implicit_some)]
+#![enable(unwrap_newtypes)]
+#![enable(unwrap_variant_newtypes)]
+(
+    background_color: "#$bg",
+    header_background_color: "#$bg",
+    modal_background_color: "#$bg_alt",
+    text_color: "#$fg_max",
+    preview_label_style: (fg: "#$yellow"),
+    preview_metadata_group_style: (fg: "#$yellow", modifiers: "Bold"),
+    highlighted_item_style: (fg: "#$bg", bg: "#$blue", modifiers: "Bold"),
+    current_item_style: (fg: "#$bg", bg: "#$yellow", modifiers: "Bold"),
+    borders_style: (fg: "#$border"),
+    highlight_border_style: (fg: "#$blue"),
+    tab_bar: (
+        active_style: (fg: "#$bg", bg: "#$blue", modifiers: "Bold"),
+        inactive_style: (fg: "#$muted"),
+    ),
+    progress_bar: (
+        elapsed_style: (fg: "#$green"),
+        thumb_style: (fg: "#$blue_bright"),
+    ),
+)
+EOF
+mv -f "$state_root/rmpc.ron.new" "$state_root/rmpc.ron"
+
+cat >"$state_root/monobiome-alpine.kak.new" <<EOF
+set-face global value          rgb:$orange
+set-face global type           rgb:$yellow
+set-face global variable       rgb:$fg_max
+set-face global module         rgb:$blue_bright
+set-face global function       rgb:$blue
+set-face global string         rgb:$green
+set-face global keyword        rgb:$red+b
+set-face global operator       rgb:$fg
+set-face global attribute      rgb:$yellow_bright
+set-face global comment        rgb:$muted+i
+set-face global documentation  comment
+set-face global meta           rgb:$orange
+set-face global builtin        rgb:$blue_bright
+set-face global identifier     rgb:$fg_max
+set-face global bracket        rgb:$fg
+set-face global delimiter      rgb:$fg
+set-face global title          rgb:$blue+b
+set-face global header         rgb:$blue_bright+b
+set-face global mono           rgb:$green_bright
+set-face global block          rgb:$green_bright
+set-face global link           rgb:$blue+u
+set-face global bullet         rgb:$yellow
+set-face global list           rgb:$fg_max
+set-face global Default            rgb:$fg_max,rgb:$bg
+set-face global CursorLine         default,rgb:$bg_alt
+set-face global PrimarySelection   default,rgb:$selection+g
+set-face global SecondarySelection default,rgb:$bg_alt+g
+set-face global PrimaryCursor      rgb:$bg,rgb:$fg_max+fg
+set-face global SecondaryCursor    rgb:$bg,rgb:$muted+fg
+set-face global PrimaryCursorEol   rgb:$bg,rgb:$fg+fg
+set-face global SecondaryCursorEol rgb:$bg,rgb:$border+fg
+set-face global LineNumbers        rgb:$muted,rgb:$bg
+set-face global LineNumberCursor   rgb:$yellow,rgb:$bg_alt+b
+set-face global LineNumbersWrapped rgb:$border,rgb:$bg
+set-face global MenuForeground     rgb:$bg,rgb:$blue
+set-face global MenuBackground     rgb:$fg_max,rgb:$bg_alt
+set-face global MenuInfo           rgb:$muted+i
+set-face global Information        rgb:$fg_max,rgb:$bg_alt
+set-face global InlineInformation  rgb:$fg_max,rgb:$bg_alt
+set-face global Error              rgb:$bg,rgb:$red
+set-face global StatusLine         rgb:$fg_max,rgb:$bg_alt
+set-face global StatusLineMode     rgb:$bg,rgb:$yellow+b
+set-face global StatusLineInfo     rgb:$blue_bright
+set-face global StatusLineValue    rgb:$orange
+set-face global StatusCursor       rgb:$bg,rgb:$fg_max
+set-face global Prompt             rgb:$yellow,rgb:$bg_alt
+set-face global MatchingChar       rgb:$yellow_bright,rgb:$selection+b
+set-face global BufferPadding      rgb:$border,rgb:$bg
+set-face global Whitespace         rgb:$border+f
+set-face global WhitespaceIndent   rgb:$bg_alt+f
+set-face global WrapMarker         rgb:$border+f
+set-face global DiagnosticError        default,default,rgb:$red+c
+set-face global DiagnosticWarning      default,default,rgb:$yellow+c
+set-face global DiagnosticInfo         default,default,rgb:$blue+c
+set-face global DiagnosticHint         default,default,rgb:$muted+c
+set-face global InlayDiagnosticError   rgb:$red+d
+set-face global InlayDiagnosticWarning rgb:$yellow+d
+set-face global InlayDiagnosticInfo    rgb:$blue+d
+set-face global InlayDiagnosticHint    rgb:$muted+d
+set-face global LineFlagError          rgb:$red
+set-face global LineFlagWarning        rgb:$yellow
+set-face global LineFlagInfo           rgb:$blue
+set-face global LineFlagHint           rgb:$muted
+set-face global InlayHint              rgb:$muted+d
+set-face global InlayCodeLens          rgb:$muted+d
+set-face global Reference              default,rgb:$selection
+EOF
+mv -f "$state_root/monobiome-alpine.kak.new" "$state_root/monobiome-alpine.kak"
+
+printf '%s\n' "$mode" >"$state_root/mode.new"
+mv -f "$state_root/mode.new" "$state_root/mode"
+
+gsettings set org.gnome.desktop.interface color-scheme "$color_scheme" 2>/dev/null || true
+gsettings set org.gnome.desktop.interface gtk-theme Adwaita 2>/dev/null || true
+
+pkill -"$foot_signal" -x foot 2>/dev/null || true
+pkill -USR1 -x nvim 2>/dev/null || true
+pkill -USR2 -x waybar 2>/dev/null || true
+swaync-client --reload-css >/dev/null 2>&1 || true
+
+if pgrep -x qutebrowser >/dev/null 2>&1; then
+    qutebrowser ':config-source' >/dev/null 2>&1 || true
+fi
+
+if tmux -L default list-sessions >/dev/null 2>&1; then
+    tmux -L default source-file "$state_root/tmux.conf" >/dev/null 2>&1 || true
+fi
+
+for kak_session in $(kak -l 2>/dev/null || true); do
+    printf 'source %s\n' "$state_root/monobiome-alpine.kak" |
+        kak -p "$kak_session" >/dev/null 2>&1 || true
+done
+
+rmpc_pid=$(pgrep -x rmpc | head -1 || true)
+if [ -n "$rmpc_pid" ]; then
+    rmpc remote --pid "$rmpc_pid" set theme "$state_root/rmpc.ron" \
+        >/dev/null 2>&1 || true
+fi
+
+restart_btop() {
+    window=$(
+        niri msg --json windows 2>/dev/null |
+            jq -r 'first(.[] | select(.app_id == "scratch_btop") |
+                [.pid, .id, .workspace_id, .is_focused] |
+                map(tostring) | join(" ")) // empty'
+    )
+    [ -n "$window" ] || return 0
+    read -r old_pid old_id workspace_id was_focused <<EOF
+$window
+EOF
+    workspace=$(
+        niri msg --json workspaces 2>/dev/null |
+            jq -r --argjson id "$workspace_id" \
+                'first(.[] | select(.id == $id) | (.name // (.idx | tostring))) // empty'
+    )
+
+    kill "$old_pid" 2>/dev/null || return 0
+    wait_count=0
+    while kill -0 "$old_pid" 2>/dev/null && [ "$wait_count" -lt 20 ]; do
+        sleep 0.1
+        wait_count=$((wait_count + 1))
+    done
+    kill -0 "$old_pid" 2>/dev/null && return 0
+
+    niri msg action spawn -- foot --app-id=scratch_btop btop >/dev/null 2>&1 || return 0
+    wait_count=0
+    new_id=
+    while [ "$wait_count" -lt 30 ]; do
+        new_id=$(
+            niri msg --json windows 2>/dev/null |
+                jq -r --arg old "$old_id" \
+                    'first(.[] | select(.app_id == "scratch_btop" and (.id | tostring) != $old) | .id) // empty'
+        )
+        [ -n "$new_id" ] && break
+        sleep 0.1
+        wait_count=$((wait_count + 1))
+    done
+    [ -n "$new_id" ] || return 0
+
+    if [ -n "$workspace" ] && [ "$workspace" != scratch ]; then
+        niri msg action move-window-to-workspace --window-id "$new_id" \
+            --focus=false "$workspace" >/dev/null 2>&1 || true
+    fi
+    if [ "$was_focused" = true ]; then
+        niri msg action focus-window --id "$new_id" >/dev/null 2>&1 || true
+    fi
+}
+
+if [ -n "${NIRI_SOCKET:-}" ]; then
+    restart_btop
+fi
+
+if pgrep -x swayosd-server >/dev/null 2>&1; then
+    pkill -x swayosd-server 2>/dev/null || true
+    if [ -n "${SWAYSOCK:-}" ]; then
+        swaymsg exec swayosd-server >/dev/null 2>&1 || true
+    else
+        niri msg action spawn -- swayosd-server >/dev/null 2>&1 || true
+    fi
+fi
+
+exit 0

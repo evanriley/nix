@@ -1,0 +1,14 @@
+[Unit]
+Description=ListenBrainz scrobbler for MPD
+Requires=mpd.service
+After=mpd.service
+ConditionPathExists=%h/.config/listenbrainz-mpd/token
+
+[Service]
+Type=notify
+ExecStart=%h/.local/bin/listenbrainz-mpd
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

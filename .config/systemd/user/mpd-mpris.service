@@ -1,0 +1,13 @@
+[Unit]
+Description=MPRIS bridge for MPD
+Requires=mpd.service
+After=mpd.service
+
+[Service]
+Type=dbus
+BusName=org.mpris.MediaPlayer2.mpd
+ExecStart=%h/.local/bin/mpd-mpris -host 127.0.0.1 -no-instance
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

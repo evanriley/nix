@@ -1,0 +1,10 @@
+[Unit]
+Description=Monitor generated ListenBrainz playlist albums in Lidarr
+After=lidarr.service
+Requires=lidarr.service
+
+[Service]
+Type=oneshot
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python /home/evan/sync/arch-switch/services/media/listenbrainz_recommendations.py --apply
+TimeoutStartSec=3600

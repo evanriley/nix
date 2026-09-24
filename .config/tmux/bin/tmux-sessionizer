@@ -1,0 +1,28 @@
+#!/bin/sh
+# tmux-sessionizer [<directory>]: switch to the session for a project, creating it if needed.
+# Without an argument, pick an open session or a zoxide directory with fzf.
+if [ $# -gt 0 ]; then
+    choice=$1
+else
+    choice=$(
+        {
+            tmux list-sessions -F '#{session_name}' 2>/dev/null | grep -v '^_scratch_'
+            zoxide query --list | sed "s|^$HOME|~|"
+        } | fzf --reverse --no-sort --prompt 'session> ' --border-label ' sessions & projects '
+    ) || exit 0
+fi
+
+if tmux has-session -t "=$choice" 2>/dev/null; then
+    session=$choice
+else
+    dir=$(printf %s "$choice" | sed "s|^~|$HOME|")
+    [ -d "$dir" ] || { echo "not a directory: $dir" >&2; exit 1; }
+    session=$(basename "$dir" | tr '.:' '__')
+    tmux has-session -t "=$session" 2>/dev/null || tmux new-session -d -s "$session" -c "$dir"
+fi
+
+if [ -n "$TMUX" ]; then
+    tmux switch-client -t "=$session"
+else
+    tmux attach-session -t "=$session"
+fi

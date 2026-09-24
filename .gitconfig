@@ -1,0 +1,98 @@
+[user]
+    name = Evan Riley
+    email = evan@evanriley.com
+    signingkey = yubikey
+
+[core]
+    excludesfile = ~/.config/git/ignore
+    pager = delta
+    autocrlf = false
+    safecrlf = false
+    filemode = false
+    trustctime = false
+
+[init]
+    defaultBranch = main
+
+[column]
+    ui = auto
+
+[branch]
+    sort = -committerdate
+    autosetupRebase = always
+
+[fetch]
+    prune = true
+
+[push]
+    default = upstream
+    autoSetupRemote = true
+
+[pull]
+    rebase = true
+
+[rebase]
+    autoStash = true
+
+[merge]
+    conflictstyle = diff3
+
+[mergetool]
+    keepBackup = false
+
+[diff]
+    tool = nvimdiff
+
+[difftool]
+    prompt = false
+    trustExitCode = true
+
+[delta]
+    navigate = true
+    dark = true
+
+[include]
+    path = ~/.local/state/darkman/delta.gitconfig
+
+[interactive]
+    diffFilter = delta --color-only
+
+[commit]
+    gpgsign = true
+
+[gpg]
+    format = ssh
+
+[gpg "ssh"]
+    program = git-ssh-keygen
+    allowedSignersFile = ~/.ssh/allowed_signers
+
+[help]
+    autocorrect = 1
+
+[rerere]
+    enabled = true
+
+[submodule]
+    recurse = true
+
+[github]
+    user = evanriley
+
+[hub]
+    protocol = https
+
+[fsck]
+    zeroPaddedFilemode = ignore
+
+[alias]
+    st = status --short --branch
+    sw = switch
+    co = checkout
+    cb = checkout -b
+    cm = commit -m
+    amend = commit --amend --no-edit
+    unstage = restore --staged
+    last = log -1 HEAD --stat
+    lg = log --oneline --decorate --graph --all
+    recent = for-each-ref --sort=-committerdate --count=20 --format='%(refname:short)' refs/heads/

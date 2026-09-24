@@ -1,0 +1,16 @@
+.config/mpv/scripts/sponsorblock_shared/sponsorblock.txt
+
+__pycache__/
+*.swp
+*.swo
+*~
+.DS_Store
+.gnupg/
+
+.config/kak/result
+
+.config/gtk-3.0/bookmarks
+
+.config/listenbrainz-mpd/token
+
+/tests

@@ -1,0 +1,19 @@
+[settings]
+poll_interval_ms = 1500
+tray_display = "white"
+tray_text = "Scape"
+triggers_enabled = true
+verbose = false
+
+[[triggers]]
+event = "HeadsetPowerOn"
+script = "/home/evan/.config/scripts/scapectl-audio scape"
+enabled = true
+cooldown = 5
+
+[[triggers]]
+event = "HeadsetPowerOff"
+script = "/home/evan/.config/scripts/scapectl-audio dx5"
+enabled = true
+cooldown = 5
+

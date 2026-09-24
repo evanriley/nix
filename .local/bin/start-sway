@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+if [ -n "${WAYLAND_DISPLAY-}" ] || [ -n "${DISPLAY-}" ]; then
+    printf '%s\n' 'Start Sway from a local TTY after leaving the current graphical session.' >&2
+    exit 1
+fi
+export XDG_CURRENT_DESKTOP=sway XDG_SESSION_DESKTOP=sway XDG_SESSION_TYPE=wayland
+export PATH="$HOME/.local/bin:$PATH"
+unset NIRI_SOCKET
+trap 'systemctl --user stop darkman.service swaync.service; systemctl --user unset-environment SWAYSOCK WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE' EXIT
+sway "$@"

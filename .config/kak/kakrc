@@ -1,0 +1,44 @@
+# Kakoune configuration. The editor itself, its plugins and the tools it runs come from
+# flake.nix; language servers, compilers and REPLs come from each project's own shell, so
+# start kak from inside the project (direnv) and keep one session per project.
+
+set-option global tabstop 2
+set-option global indentwidth 2
+set-option global scrolloff 8,8
+set-option global autoreload yes
+set-option global startup_info_version 20260521
+set-option global grepcmd 'rg --vimgrep --smart-case'
+set-option global ui_options terminal_assistant=none terminal_enable_mouse=true
+
+declare-option -docstring 'directory holding the helper scripts of this configuration' \
+    str config_dir %val{config}
+
+add-highlighter global/line-numbers number-lines -relative -hlcursor -separator ' '
+add-highlighter global/matching-char show-matching
+add-highlighter global/cursor-line line '%val{cursor_line}' CursorLine
+add-highlighter global/whitespace-trailing show-whitespaces -only-trailing \
+    -tab '.' -tabpad ' ' -spc '.' -lf '' -nbsp '+'
+
+hook global BufCreate .*\.(bb|cljc|cljs|edn)$ %{ set-option buffer filetype clojure }
+
+source "%val{config}/editing.kak"
+source "%val{config}/tmux.kak"
+source "%val{config}/pickers.kak"
+source "%val{config}/explorer.kak"
+source "%val{config}/project.kak"
+source "%val{config}/lsp.kak"
+source "%val{config}/tree-sitter.kak"
+source "%val{config}/repl.kak"
+source "%val{config}/nrepl.kak"
+source "%val{config}/ocaml.kak"
+source "%val{config}/keys.kak"
+
+# Darkman writes the theme for the current mode and re-sources it in running sessions.
+evaluate-commands %sh{
+    theme="${XDG_STATE_HOME:-$HOME/.local/state}/darkman/monobiome-alpine.kak"
+    if [ -r "$theme" ]; then
+        printf 'source %%{%s}\n' "$theme"
+    else
+        printf 'colorscheme default\n'
+    fi
+}

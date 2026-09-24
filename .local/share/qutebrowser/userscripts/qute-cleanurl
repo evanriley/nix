@@ -1,0 +1,365 @@
+#!/usr/bin/python3
+
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""
+Strip tracking parameters from the current URL using the ClearURLs ruleset and
+copy the cleaned result to the clipboard.
+"""
+
+USAGE = """To use in qutebrowser, run: `spawn --userscript qute-cleanurl`
+
+With --markdown the clipboard gets `[Page Title](cleaned url)` instead of the
+bare URL. With --no-referral-marketing, referral/affiliate parameters (Amazon
+`tag=`, generic `ref=`, ...) are kept instead of stripped."""
+
+EPILOG = """The ruleset is vendored next to this script as
+clearurls-data.min.json so the script works offline and never makes a network
+request. Refresh it with:
+
+    curl -sSfo ~/sync/dotfiles/.local/share/qutebrowser/userscripts/clearurls-data.min.json \\
+        https://rules2.clearurls.xyz/data.minify.json
+
+The cleaned URL is written to the clipboard with wl-copy over stdin and never
+passed through qutebrowser's command parser: `:yank inline <url>` is registered
+with maxsplit=None, so a URL containing a quote, a ';;' or a '{...}' variable
+would be silently mangled (see mangled_by_command_parser() in
+qute-bitwarden-local). Only fixed, user-data-free messages go through the FIFO.
+
+If anything goes wrong -- unparseable URL, missing or corrupt ruleset, bad
+regex, unexpected schema -- the ORIGINAL URL is copied unchanged and the
+message says so. A mangled URL is never copied."""
+
+import argparse
+import enum
+import functools
+import json
+import os
+import re
+import subprocess
+import sys
+from urllib.parse import unquote, urlsplit
+
+RULESET_FILENAME = 'clearurls-data.min.json'
+CLIPBOARD_COMMAND = ['wl-copy']
+MAX_REDIRECTION_HOPS = 5
+
+argument_parser = argparse.ArgumentParser(
+    description=__doc__,
+    usage=USAGE,
+    epilog=EPILOG,
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+)
+argument_parser.add_argument('url', nargs='?', default=os.getenv('QUTE_URL'))
+argument_parser.add_argument('--title', default=os.getenv('QUTE_TITLE'),
+                             help='Page title, used by --markdown')
+argument_parser.add_argument('--markdown', '-m', action='store_true',
+                             help='Copy [title](url) instead of the bare URL')
+argument_parser.add_argument('--no-referral-marketing', '-R',
+                             dest='referral_marketing', action='store_false',
+                             help="Keep referral marketing parameters")
+argument_parser.add_argument('--primary', '-p', action='store_true',
+                             help='Copy to the primary selection as well')
+argument_parser.add_argument('--ruleset', default=None,
+                             help='Path to the ClearURLs ruleset JSON')
+argument_parser.add_argument('--print', dest='print_only', action='store_true',
+                             help='Print the result instead of copying it')
+
+stderr = functools.partial(print, file=sys.stderr)
+
+
+class ExitCodes(enum.IntEnum):
+    SUCCESS = 0
+    FAILURE = 1
+    # 1 is automatically used if Python throws an exception
+    NO_URL = 2
+    COPY_FAILED = 3
+
+
+def qute_command(command):
+    """Send a command to qutebrowser.
+
+    Only fixed strings built in this file are ever passed here; never any part
+    of a URL or a page title.
+    """
+    fifo = os.environ.get('QUTE_FIFO')
+    if not fifo:
+        return
+    with open(fifo, 'w') as fifo_file:
+        fifo_file.write(command + '\n')
+        fifo_file.flush()
+
+
+def ruleset_path(override=None):
+    if override:
+        return override
+    directory = os.path.dirname(os.path.realpath(__file__))
+    return os.path.join(directory, RULESET_FILENAME)
+
+
+def compile_all(patterns, anchor=False):
+    """Compile a list of ClearURLs regexes, dropping any that don't compile.
+
+    ClearURLs compiles field rules as new RegExp("^" + rule + "$", "gi"); the
+    non-capturing group here additionally keeps a rule containing a top-level
+    alternation anchored as a whole.
+    """
+    compiled = []
+    for pattern in patterns or []:
+        if not isinstance(pattern, str):
+            stderr('Ignoring non-string rule: {!r}'.format(pattern))
+            continue
+        source = '^(?:{})$'.format(pattern) if anchor else pattern
+        try:
+            compiled.append(re.compile(source, re.IGNORECASE))
+        except re.error as error:
+            stderr('Ignoring unusable rule {!r}: {}'.format(pattern, error))
+    return compiled
+
+
+class Provider:
+    """One ClearURLs provider entry.
+
+    Schema (confirmed against data.minify.json, 206 providers):
+        urlPattern         str    -- gates whether the provider applies
+        completeProvider   bool   -- upstream blocks the request entirely
+        rules              [str]  -- matched against query parameter NAMES
+        referralMarketing  [str]  -- likewise, but only when stripping referrals
+        rawRules           [str]  -- applied to the WHOLE URL string
+        exceptions         [str]  -- if one matches, skip this provider
+        redirections       [str]  -- group 1 is an embedded destination URL
+        forceRedirection   bool   -- upstream-only, see module docs
+    """
+
+    def __init__(self, name, data):
+        self.name = name
+        self.url_pattern = compile_all([data.get('urlPattern', '')])
+        self.complete_provider = bool(data.get('completeProvider'))
+        self.rules = compile_all(data.get('rules'), anchor=True)
+        self.referral_marketing = compile_all(data.get('referralMarketing'),
+                                              anchor=True)
+        self.raw_rules = compile_all(data.get('rawRules'))
+        self.exceptions = compile_all(data.get('exceptions'))
+        self.redirections = compile_all(data.get('redirections'))
+
+    def matches(self, url):
+        return any(pattern.search(url) for pattern in self.url_pattern)
+
+    def excepted(self, url):
+        return any(pattern.search(url) for pattern in self.exceptions)
+
+    def field_rules(self, referral_marketing):
+        if referral_marketing:
+            return self.rules + self.referral_marketing
+        return self.rules
+
+
+def load_providers(path):
+    with open(path, 'r') as ruleset_file:
+        data = json.load(ruleset_file)
+    providers = data['providers']
+    if not isinstance(providers, dict) or not providers:
+        raise ValueError('ruleset has no providers')
+    # Dict order is the file order, so globalRules stays first, as upstream.
+    return [Provider(name, entry) for name, entry in providers.items()
+            if isinstance(entry, dict)]
+
+
+def split_url(url):
+    """Split a URL into (before-query, query, fragment-with-'#').
+
+    Done by hand rather than with urlsplit/urlunsplit so that everything but
+    the query round-trips byte-identically: no percent re-encoding, no dropped
+    empty fragment, no normalisation of userinfo, port or path.
+    """
+    base, hash_sep, fragment = url.partition('#')
+    prefix, query_sep, query = base.partition('?')
+    return prefix, query_sep, query, hash_sep + fragment
+
+
+def strip_fields(url, rules):
+    """Remove query parameters whose NAME matches one of the rules."""
+    prefix, query_sep, query, fragment = split_url(url)
+    if not query_sep or not query:
+        return url, False
+
+    kept = []
+    changed = False
+    for segment in query.split('&'):
+        if not segment:
+            # Keep empty segments ('a=1&&b=2') as they were.
+            kept.append(segment)
+            continue
+        name = segment.split('=', 1)[0]
+        # Names are compared raw, and also percent-decoded, because ClearURLs
+        # matches against URLSearchParams keys, which are decoded. Values are
+        # never touched either way.
+        decoded = unquote(name)
+        candidates = {name, decoded}
+        if any(rule.match(candidate)
+               for rule in rules for candidate in candidates):
+            changed = True
+            continue
+        kept.append(segment)
+
+    if not changed:
+        return url, False
+    new_query = '&'.join(kept)
+    # If nothing survives, drop the '?' entirely.
+    if new_query.strip('&') == '':
+        return prefix + fragment, True
+    return prefix + '?' + new_query + fragment, True
+
+
+def apply_raw_rules(url, rules):
+    changed = False
+    for rule in rules:
+        replaced = rule.sub('', url)
+        if replaced != url:
+            url = replaced
+            changed = True
+    return url, changed
+
+
+def extract_redirection(url, rules):
+    """Return the embedded destination URL of a redirector, or None."""
+    for rule in rules:
+        match = rule.search(url)
+        if not match or not match.groups():
+            continue
+        target = match.group(1)
+        if not target:
+            continue
+        for candidate in (unquote(target), target):
+            if is_web_url(candidate):
+                return candidate
+    return None
+
+
+def is_web_url(url):
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return False
+    return parts.scheme in ('http', 'https') and bool(parts.netloc)
+
+
+def clean_once(url, providers, referral_marketing):
+    """One pass over every provider. Returns (url, changed, redirected)."""
+    changed = False
+    for provider in providers:
+        if not provider.matches(url):
+            continue
+        # An exception skips this provider only, as upstream does; other
+        # providers still get their turn.
+        if provider.excepted(url):
+            continue
+        # completeProvider means "block this request entirely" upstream. There
+        # is nothing to block when all we do is copy a URL, and refusing to
+        # copy would be worse than copying, so such providers are treated like
+        # any other: their rules run, the URL is still copied.
+
+        url, raw_changed = apply_raw_rules(url, provider.raw_rules)
+        changed = changed or raw_changed
+
+        target = extract_redirection(url, provider.redirections)
+        if target is not None and target != url:
+            return target, True, True
+
+        url, fields_changed = strip_fields(
+            url, provider.field_rules(referral_marketing))
+        changed = changed or fields_changed
+    return url, changed, False
+
+
+def clean_url(url, providers, referral_marketing=True):
+    """Return (cleaned_url, changed). Raises on anything unexpected."""
+    if not is_web_url(url):
+        # mailto:, qute://, about:, file: ... nothing to strip.
+        return url, False
+
+    changed = False
+    for _ in range(MAX_REDIRECTION_HOPS):
+        url, pass_changed, redirected = clean_once(
+            url, providers, referral_marketing)
+        changed = changed or pass_changed
+        if not redirected:
+            break
+
+    if not is_web_url(url):
+        raise ValueError('cleaning produced an unusable URL')
+    return url, changed
+
+
+def copy_to_clipboard(text, primary=False):
+    """Write text to the clipboard via wl-copy's stdin.
+
+    The text never goes through a shell string or qutebrowser's command parser.
+    """
+    targets = [CLIPBOARD_COMMAND]
+    if primary:
+        targets.append(CLIPBOARD_COMMAND + ['--primary'])
+    for command in targets:
+        try:
+            # wl-copy daemonises to serve the selection and the daemon inherits
+            # our stdout/stderr, so a pipe here would only reach EOF once the
+            # clipboard is replaced -- i.e. this would hang. Hand it /dev/null
+            # instead and go by the exit status of the process that forked it.
+            process = subprocess.run(
+                command, input=text.encode('UTF-8'),
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=10)
+        except (OSError, subprocess.SubprocessError) as error:
+            stderr('{}: {}'.format(command[0], error))
+            return False
+        if process.returncode:
+            stderr('{} exited with {}'.format(command[0], process.returncode))
+            return False
+    return True
+
+
+def main(arguments):
+    url = arguments.url
+    if not url:
+        argument_parser.print_help()
+        return ExitCodes.NO_URL
+
+    # Anything at all going wrong means copying the original URL unchanged.
+    failed = False
+    try:
+        providers = load_providers(ruleset_path(arguments.ruleset))
+        cleaned, changed = clean_url(url, providers,
+                                     arguments.referral_marketing)
+    except Exception as error:  # noqa: BLE001 -- deliberately total
+        stderr('Falling back to the original URL: {}'.format(error))
+        cleaned, changed, failed = url, False, True
+
+    text = cleaned
+    if arguments.markdown:
+        title = (arguments.title or '').replace('\n', ' ').strip()
+        text = '[{}]({})'.format(title, cleaned)
+
+    if arguments.print_only:
+        print(text)
+        return ExitCodes.SUCCESS
+
+    if not copy_to_clipboard(text, arguments.primary):
+        qute_command('message-error "Copying to the clipboard failed"')
+        return ExitCodes.COPY_FAILED
+
+    # Fixed messages only: no URL, no title, nothing user-controlled.
+    if failed:
+        qute_command('message-warning "URL cleaning failed, copied original"')
+    elif arguments.markdown and changed:
+        qute_command('message-info "Markdown link copied (cleaned)"')
+    elif arguments.markdown:
+        qute_command('message-info "Markdown link copied"')
+    elif changed:
+        qute_command('message-info "Clean URL copied"')
+    else:
+        qute_command('message-info "URL copied (nothing to strip)"')
+    return ExitCodes.SUCCESS
+
+
+if __name__ == '__main__':
+    sys.exit(main(argument_parser.parse_args()))

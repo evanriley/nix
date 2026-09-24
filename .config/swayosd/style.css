@@ -1,0 +1,56 @@
+@import url("file:///home/evan/.local/state/darkman/palette.css");
+
+window#osd {
+    padding: 10px;
+    border: 1px solid @border;
+    border-radius: 20px;
+    background: alpha(@background, 0.94);
+    color: @foreground;
+}
+
+#container {
+    margin: 20px;
+}
+
+image,
+label {
+    color: @foreground;
+}
+
+progressbar:disabled,
+segmentedprogress:disabled,
+image:disabled {
+    opacity: 0.5;
+}
+
+progressbar,
+segmentedprogress {
+    min-height: 6px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+}
+
+trough,
+segment {
+    min-height: inherit;
+    border: none;
+    border-radius: inherit;
+    background: @background_soft;
+}
+
+progress,
+segment.active {
+    min-height: inherit;
+    border: none;
+    border-radius: inherit;
+    background: @primary;
+}
+
+segment {
+    margin-left: 8px;
+}
+
+segment:first-child {
+    margin-left: 0;
+}
