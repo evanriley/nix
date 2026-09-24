@@ -450,7 +450,6 @@ nix build .#nixosConfigurations.cinderace.config.system.build.toplevel
 git add -A
 git commit -m "Add cinderace secrets and recipients"   # (touch)
 git push                                                # (touch)
-exit                                                    # leave nix develop
 ```
 
 **Checkpoint:** 10 files, every line `ok`, the build succeeds and the push
@@ -461,7 +460,9 @@ missing from the install.
 
 ## Phase 5: Stage what the installer needs
 
-**Where:** Arch, bash.
+**Where:** Arch, bash, inside `nix develop ~/nix` (provides `age`; Arch does
+not have it). If Phase 4's shell was closed, start it again with
+`nix develop ~/nix`.
 
 Choose a **staging passphrase** and store it in Bitwarden as
 `cinderace staging`. It protects the three archives below and is typed on the
