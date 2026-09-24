@@ -199,6 +199,7 @@
         chromium
         discord
         claude-code
+        codex
         # Font for the modernx OSC.
         mpvScripts.modernx
         yt-dlp
