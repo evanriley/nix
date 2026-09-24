@@ -682,8 +682,16 @@ ls -l /mnt/etc/ssh/ssh_host_ed25519_key
 ls /mnt/var/lib/sbctl/keys
 ```
 
-**Checkpoint:** the host key is `-rw------- 1 root root`, and `keys/` contains
-`PK KEK db`.
+Confirm the restored host key is the one the secrets are encrypted to:
+
+```bash
+ssh-keygen -y -f /mnt/etc/ssh/ssh_host_ed25519_key | cut -d' ' -f2
+grep -o 'ssh-ed25519 [A-Za-z0-9+/=]*' /root/nix/secrets/secrets.nix | cut -d' ' -f2
+```
+
+**Checkpoint:** the host key is `-rw------- 1 root root`, `keys/` contains
+`PK KEK db`, and the two printed keys are identical. If they differ, stop:
+the installed system would not be able to decrypt any secret.
 
 ### 7.6 Install NixOS
 
