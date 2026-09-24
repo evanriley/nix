@@ -28,8 +28,6 @@ in
           description = "Path under home/ to a home.file source.";
         };
         config = listOption "Entries of home/config linked into ~/.config.";
-        bin = listOption "Entries of home/bin linked into ~/.local/bin.";
-        share = listOption "Entries of home/share linked into ~/.local/share.";
       };
 
       config = {
@@ -44,17 +42,7 @@ in
           source = cfg.link "config/${name}";
         });
 
-        home.file =
-          lib.listToAttrs (
-            map (name: lib.nameValuePair ".local/bin/${name}" { source = cfg.link "bin/${name}"; }) cfg.bin
-          )
-          // lib.listToAttrs (
-            map (
-              name: lib.nameValuePair ".local/share/${name}" { source = cfg.link "share/${name}"; }
-            ) cfg.share
-          );
-
-        home.sessionPath = lib.mkIf (cfg.bin != [ ]) [ "${config.home.homeDirectory}/.local/bin" ];
+        home.sessionPath = [ "${config.home.homeDirectory}/.local/bin" ];
       };
     };
 }

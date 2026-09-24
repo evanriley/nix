@@ -1,6 +1,7 @@
 { config, ... }:
 let
   inherit (config.flake.lib) sessionService;
+  top = config;
 in
 {
   # Topping DX5 II (speakers) and Fractal Scape (headset). ScapeCtl switches
@@ -36,18 +37,17 @@ in
   };
 
   flake.modules.homeManager.cinderace =
-    { config, ... }:
+    { lib, pkgs, ... }:
     let
-      scapectl = "${config.home.homeDirectory}/.local/bin/scapectl";
+      scapectl = top.flake.packages.${pkgs.stdenv.hostPlatform.system}.scapectl;
     in
     {
       dotfiles.config = [ "scapectl" ];
+      home.packages = [ scapectl ];
 
-      # Prebuilt binary, not packaged in nixpkgs.
       systemd.user.services.scapectl = sessionService {
         description = "ScapeCtl headset tray";
-        exec = scapectl;
-        unit.ConditionPathExists = scapectl;
+        exec = lib.getExe scapectl;
       };
     };
 }

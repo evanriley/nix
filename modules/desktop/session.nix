@@ -23,6 +23,10 @@ let
       Install.WantedBy = [ "graphical-session.target" ];
     };
 in
+{ config, ... }:
+let
+  inherit (config.flake.lib) mkScript;
+in
 {
   flake.lib = { inherit sessionService; };
 
@@ -55,9 +59,23 @@ in
         "swaync"
         "swayosd"
         "waybar"
-        "xdg-desktop-portal"
       ];
-      dotfiles.bin = [ "desktopctl" ];
+      home.file.".local/bin/desktopctl".source = lib.getExe (
+        mkScript pkgs {
+          name = "desktopctl";
+          src = ./_scripts/desktopctl;
+          runtimeInputs = with pkgs; [
+            niri
+            foot
+            btop
+            rmpc
+            fuzzel
+            swaylock
+            systemd
+            procps
+          ];
+        }
+      );
 
       home.packages = with pkgs; [
         waybar

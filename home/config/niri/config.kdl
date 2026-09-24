@@ -134,7 +134,7 @@ binds {
     Mod+Alt+V repeat=false { spawn-sh "cliphist list | fuzzel --dmenu --prompt 'Clipboard: ' | cliphist decode | wl-copy"; }
     Mod+Shift+E repeat=false { spawn "/home/evan/.local/bin/desktopctl" "power"; }
     Ctrl+Alt+Delete repeat=false { spawn "/home/evan/.local/bin/desktopctl" "power"; }
-    Mod+Alt+M { spawn-sh "~/.config/scripts/watch-media"; }
+    Mod+Alt+M { spawn "/home/evan/.local/bin/watch-media"; }
     Mod+O { toggle-overview; }
     Mod+Q { close-window; }
     Mod+W { toggle-column-tabbed-display; }

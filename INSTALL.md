@@ -661,8 +661,7 @@ r .config/mozilla             # Firefox profile
 r .config/BraveSoftware
 r .local/share/qutebrowser
 r .local/state/yubikey-setup  # historical setup/test records
-r .local/bin/scapectl         # prebuilt binaries not packaged in nixpkgs
-r .local/bin/manta
+r .local/bin/manta            # built from ~/Developer/manta
 chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_*
 ```
 

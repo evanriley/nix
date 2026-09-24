@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sessionService;
+  inherit (config.flake.lib) sessionService mkScript;
 in
 {
   # Samsung Odyssey G80HS on DP-2. Boot and login are pinned to 6K/165 so
@@ -21,13 +21,21 @@ in
   };
 
   flake.modules.homeManager.cinderace =
-    { config, ... }:
+    { lib, pkgs, ... }:
+    let
+      display-mode = mkScript pkgs {
+        name = "display-mode";
+        src = ./_scripts/display-mode;
+        # steam comes from the system PATH (programs.steam).
+        runtimeInputs = [ pkgs.niri ];
+      };
+    in
     {
-      dotfiles.bin = [ "display-mode" ];
+      home.file.".local/bin/display-mode".source = lib.getExe display-mode;
 
       systemd.user.services.display-mode = sessionService {
         description = "Follow the monitor's hardware mode";
-        exec = "${config.home.homeDirectory}/.local/bin/display-mode --watch";
+        exec = "${lib.getExe display-mode} --watch";
       };
     };
 }

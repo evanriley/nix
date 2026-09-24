@@ -121,9 +121,9 @@ in
       programs.ssh = {
         enable = true;
         enableDefaultConfig = false;
-        matchBlocks."github.com" = {
-          identitiesOnly = true;
-          identityFile = [
+        settings."github.com" = {
+          IdentitiesOnly = "yes";
+          IdentityFile = [
             "~/.ssh/id_ed25519_sk_auth_20477902"
             "~/.ssh/id_ed25519_sk_auth_20477782"
           ];

@@ -59,8 +59,7 @@ in
     ];
 
     services.mpd.musicDirectory = "/mnt/Media/Music";
-    # watch-media browses /mnt/Media.
-    dotfiles.config = [ "scripts" ];
+
     # Existing profile restored from the Arch home.
     programs.firefox.profiles.default.path = "b437d468.default-release";
   };

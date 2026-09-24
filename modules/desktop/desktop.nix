@@ -17,7 +17,19 @@
           pkgs.xdg-desktop-portal-gtk
           # Settings portal: apps follow darkman's light/dark mode.
           pkgs.darkman
+          pkgs.gnome-keyring
         ];
+        config.niri = {
+          default = [
+            "gnome"
+            "gtk"
+          ];
+          "org.freedesktop.impl.portal.Settings" = [ "darkman" ];
+          "org.freedesktop.impl.portal.FileChooser" = [ "gtk" ];
+          "org.freedesktop.impl.portal.Access" = [ "gtk" ];
+          "org.freedesktop.impl.portal.Notification" = [ "gtk" ];
+          "org.freedesktop.impl.portal.Secret" = [ "gnome-keyring" ];
+        };
       };
 
       services.gnome.gnome-keyring.enable = true;
