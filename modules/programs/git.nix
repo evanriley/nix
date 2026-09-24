@@ -122,6 +122,8 @@ in
         enable = true;
         enableDefaultConfig = false;
         settings."github.com" = {
+          # The keyring agent offers keys in its own order (backup first); read the files in this order instead.
+          IdentityAgent = "none";
           IdentitiesOnly = "yes";
           IdentityFile = [
             "~/.ssh/id_ed25519_sk_auth_20477902"
