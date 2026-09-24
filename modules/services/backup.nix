@@ -21,7 +21,22 @@ in
       services.borgmatic = {
         enable = true;
         configurations.home = {
-          source_directories = [ home ];
+          # Media service state lives outside $HOME since the move to NixOS.
+          source_directories = [
+            home
+            "/var/lib/lidarr"
+            "/var/lib/slskd"
+            "/var/lib/soularr"
+            "/var/lib/private/listenbrainz-recommendations"
+          ];
+          # Lidarr writes its database continuously; back up a consistent dump
+          # instead of the live file.
+          sqlite_databases = [
+            {
+              name = "lidarr";
+              path = "/var/lib/lidarr/lidarr.db";
+            }
+          ];
           repositories = [
             {
               path = "ssh://fjz8475g@${borgbase}/./repo";
@@ -99,7 +114,12 @@ in
               "Developer/orca/zig-out"
               "Developer/qbz/crates/target"
             ]
-            ++ [ "sh:${home}/.var/app/*/cache" ];
+            ++ [
+              "sh:${home}/.var/app/*/cache"
+              "sh:/var/lib/lidarr/lidarr.db*"
+              "sh:/var/lib/lidarr/logs*"
+              "/var/lib/lidarr/MediaCover"
+            ];
         };
       };
 
