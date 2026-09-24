@@ -23,8 +23,6 @@ in
           hashedPasswordFile = lib.mkForce null;
           password = "vm";
         };
-
-        home-manager.users.${user.name}.dotfiles.mutable = false;
       };
     };
 }

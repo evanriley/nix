@@ -2,7 +2,6 @@
 let
   nixos = config.flake.modules.nixos;
   homeManager = config.flake.modules.homeManager;
-  user = config.meta.user.name;
 in
 {
   flake.nixosConfigurations.cinderace = inputs.nixpkgs.lib.nixosSystem {
@@ -16,7 +15,7 @@ in
       secure-boot
       secrets
       users
-      home-manager
+      home-manager-vm
       locale
       networking
       yubikey
@@ -41,24 +40,24 @@ in
       appid = "pam://cinderance";
     };
 
-    home-manager.users.${user} = {
-      imports = with homeManager; [
-        base
-        dotfiles
-        shell
-        kakoune
-        session
-        apps
-        music
-      ];
-
-      services.mpd.musicDirectory = "/mnt/Media/Music";
-      # watch-media browses /mnt/Media.
-      dotfiles.config = [ "scripts" ];
-      # Existing profile restored from the Arch home.
-      programs.firefox.profiles.default.path = "b437d468.default-release";
-    };
-
     system.stateVersion = "26.05";
+  };
+
+  flake.modules.homeManager.cinderace = {
+    imports = with homeManager; [
+      base
+      dotfiles
+      shell
+      kakoune
+      session
+      apps
+      music
+    ];
+
+    services.mpd.musicDirectory = "/mnt/Media/Music";
+    # watch-media browses /mnt/Media.
+    dotfiles.config = [ "scripts" ];
+    # Existing profile restored from the Arch home.
+    programs.firefox.profiles.default.path = "b437d468.default-release";
   };
 }

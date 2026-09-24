@@ -1,3 +1,7 @@
+{ config, ... }:
+let
+  inherit (config.meta) repo;
+in
 {
   flake.modules.nixos.nix =
     { pkgs, ... }:
@@ -15,16 +19,20 @@
         ];
         auto-optimise-store = true;
       };
-      nix.gc = {
-        automatic = true;
-        dates = "weekly";
-        options = "--delete-older-than 30d";
-      };
 
       nixpkgs.config.allowUnfree = true;
 
       programs.nix-ld.enable = true;
 
-      programs.nh.enable = true;
+      programs.nh = {
+        enable = true;
+        flake = repo;
+        # Also collects home-manager generations, which theme switches create.
+        clean = {
+          enable = true;
+          dates = "weekly";
+          extraArgs = "--keep-since 30d --keep 5";
+        };
+      };
     };
 }

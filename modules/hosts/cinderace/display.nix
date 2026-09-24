@@ -1,6 +1,5 @@
 { config, ... }:
 let
-  inherit (config.meta) user;
   inherit (config.flake.lib) sessionService;
 in
 {
@@ -19,16 +18,16 @@ in
       "d /run/gdm/.config 0711 gdm gdm -"
       "L+ /run/gdm/.config/monitors.xml - - - - ${./monitors.xml}"
     ];
-
-    home-manager.users.${user.name} =
-      { config, ... }:
-      {
-        dotfiles.bin = [ "display-mode" ];
-
-        systemd.user.services.display-mode = sessionService {
-          description = "Follow the monitor's hardware mode";
-          exec = "${config.home.homeDirectory}/.local/bin/display-mode --watch";
-        };
-      };
   };
+
+  flake.modules.homeManager.cinderace =
+    { config, ... }:
+    {
+      dotfiles.bin = [ "display-mode" ];
+
+      systemd.user.services.display-mode = sessionService {
+        description = "Follow the monitor's hardware mode";
+        exec = "${config.home.homeDirectory}/.local/bin/display-mode --watch";
+      };
+    };
 }

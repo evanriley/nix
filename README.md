@@ -17,16 +17,26 @@ Clone:
 git clone git@github.com:evanriley/nix.git ~/nix
 ```
 
-Apply the configuration:
+The system and the user environment are applied separately. `nh` reads the
+flake location from `NH_FLAKE` (`/home/evan/nix`).
+
+Apply the system configuration:
 
 ```sh
-sudo nixos-rebuild switch --flake ~/nix#cinderace
+nh os switch
+```
+
+Apply the home configuration (no sudo):
+
+```sh
+nh home switch
 ```
 
 Build without switching:
 
 ```sh
-nixos-rebuild build --flake ~/nix#cinderace
+nh os build
+nh home build
 ```
 
 Boot the configuration in a VM:

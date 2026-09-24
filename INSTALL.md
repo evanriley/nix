@@ -595,6 +595,19 @@ Remove the USB while the firmware logo shows.
 
 - [ ] Plymouth asks to unlock and touching a YubiKey works. If it only asks
       for a passphrase, see Troubleshooting.
+
+Home-manager is standalone, so the user environment (niri config, session
+services, dotfile links) does not exist until it is activated once. Before
+logging in at GDM, switch to a text console with Ctrl+Alt+F3, log in as evan
+and run:
+
+```bash
+nh home switch -b hm-backup
+```
+
+`-b hm-backup` renames files that the configuration would replace. Return to
+GDM with Ctrl+Alt+F1.
+
 - [ ] GDM appears. Log in as evan with your password, and niri starts.
 - [ ] `sudo true` works with touch only.
 
@@ -746,7 +759,7 @@ It should still list both fido2 slots. Rebuild and reboot.
 **lanzaboote fails during install.** In `/root/nix`, make the host use
 plain systemd-boot for the first install: drop the secure-boot feature from
 the host's imports and commit. Re-run `nixos-install`, boot with Secure Boot
-off, restore the import, `sudo nixos-rebuild switch`, check `sbctl verify`,
+off, restore the import, `nh os switch`, check `sbctl verify`,
 then enable Secure Boot in firmware.
 
 **Secure Boot violation after enabling it.** Disable it in firmware, boot, and
