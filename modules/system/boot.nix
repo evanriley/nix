@@ -28,7 +28,6 @@
         "zswap.enabled=0"
       ];
 
-      services.fstrim.enable = true;
       services.fwupd.enable = true;
     };
 }

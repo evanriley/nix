@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sessionService;
+  inherit (config.flake.lib) sessionService mkScript;
   top = config;
 in
 {
@@ -42,8 +42,40 @@ in
       scapectl = top.flake.packages.${pkgs.stdenv.hostPlatform.system}.scapectl;
     in
     {
-      dotfiles.config = [ "scapectl" ];
       home.packages = [ scapectl ];
+
+      xdg.configFile."scapectl/config.toml".source =
+        let
+          switch-audio = lib.getExe (
+            mkScript pkgs {
+              name = "switch-audio";
+              src = ./_scripts/switch-audio;
+              runtimeInputs = with pkgs; [
+                wireplumber
+                gawk
+              ];
+            }
+          );
+          trigger = event: sink: {
+            inherit event;
+            script = "${switch-audio} ${sink}";
+            enabled = true;
+            cooldown = 5;
+          };
+        in
+        (pkgs.formats.toml { }).generate "scapectl-config.toml" {
+          settings = {
+            poll_interval_ms = 1500;
+            tray_display = "white";
+            tray_text = "Scape";
+            triggers_enabled = true;
+            verbose = false;
+          };
+          triggers = [
+            (trigger "HeadsetPowerOn" "scape")
+            (trigger "HeadsetPowerOff" "dx5")
+          ];
+        };
 
       systemd.user.services.scapectl = sessionService {
         description = "ScapeCtl headset tray";

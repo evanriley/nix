@@ -602,9 +602,14 @@ logging in at GDM, switch to a text console with Ctrl+Alt+F3, log in as evan
 and run:
 
 ```bash
+rsync -a ~/.arch-home/evan/.ssh ~/
+chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_*
 nh home switch -b hm-backup
 ```
 
+The home configuration fetches Berkeley Mono from the private
+`evanriley/berkeley-mono` repository over SSH, so the YubiKey SSH handles in
+`~/.ssh` are restored first; touch the key when the fetch asks.
 `-b hm-backup` renames files that the configuration would replace. Return to
 GDM with Ctrl+Alt+F1.
 
@@ -650,7 +655,6 @@ home-manager already placed:
 A=~/.arch-home/evan
 r() { rsync -a --ignore-existing "$A/$1" "$(dirname ~/"$1")/"; }
 
-r .ssh                        # FIDO2 SSH handles, known_hosts, software keys
 r sync                        # Syncthing folder (avoids a full resync)
 r Developer
 r Pictures
@@ -662,7 +666,6 @@ r .config/BraveSoftware
 r .local/share/qutebrowser
 r .local/state/yubikey-setup  # historical setup/test records
 r .local/bin/manta            # built from ~/Developer/manta
-chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_*
 ```
 
 Then check:

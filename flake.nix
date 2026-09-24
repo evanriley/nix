@@ -28,12 +28,22 @@
       url = "github:nix-community/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Private repository; fetching it needs GitHub SSH access.
+    berkeley-mono = {
+      url = "git+ssh://git@github.com/evanriley/berkeley-mono";
+      flake = false;
+    };
     monobiome = {
       url = "github:endofunctorio/monobiome/2f2d196a71ec885e836a9c1cdd04bfd01b2fb0f4";
       flake = false;
     };
     nvf = {
       url = "github:notashelf/nvf";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    nixos-hardware.url = "github:NixOS/nixos-hardware";
+    nix-index-database = {
+      url = "github:nix-community/nix-index-database";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     lanzaboote = {

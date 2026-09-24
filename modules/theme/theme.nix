@@ -126,16 +126,20 @@ in
       config = {
         specialisation.light.configuration.theme.mode = "light";
 
+        # Writes the default-font rules and adds the home profile's fonts.
+        fonts.fontconfig.enable = true;
+
         stylix = {
           enable = true;
           autoEnable = false;
           base16Scheme = monobiome.base16 mode p;
           polarity = mode;
           fonts = {
-            # Installed from ~/sync/Fonts (licensed, not in nixpkgs).
             monospace = {
               name = "Berkeley Mono";
-              package = pkgs.emptyDirectory;
+              package = pkgs.runCommand "berkeley-mono" { } ''
+                install -Dm644 ${inputs.berkeley-mono}/fonts/*.ttf -t $out/share/fonts/truetype
+              '';
             };
             sansSerif = {
               name = "Noto Sans";

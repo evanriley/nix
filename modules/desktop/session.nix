@@ -56,8 +56,8 @@ in
         "foot"
         "fuzzel"
         "niri"
-        "swaync"
-        "swayosd"
+        "swaync/style.css"
+        "swayosd/style.css"
         "waybar"
       ];
       home.file.".local/bin/desktopctl".source = lib.getExe (
@@ -108,6 +108,54 @@ in
           }
         ];
         events.before-sleep = lock;
+      };
+
+      xdg.configFile."swayosd/config.toml".source =
+        (pkgs.formats.toml { }).generate "swayosd-config.toml"
+          {
+            server = {
+              show_percentage = true;
+              max_volume = 100;
+            };
+          };
+
+      xdg.configFile."swaync/config.json".text = builtins.toJSON {
+        positionX = "right";
+        positionY = "top";
+        control-center-margin-top = 10;
+        control-center-margin-bottom = 10;
+        control-center-margin-right = 10;
+        control-center-margin-left = 0;
+        notification-icon-size = 64;
+        notification-body-image-height = 200;
+        notification-body-image-width = 200;
+        timeout = 3;
+        timeout-low = 5;
+        timeout-critical = 0;
+        fit-to-screen = true;
+        control-center-width = 400;
+        control-center-height = 600;
+        notification-window-width = 300;
+        keyboard-shortcuts = true;
+        image-visibility = "when-available";
+        transition-time = 200;
+        hide-on-clear = false;
+        hide-on-action = true;
+        script-fail-notify = true;
+        widgets = [
+          "title"
+          "dnd"
+          "notifications"
+        ];
+        widget-config = {
+          title = {
+            text = "Notifications";
+            clear-all-button = true;
+            button-text = "Clear All";
+          };
+          dnd.text = "Do Not Disturb";
+          notifications.vexpand = true;
+        };
       };
 
       services.cliphist = {

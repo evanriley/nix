@@ -13,8 +13,15 @@ in
   flake.modules.homeManager.music =
     { config, pkgs, ... }:
     {
-      dotfiles.config = [ "rmpc" ];
-      home.packages = [ pkgs.rmpc ];
+      programs.rmpc = {
+        enable = true;
+        config = ''
+          (
+              address: "127.0.0.1:6600",
+              theme: Some("${config.xdg.configHome}/theme/rmpc.ron"),
+          )
+        '';
+      };
 
       services.mpd = {
         enable = true;

@@ -13,7 +13,6 @@
     {
       dotfiles.config = [
         "mpv"
-        "zathura"
       ];
 
       programs.mpv = {
@@ -25,6 +24,29 @@
             sponsorblock
           ];
         };
+      };
+
+      programs.zathura = {
+        enable = true;
+        options = {
+          font = "Berkeley Mono 12";
+          guioptions = "s";
+          adjust-open = "best-fit";
+          page-mode = "equal_width";
+          pages-per-row = 1;
+          scroll-step = 50;
+          scroll-page-aware = true;
+          scroll-full-overlap = 0.05;
+          selection-clipboard = "clipboard";
+          selection-notification = false;
+          continuous-hist-save = true;
+          database = "sqlite";
+          statusbar-basename = true;
+          statusbar-home-tilde = true;
+          window-title-basename = true;
+          window-title-home-tilde = true;
+        };
+        extraConfig = "include ${config.xdg.configHome}/theme/zathurarc";
       };
 
       programs.rbw = {
@@ -98,9 +120,6 @@
       };
       home.file = {
         "${profileDir}/chrome/userChrome.css".source = config.dotfiles.link "firefox/userChrome.css";
-        # Licensed font: not redistributable in this repository.
-        ".local/share/fonts/berkeley-mono".source =
-          config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/sync/Fonts/Berkeley Mono";
       };
 
       home.packages = with pkgs; [
@@ -111,7 +130,6 @@
         mpvScripts.modernx
         yt-dlp
         swayimg
-        zathura
         nautilus
         pavucontrol
       ];

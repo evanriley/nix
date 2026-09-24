@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   flake.modules.nixos.cinderace =
     { modulesPath, ... }:
@@ -14,16 +15,17 @@
       };
     in
     {
-      imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
+      imports = with inputs.nixos-hardware.nixosModules; [
+        (modulesPath + "/installer/scan/not-detected.nix")
+        common-cpu-amd-pstate
+        common-gpu-amd
+        common-pc
+        common-pc-ssd
+      ];
 
       nixpkgs.hostPlatform = "x86_64-linux";
 
-      hardware.cpu.amd.updateMicrocode = true;
       hardware.enableRedistributableFirmware = true;
-      hardware.graphics = {
-        enable = true;
-        enable32Bit = true;
-      };
       # Plymouth needs amdgpu in the initrd to draw at the panel's native mode.
       hardware.amdgpu.initrd.enable = true;
 

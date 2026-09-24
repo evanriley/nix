@@ -26,7 +26,8 @@ Apply the system configuration:
 nh os switch
 ```
 
-Apply the home configuration (no sudo):
+Apply the home configuration (no sudo). It fetches Berkeley Mono from the
+private `evanriley/berkeley-mono` repository, which needs GitHub SSH access:
 
 ```sh
 nh home switch
