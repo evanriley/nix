@@ -1,8 +1,8 @@
 # agenix recipients. Only public keys belong here.
 let
-  yubikey-primary = "age1yubikey1-REPLACE-20477902";
-  yubikey-backup = "age1yubikey1-REPLACE-20477782";
-  paper = "age1-REPLACE-paper";
+  yubikey-primary = "age1yubikey1qtd2ghr0jy6k32srxygw4wf83dggd8zzuvywqq56f47gfdnp0ut26lhjj27";
+  yubikey-backup = "age1yubikey1qv98gry9ya6gj4tg4py8adrcl6z65te7kdy2a75cs7369t7lj407sv4ayc5";
+  paper = "age1e7g7h7aceg5x49cchvuzcjs8n4ey5dgemtgymx40r2te7xl00q8s03902n";
   admins = [
     yubikey-primary
     yubikey-backup
@@ -11,7 +11,7 @@ let
 
   # /etc/ssh/ssh_host_ed25519_key.pub of each host.
   hosts = {
-    cinderace = "ssh-ed25519 REPLACE root@cinderace";
+    cinderace = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIDES4qGRr0cZtmy1BQ0aO+5Ti1O+7Pyzk7O6XJnfuAI root@cinderace";
   };
 
   shared = names: {
