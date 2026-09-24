@@ -881,7 +881,10 @@ reports `active`.
 - [ ] **Syncthing:** `http://127.0.0.1:8384` shows device ID `FBEDWXO-…` and
       the `Cloud` folder Up to Date.
 - [ ] **Firefox:** existing profile loads; the 13 policy extensions are
-      present.
+      present; `about:policies` lists DisableTelemetry, DisableFirefoxStudies
+      and ExtensionSettings as active.
+- [ ] **Folders:** `xdg-user-dir PICTURES` prints `/home/evan/Pictures` and
+      `xdg-user-dir SCREENSHOTS` prints `/home/evan/Pictures/Screenshots`.
 
 ---
 
@@ -950,6 +953,9 @@ systemctl --user is-active mpd mpd-mpris listenbrainz-mpd
 ### 9.5 Games
 
 1. Steam: **Settings → Storage → Add Drive → `/mnt/Games/SteamLibrary`**.
+   GE-Proton is provided by Nix and appears under a game's
+   **Properties → Compatibility**. For GameMode, set a game's launch options
+   to `gamemoderun %command%`; `gamemoded -s` shows whether it is active.
 2. World of Warcraft: install Battle.net through Faugus, install WoW, then
    before the first launch:
 

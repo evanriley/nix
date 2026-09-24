@@ -86,6 +86,8 @@
 
       programs.firefox = {
         enable = true;
+        policies.DisableTelemetry = true;
+        policies.DisableFirefoxStudies = true;
         # Installed on first start and updated by Firefox; can be disabled, not removed.
         policies.ExtensionSettings =
           let
@@ -114,8 +116,78 @@
         profiles.default = {
           id = 0;
           isDefault = true;
-          # userChrome.css is live-linked below and needs this to load.
-          settings."toolkit.legacyUserProfileCustomizations.stylesheets" = true;
+          # Written to user.js, which Firefox reapplies at every start.
+          settings = {
+            # userChrome.css is live-linked below and needs this to load.
+            "toolkit.legacyUserProfileCustomizations.stylesheets" = true;
+
+            "browser.startup.page" = 3;
+            "general.autoScroll" = true;
+            "accessibility.typeaheadfind.flashBar" = 0;
+            "dom.disable_open_during_load" = false;
+            "media.eme.enabled" = true;
+            "media.webspeech.synth.dont_notify_on_error" = true;
+            "sidebar.revamp" = true;
+            "sidebar.visibility" = "hide-on-close";
+            "browser.bookmarks.showMobileBookmarks" = false;
+            "browser.tabs.groups.smart.enabled" = false;
+            "browser.translations.enable" = false;
+            "pdfjs.enableAltText" = false;
+
+            "browser.ai.control.default" = "blocked";
+            "browser.ai.control.linkPreviewKeyPoints" = "blocked";
+            "browser.ai.control.pdfjsAltText" = "blocked";
+            "browser.ai.control.sidebarChatbot" = "blocked";
+            "browser.ai.control.smartTabGroups" = "blocked";
+            "browser.ai.control.smartWindow" = "blocked";
+            "browser.ai.control.translations" = "blocked";
+            "browser.smartwindow.memories.generateFromConversation" = false;
+            "browser.smartwindow.memories.generateFromHistory" = false;
+            "extensions.ml.enabled" = false;
+
+            "browser.newtab.privateAllowed" = false;
+            "browser.newtabpage.activity-stream.asrouter.userprefs.cfr.addons" = false;
+            "browser.newtabpage.activity-stream.asrouter.userprefs.cfr.features" = false;
+            "browser.newtabpage.activity-stream.feeds.section.topstories" = false;
+            "browser.newtabpage.activity-stream.feeds.topsites" = false;
+            "browser.newtabpage.activity-stream.hideLogo" = true;
+            "browser.newtabpage.activity-stream.showSponsoredCheckboxes" = false;
+
+            "browser.urlbar.showSearchSuggestionsFirst" = false;
+            "browser.urlbar.suggest.engines" = false;
+            "browser.urlbar.suggest.quicksuggest.all" = false;
+            "browser.urlbar.suggest.searches" = false;
+            "browser.urlbar.suggest.topsites" = false;
+            "browser.urlbar.suggest.trending" = false;
+
+            "browser.formfill.enable" = false;
+            "extensions.formautofill.addresses.enabled" = false;
+            "extensions.formautofill.creditCards.enabled" = false;
+            "signon.rememberSignons" = false;
+            "signon.generation.enabled" = false;
+            "signon.firefoxRelay.feature" = "disabled";
+
+            "browser.contentblocking.category" = "strict";
+            "privacy.trackingprotection.enabled" = true;
+            "privacy.trackingprotection.socialtracking.enabled" = true;
+            "privacy.trackingprotection.emailtracking.enabled" = true;
+            "privacy.trackingprotection.allow_list.convenience.enabled" = false;
+            "privacy.trackingprotection.consentmanager.skip.pbmode.enabled" = false;
+            "privacy.annotate_channels.strict_list.enabled" = true;
+            "privacy.fingerprintingProtection" = true;
+            "privacy.globalprivacycontrol.enabled" = true;
+            "privacy.query_stripping.enabled" = true;
+            "privacy.query_stripping.enabled.pbmode" = true;
+            "privacy.history.custom" = true;
+            "privacy.clearOnShutdown_v2.formdata" = true;
+            "browser.safebrowsing.downloads.remote.block_potentially_unwanted" = false;
+            "network.dns.disablePrefetch" = true;
+            "network.prefetch-next" = false;
+            "network.http.speculative-parallel-limit" = 0;
+
+            "datareporting.healthreport.uploadEnabled" = false;
+            "datareporting.usage.uploadEnabled" = false;
+          };
         };
       };
       home.file = {

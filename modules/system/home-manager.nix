@@ -36,12 +36,25 @@ in
       };
     };
 
-  flake.modules.homeManager.base = {
-    home.username = user.name;
-    home.homeDirectory = "/home/${user.name}";
-    home.stateVersion = "26.05";
+  flake.modules.homeManager.base =
+    { config, ... }:
+    {
+      home.username = user.name;
+      home.homeDirectory = "/home/${user.name}";
+      home.stateVersion = "26.05";
 
-    programs.home-manager.enable = true;
-    xdg.enable = true;
-  };
+      programs.home-manager.enable = true;
+      xdg.enable = true;
+
+      xdg.userDirs = {
+        enable = true;
+        createDirectories = true;
+        desktop = null;
+        publicShare = null;
+        templates = null;
+        # niri's screenshot-path writes here.
+        projects = "${config.home.homeDirectory}/Developer";
+        extraConfig.SCREENSHOTS = "${config.home.homeDirectory}/Pictures/Screenshots";
+      };
+    };
 }
