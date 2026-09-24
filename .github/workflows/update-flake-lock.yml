@@ -22,6 +22,6 @@ jobs:
           # lanzaboote.
           inputs: >-
             nixpkgs flake-parts import-tree home-manager agenix disko stylix nvf
-            nixos-hardware nix-index-database
+            nixos-hardware nix-index-database rust-overlay crane
           pr-title: "Update flake.lock"
           pr-labels: dependencies

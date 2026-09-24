@@ -2,10 +2,7 @@
 {
   imports = [ inputs.flake-parts.flakeModules.modules ];
 
-  config.systems = [
-    "x86_64-linux"
-    "aarch64-darwin"
-  ];
+  config.systems = [ "x86_64-linux" ];
 
   # Helpers shared between modules (flake.lib.<name>), merged across files.
   options.flake = lib.mkOption {

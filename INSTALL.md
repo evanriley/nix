@@ -660,7 +660,7 @@ and the partition table keeps its layout and GUIDs.
 wipefs -a /dev/mapper/cryptroot
 wipefs -a "$ESP"
 nix --extra-experimental-features 'nix-command flakes' \
-  run /root/nix#disko -- --mode format,mount --flake /root/nix#cinderace
+  run --inputs-from /root/nix disko -- --mode format,mount --flake /root/nix#cinderace
 findmnt -R /mnt
 ```
 
@@ -1043,7 +1043,7 @@ The password secret did not decrypt. `users.mutableUsers = false`, so
 
 1. Boot the installer and run 7.1, 7.2 and 7.3.
 2. Mount with
-   `nix --extra-experimental-features 'nix-command flakes' run /root/nix#disko -- --mode mount --flake /root/nix#cinderace`.
+   `nix --extra-experimental-features 'nix-command flakes' run --inputs-from /root/nix disko -- --mode mount --flake /root/nix#cinderace`.
 3. In `/root/nix/modules/system/users.nix`, replace `hashedPasswordFile = …`
    with `hashedPassword = "<output of mkpasswd -m yescrypt>";` and commit.
 4. Re-run 7.6 and reboot.

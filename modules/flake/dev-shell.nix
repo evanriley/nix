@@ -18,10 +18,6 @@
         ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.mkpasswd;
       };
 
-      packages = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
-        inherit (inputs.disko.packages.${system}) disko;
-      };
-
       formatter = pkgs.nixfmt-tree;
     };
 }
