@@ -55,7 +55,6 @@ window-rule {
     open-on-workspace "social"
 }
 window-rule {
-    match app-id="^org\\.gnome\\.World\\.PikaBackup$"
     match app-id="^dev\\.deedles\\.Trayscale$"
     open-on-workspace "system"
 }
