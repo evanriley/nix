@@ -85,15 +85,18 @@ def choose_mode(output):
             return max(modes, key=lambda m: m["refresh"]), scale
     return None
 
+# niri blocks IPC for ~6 s during the 330 Hz modeset.
+NIRI_TIMEOUT = 30
+
 def niri_command(name, action, value):
     result = subprocess.run(["niri", "msg", "--json", "output", name, action, str(value)],
-                            check=True, capture_output=True, text=True, timeout=5)
+                            check=True, capture_output=True, text=True, timeout=NIRI_TIMEOUT)
     if "OutputWasMissing" in result.stdout:
         raise RuntimeError(f"Niri output disappeared: {name}")
 
 def niri_power(state):
     subprocess.run(["niri", "msg", "action", f"power-{state}-monitors"],
-                   check=True, capture_output=True, text=True, timeout=5)
+                   check=True, capture_output=True, text=True, timeout=NIRI_TIMEOUT)
 
 def niri_outputs(outputs):
     normalized = []
