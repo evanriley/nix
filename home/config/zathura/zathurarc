@@ -15,4 +15,4 @@ set statusbar-home-tilde true
 set window-title-basename true
 set window-title-home-tilde true
 
-include /home/evan/.local/state/darkman/zathurarc
+include /home/evan/.config/theme/zathurarc

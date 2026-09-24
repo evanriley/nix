@@ -30,7 +30,7 @@ layout {
         width 2
     }
 }
-include optional=true "~/.local/state/darkman/niri.kdl"
+include optional=true "~/.config/theme/niri.kdl"
 prefer-no-csd
 hotkey-overlay { skip-at-startup; }
 gestures { hot-corners { off; }; }

@@ -20,8 +20,8 @@ for tool_dir in $HOME/.local/bin $HOME/.cargo/bin $HOME/.zvm/bin $HOME/.zvm/self
         fish_add_path --global --append $tool_dir
     end
 end
-if test -r ~/.local/state/darkman/fzf.fish
-    source ~/.local/state/darkman/fzf.fish
+if test -r ~/.config/theme/fzf.fish
+    source ~/.config/theme/fzf.fish
 end
 
 set -g fish_greeting

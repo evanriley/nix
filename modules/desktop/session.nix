@@ -49,11 +49,8 @@ in
     in
     {
       dotfiles.config = [
-        "darkman"
         "foot"
         "fuzzel"
-        "gtk-3.0"
-        "gtk-4.0"
         "niri"
         "swaync"
         "swayosd"
@@ -61,13 +58,11 @@ in
         "xdg-desktop-portal"
       ];
       dotfiles.bin = [ "desktopctl" ];
-      dotfiles.share = [ "darkman" ];
 
       home.packages = with pkgs; [
         waybar
         swaynotificationcenter
         swayosd
-        darkman
         swaylock
         swayidle
         fuzzel
@@ -76,9 +71,6 @@ in
         wtype
         python3
       ];
-
-      xdg.configFile."swaylock/config".source =
-        config.lib.file.mkOutOfStoreSymlink "${config.xdg.stateHome}/darkman/swaylock.conf";
 
       services.swayidle = {
         enable = true;
@@ -129,15 +121,6 @@ in
         swayosd = sessionService {
           description = "SwayOSD server";
           exec = "${pkgs.swayosd}/bin/swayosd-server";
-        };
-
-        darkman = sessionService {
-          description = "Darkman light/dark switching";
-          exec = "${pkgs.darkman}/bin/darkman run";
-          service = {
-            Type = "dbus";
-            BusName = "nl.whynothugo.darkman";
-          };
         };
 
         yubikey-touch-detector = sessionService {

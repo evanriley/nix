@@ -36,8 +36,8 @@ c.statusbar.widgets = ['keypress', 'url', 'scroll', 'history', 'tabs', 'progress
 c.content.user_stylesheets = ["/home/evan/.config/qutebrowser/youtube.css"]
 
 PALETTE_FILE = (
-    pathlib.Path(os.environ.get('XDG_STATE_HOME') or pathlib.Path.home()
-                 / '.local' / 'state') / 'darkman' / 'qutebrowser.conf'
+    pathlib.Path(os.environ.get('XDG_CONFIG_HOME') or pathlib.Path.home()
+                 / '.config') / 'theme' / 'qutebrowser.conf'
 )
 PALETTE_KEYS = frozenset({
     'bg', 'bg_alt', 'bg_soft', 'selection', 'border', 'muted', 'fg', 'fg_alt',
@@ -52,8 +52,8 @@ def load_palette(path):
     """Read the generated palette, or None when it is unusable.
 
     Absent, unreadable, half-written and malformed files all yield None so
-    that qutebrowser still starts -- notably on a checkout where darkman has
-    never run. Validation is strict because a partial palette would paint an
+    that qutebrowser still starts -- notably before home-manager has generated
+    it. Validation is strict because a partial palette would paint an
     unreadable mix of the two modes.
     """
     try:

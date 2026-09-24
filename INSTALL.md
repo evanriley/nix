@@ -629,6 +629,8 @@ Then verify the rest:
 - [ ] `sudo ls /run/agenix` lists every secret.
 - [ ] Locking and unlocking with touch works (Mod+Alt+L). Password-only
       unlock works with the keys removed.
+- [ ] `darkman set light` and `darkman set dark` switch foot, niri borders,
+      Waybar and GTK apps within a few seconds.
 - [ ] Both display modes: `display-mode` switching 6K/165 ↔ 3K/330.
 - [ ] Audio, Bluetooth, portals (screen share, file picker).
 - [ ] `systemctl --user --failed` lists nothing. `systemctl --user status waybar

@@ -1,4 +1,4 @@
 (
     address: "127.0.0.1:6600",
-    theme: Some("/home/evan/.local/state/darkman/rmpc.ron"),
+    theme: Some("/home/evan/.config/theme/rmpc.ron"),
 )

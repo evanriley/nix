@@ -50,6 +50,7 @@ in
       shell
       kakoune
       session
+      theme
       apps
       music
     ];

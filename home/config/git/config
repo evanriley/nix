@@ -52,7 +52,7 @@
     dark = true
 
 [include]
-    path = ~/.local/state/darkman/delta.gitconfig
+    path = ~/.config/theme/delta.gitconfig
 
 [interactive]
     diffFilter = delta --color-only

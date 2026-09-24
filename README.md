@@ -63,6 +63,17 @@ Application configuration files are symlinked from this repository into
 `~/.config` without going through the Nix store. Edits to them apply
 immediately. Adding or removing a linked file requires a rebuild.
 
+### Theme
+
+Colors come from the Monobiome Alpine palette in `modules/theme/palette.nix`.
+darkman switches between the dark base generation and the `light`
+specialisation at sunrise and sunset. Switch manually with:
+
+```sh
+darkman set light
+darkman set dark
+```
+
 ### Secrets
 
 Secrets are encrypted with [agenix](https://github.com/ryantm/agenix). The

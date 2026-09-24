@@ -82,7 +82,7 @@ local function setup(name, opts)
 end
 
 local function desktop_mode()
-  local path = vim.fn.expand('~/.local/state/darkman/mode')
+  local path = vim.fn.expand('~/.config/theme/mode')
   local file = io.open(path, 'r')
   if not file then return 'dark' end
   local mode = vim.trim(file:read('*a'))
