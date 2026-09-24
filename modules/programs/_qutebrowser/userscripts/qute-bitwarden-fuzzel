@@ -1,5 +1,5 @@
 #!/bin/sh
 
-exec /home/evan/.local/share/qutebrowser/userscripts/qute-bitwarden-local \
+exec "$(dirname "$0")/qute-bitwarden-local" \
     --dmenu-invocation 'fuzzel --dmenu --prompt=Bitwarden: --minimal-lines' \
     "$@"

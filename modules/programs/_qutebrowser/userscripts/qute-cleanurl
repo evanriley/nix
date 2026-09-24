@@ -13,12 +13,9 @@ With --markdown the clipboard gets `[Page Title](cleaned url)` instead of the
 bare URL. With --no-referral-marketing, referral/affiliate parameters (Amazon
 `tag=`, generic `ref=`, ...) are kept instead of stripped."""
 
-EPILOG = """The ruleset is vendored next to this script as
-clearurls-data.min.json so the script works offline and never makes a network
-request. Refresh it with:
-
-    curl -sSfo ~/nix/home/share/qutebrowser/userscripts/clearurls-data.min.json \\
-        https://rules2.clearurls.xyz/data.minify.json
+EPILOG = """The ruleset is installed next to this script as clearurls-data.min.json, so
+the script works offline and never makes a network request. It is pinned to a
+ClearURLs/Rules commit in modules/programs/qutebrowser.nix.
 
 The cleaned URL is written to the clipboard with wl-copy over stdin and never
 passed through qutebrowser's command parser: `:yank inline <url>` is registered

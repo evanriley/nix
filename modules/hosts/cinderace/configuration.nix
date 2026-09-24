@@ -54,6 +54,7 @@ in
       session
       theme
       apps
+      qutebrowser
       music
     ];
 

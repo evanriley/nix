@@ -13,12 +13,7 @@
     {
       dotfiles.config = [
         "mpv"
-        "qutebrowser"
         "zathura"
-      ];
-      dotfiles.share = [
-        "qutebrowser/greasemonkey"
-        "qutebrowser/userscripts"
       ];
 
       programs.mpv = {
@@ -97,10 +92,11 @@
         profiles.default = {
           id = 0;
           isDefault = true;
+          # userChrome.css is live-linked below and needs this to load.
+          settings."toolkit.legacyUserProfileCustomizations.stylesheets" = true;
         };
       };
       home.file = {
-        "${profileDir}/user.js".source = config.dotfiles.link "firefox/user.js";
         "${profileDir}/chrome/userChrome.css".source = config.dotfiles.link "firefox/userChrome.css";
         # Licensed font: not redistributable in this repository.
         ".local/share/fonts/berkeley-mono".source =
@@ -110,7 +106,6 @@
       home.packages = with pkgs; [
         brave
         chromium
-        qutebrowser
         discord
         # Font for the modernx OSC.
         mpvScripts.modernx
