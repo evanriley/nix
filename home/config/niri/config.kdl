@@ -129,7 +129,7 @@ binds {
     Mod+Ctrl+T repeat=false { spawn "/home/evan/.local/bin/desktopctl" "scratch" "btop"; }
     Mod+Ctrl+R repeat=false { spawn "/home/evan/.local/bin/desktopctl" "scratch" "rmpc"; }
     Mod+Ctrl+N repeat=false { spawn "swaync-client" "-t"; }
-    Mod+Ctrl+B repeat=false { spawn "pkill" "-USR1" "-x" "waybar"; }
+    Mod+Ctrl+B repeat=false { spawn "systemctl" "--user" "kill" "--kill-whom=main" "--signal=USR1" "waybar.service"; }
     Mod+Ctrl+M repeat=false { spawn "/home/evan/.local/bin/display-mode"; }
     Mod+Alt+V repeat=false { spawn-sh "cliphist list | fuzzel --dmenu --prompt 'Clipboard: ' | cliphist decode | wl-copy"; }
     Mod+Shift+E repeat=false { spawn "/home/evan/.local/bin/desktopctl" "power"; }

@@ -97,7 +97,7 @@ def sleep_inhibit(action):
         return 0
     verb = "stop" if sleep_inhibit_active() else "start"
     result = subprocess.run(["systemctl", "--user", verb, SLEEP_INHIBIT_UNIT], check=False)
-    subprocess.run(["pkill", "--signal", "RTMIN+10", "--exact", "waybar"], check=False,
+    subprocess.run(["systemctl", "--user", "kill", "--kill-whom=main", "--signal=RTMIN+10", "waybar.service"], check=False,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return result.returncode
 

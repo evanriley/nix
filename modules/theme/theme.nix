@@ -70,12 +70,13 @@ in
 
           # foot holds both palettes; the signal selects one.
           if [ "$mode" = dark ]; then pkill -USR1 -x foot || true; else pkill -USR2 -x foot || true; fi
-          pkill -USR1 -x nvim || true
-          pkill -USR2 -x waybar || true
+          # nvim, waybar and qutebrowser run as Nix wrappers named .<name>-wrapped.
+          pkill -USR1 -x '\.?nvim(-wrapped)?' || true
+          systemctl --user kill --kill-whom=main --signal=USR2 waybar.service 2>/dev/null || true
           swaync-client --reload-css >/dev/null 2>&1 || true
           systemctl --user try-restart swayosd.service || true
           if [ -n "''${NIRI_SOCKET:-}" ]; then niri msg action load-config-file >/dev/null 2>&1 || true; fi
-          if pgrep -x qutebrowser >/dev/null; then qutebrowser ':config-source' >/dev/null 2>&1 || true; fi
+          if pgrep -f '/bin/\.?qutebrowser(-wrapped)?( |$)' >/dev/null; then qutebrowser ':config-source' >/dev/null 2>&1 || true; fi
           if tmux list-sessions >/dev/null 2>&1; then tmux source-file "${themeDir}/tmux.conf" || true; fi
           for session in $(kak -l 2>/dev/null || true); do
             printf 'source %s\n' "${themeDir}/theme.kak" | kak -p "$session" >/dev/null 2>&1 || true
