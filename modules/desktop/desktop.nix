@@ -7,7 +7,20 @@
 
       environment.systemPackages = [
         # niri's X11 support; Steam and Battle.net need it.
-        pkgs.xwayland-satellite
+        # 0.8.3 fixes Steam menus closing instantly; drop once nixpkgs has it.
+        (pkgs.xwayland-satellite.overrideAttrs (
+          finalAttrs: old: {
+            version = "0.8.3";
+            src = old.src.override {
+              tag = "v${finalAttrs.version}";
+              hash = "sha256-eFEjCCniMCKeWU0PcZNv+tDYe08SLFPjRplyPY8OFt4=";
+            };
+            cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
+              inherit (finalAttrs) pname version src;
+              hash = "sha256-gMGFvnbxM3hD5fmkSimaFd87GEf6BXFe/MGjoS6VNVU=";
+            };
+          }
+        ))
       ];
 
       xdg.portal = {
