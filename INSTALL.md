@@ -967,21 +967,31 @@ rsync -a "$A/$WOW/WTF/" ~/"$WOW/WTF/"
 
 ### 9.6 Backups
 
+cinderace backs up to BorgBase repository `asfr5z3s` (same SSH key as the
+Arch repository). Its passphrase is in `secrets/cinderace/borg-passphrase.age`
+and in Bitwarden. The Arch repository `fjz8475g` has a blank repokey
+passphrase, which Borg treats as unencrypted.
+
 ```bash
-sudo systemctl start borgmatic.service
+sudo borgmatic repo-create --encryption repokey-blake2
+sudo borgmatic key export --path /root/borg-key-cinderace   # store with the paper key, then delete
+sudo systemctl start --no-block borgmatic.service
 journalctl -u borgmatic -f                      # Ctrl+C when it finishes
 ```
 
-The first run rebuilds Borg's cache under `/root/.cache/borg` and takes
-longer than later runs.
+The first run uploads everything and takes longer than later runs.
 
 ```bash
 sudo borgmatic repo-list --last 2
 sudo snapper -c home list | tail -3
 ```
 
-**Checkpoint:** a `home-cinderace-*` archive exists alongside the untouched
-`home-cinderance-*` archives, and Snapper lists timeline snapshots of `/home`.
+**Checkpoint:** a `home-cinderace-*` archive exists, and Snapper lists
+timeline snapshots of `/home`.
+
+The old repository stays readable for restores:
+`BORG_PASSPHRASE='' borg list ssh://fjz8475g@fjz8475g.repo.borgbase.com/./repo`
+(as root, with the BorgBase SSH key).
 
 ---
 
@@ -1001,8 +1011,8 @@ Also:
 
 - Remove `~/sync/dotfiles` and `~/sync/arch-switch` from the Syncthing folder;
   archive the GitHub `dotfiles` repository.
-- Old `home-cinderance-*` Borg archives are never pruned automatically; delete
-  them with `borg delete` once they are no longer wanted.
+- Delete the `fjz8475g` BorgBase repository once `asfr5z3s` holds enough
+  history.
 
 ---
 
@@ -1070,7 +1080,8 @@ terminal. `ls -l ~/.local/state/theme/base` must point to a
 ### Recovery without Arch
 
 There is no Arch installation to fall back to. Repairs go through the
-installer USB and `nixos-enter`. Data is in Borg (`home-cinderance-*` and
-`home-cinderace-*`) and, until Phase 10, in `/mnt/Media/nixos-migration`. The
+installer USB and `nixos-enter`. Data is in Borg (`home-cinderance-*` in the
+old `fjz8475g` repository, `home-cinderace-*` in `asfr5z3s`) and, until
+Phase 10, in `/mnt/Media/nixos-migration`. The
 last Arch Borg archive contains `/var/lib/system-recovery/system-config.tar`
 with the old `/etc`.

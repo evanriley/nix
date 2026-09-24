@@ -2,7 +2,7 @@
 let
   inherit (config.meta) user;
   home = "/home/${user.name}";
-  borgbase = "fjz8475g.repo.borgbase.com";
+  borgbase = "asfr5z3s.repo.borgbase.com";
 in
 {
   flake.modules.nixos.backup =
@@ -39,11 +39,11 @@ in
           ];
           repositories = [
             {
-              path = "ssh://fjz8475g@${borgbase}/./repo";
+              path = "ssh://asfr5z3s@${borgbase}/./repo";
               label = "borgbase";
             }
           ];
-          # Limits pruning to this host; pre-NixOS archives are home-cinderance-*.
+          # Limits pruning to this host.
           archive_name_format = "home-${config.networking.hostName}-{now:%Y-%m-%dT%H:%M:%S.%f}";
           match_archives = "sh:home-${config.networking.hostName}-*";
 
