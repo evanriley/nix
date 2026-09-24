@@ -78,7 +78,9 @@ in
           # foot holds both palettes; the signal selects one.
           if [ "$mode" = dark ]; then pkill -USR1 -x foot || true; else pkill -USR2 -x foot || true; fi
           # nvim, waybar and qutebrowser run as Nix wrappers named .<name>-wrapped.
-          pkill -USR1 -x '\.?nvim(-wrapped)?' || true
+          # pkill matches at most 15 characters of the name without -f.
+          pkill -USR1 -x nvim || true
+          pkill -USR1 -x '\.nvim-wrapped' || true
           systemctl --user kill --kill-whom=main --signal=USR2 waybar.service 2>/dev/null || true
           swaync-client --reload-css >/dev/null 2>&1 || true
           systemctl --user try-restart swayosd.service || true
