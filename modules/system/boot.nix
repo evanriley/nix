@@ -1,6 +1,19 @@
 {
   flake.modules.nixos.boot =
-    { pkgs, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
+    let
+      plymouthConf = pkgs.writeText "plymouthd.conf" ''
+        [Daemon]
+        ShowDelay=${toString config.boot.plymouth.showDelay}
+        DeviceTimeout=30
+        Theme=${config.boot.plymouth.theme}
+      '';
+    in
     {
       boot.kernelPackages = pkgs.linuxPackages_latest;
 
@@ -16,11 +29,12 @@
 
       boot.plymouth = {
         enable = true;
-        theme = "lone";
-        themePackages = [
-          (pkgs.adi1090x-plymouth-themes.override { selected_themes = [ "lone" ]; })
-        ];
+        theme = "spinner";
       };
+      # NixOS hard-codes DeviceTimeout=8. amdgpu registers its display 8-13 s after
+      # Plymouth starts (6K link), so Plymouth fell back to text mode.
+      boot.initrd.systemd.contents."/etc/plymouth/plymouthd.conf".source = lib.mkForce plymouthConf;
+      environment.etc."plymouth/plymouthd.conf".source = lib.mkForce plymouthConf;
       boot.consoleLogLevel = 3;
       boot.initrd.verbose = false;
       boot.kernelParams = [
