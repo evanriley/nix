@@ -1,0 +1,5 @@
+[submission]
+token_file = "/run/agenix/listenbrainz-token"
+
+[mpd]
+address = "127.0.0.1:6600"

@@ -1,0 +1,278 @@
+#!/usr/bin/env python3
+
+# SPDX-FileCopyrightText: Chris Braun (cryzed) <cryzed@googlemail.com>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""
+Insert login information using rbw and a dmenu-compatible application
+(e.g. dmenu, rofi -dmenu, ...).
+"""
+
+USAGE = """The saved Bitwarden URI is matched against the current site. Login
+information is typed through Wayland as [USERNAME]<Tab>[PASSWORD], which is
+compatible with most login forms.
+
+You must have an unlocked rbw vault prior to use of this script; rbw-agent
+handles unlocking itself.
+
+To use in qutebrowser, run: `spawn --userscript qute-bitwarden`
+"""
+
+EPILOG = """Dependencies: rbw, fuzzel and wtype. Credentials are sent to wtype
+over standard input, so they do not enter qutebrowser's log or clipboard
+history."""
+
+import argparse
+import enum
+import functools
+import json
+import os
+import shlex
+import subprocess
+import sys
+import tempfile
+import time
+from urllib.parse import urlparse
+
+CACHE_FILENAME = 'qute-bitwarden-last.json'
+CACHE_TTL_SECONDS = 60
+
+argument_parser = argparse.ArgumentParser(
+    description=__doc__,
+    usage=USAGE,
+    epilog=EPILOG,
+)
+argument_parser.add_argument('url', nargs='?', default=os.getenv('QUTE_URL'))
+argument_parser.add_argument('--dmenu-invocation', '-d', default='rofi -dmenu -i -p Bitwarden',
+                             help='Invocation used to execute a dmenu-provider')
+argument_parser.add_argument('--no-insert-mode', '-n', dest='insert_mode', action='store_false',
+                             help="Don't automatically enter insert mode")
+argument_parser.add_argument('--io-encoding', '-i', default='UTF-8',
+                             help='Encoding used to communicate with subprocesses')
+argument_parser.add_argument('--merge-candidates', '-m', action='store_true',
+                             help='Merge pass candidates for fully-qualified and registered domain name')
+argument_parser.add_argument('--lock', action='store_true',
+                             help='Lock rbw and discard its in-memory keys')
+group = argument_parser.add_mutually_exclusive_group()
+group.add_argument('--username-only', '-e',
+                   action='store_true', help='Only insert username')
+group.add_argument('--password-only', '-w',
+                   action='store_true', help='Only insert password')
+
+stderr = functools.partial(print, file=sys.stderr)
+
+
+class ExitCodes(enum.IntEnum):
+    SUCCESS = 0
+    FAILURE = 1
+    # 1 is automatically used if Python throws an exception
+    NO_PASS_CANDIDATES = 2
+    COULD_NOT_MATCH_USERNAME = 3
+    COULD_NOT_MATCH_PASSWORD = 4
+
+
+def qute_command(command):
+    with open(os.environ['QUTE_FIFO'], 'w') as fifo:
+        fifo.write(command + '\n')
+        fifo.flush()
+
+
+def normalize_hostname(hostname):
+    return (hostname or '').lower().rstrip('.')
+
+
+def cache_path():
+    directory = os.environ.get('XDG_RUNTIME_DIR') or tempfile.gettempdir()
+    return os.path.join(directory, CACHE_FILENAME)
+
+
+def read_cache(hostname):
+    """Return the cached entry id for hostname, or None."""
+    try:
+        with open(cache_path(), 'r') as cache_file:
+            cache = json.load(cache_file)
+        if normalize_hostname(cache.get('hostname')) != hostname:
+            return None
+        if time.time() - float(cache.get('timestamp', 0)) > CACHE_TTL_SECONDS:
+            return None
+        return cache.get('id') or None
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def write_cache(hostname, selection):
+    """Store only non-secret metadata: hostname, entry id and entry name."""
+    path = cache_path()
+    directory = os.path.dirname(path) or '.'
+    payload = {
+        'hostname': hostname,
+        'id': selection['id'],
+        'name': selection['name'],
+        'timestamp': time.time(),
+    }
+    temp_fd = None
+    temp_path = None
+    try:
+        temp_fd, temp_path = tempfile.mkstemp(dir=directory, prefix='.qute-bitwarden-')
+        os.fchmod(temp_fd, 0o600)
+        with os.fdopen(temp_fd, 'w') as temp_file:
+            temp_fd = None
+            json.dump(payload, temp_file)
+        os.replace(temp_path, path)
+        temp_path = None
+    except OSError:
+        pass
+    finally:
+        if temp_fd is not None:
+            try:
+                os.close(temp_fd)
+            except OSError:
+                pass
+        if temp_path is not None:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
+
+
+def list_candidates(url, encoding):
+    """Return matching metadata without fetching any decrypted passwords."""
+    process = subprocess.run(['rbw', 'list', '--raw'], capture_output=True)
+    if process.returncode:
+        stderr(process.stderr.decode(encoding).strip())
+        return []
+
+    hostname = normalize_hostname(urlparse(url).hostname)
+    entries = json.loads(process.stdout.decode(encoding))
+    candidates = []
+    for entry in entries:
+        for uri in entry.get('uris') or []:
+            parsed = urlparse(uri if '://' in uri else '//' + uri)
+            saved_hostname = normalize_hostname(parsed.hostname)
+            if saved_hostname and (
+                hostname == saved_hostname or hostname.endswith('.' + saved_hostname)
+            ):
+                candidates.append({
+                    'id': entry['id'],
+                    'name': entry['name'],
+                    'login': {'username': entry.get('user') or ''},
+                })
+                break
+    if candidates:
+        return candidates
+
+    # Some services keep authentication on a different parent domain from the
+    # URI stored in Bitwarden. Fall back to a searchable picker of every login
+    # rather than failing without giving the user a choice.
+    return [
+        {
+            'id': entry['id'],
+            'name': entry['name'],
+            'login': {'username': entry.get('user') or ''},
+        }
+        for entry in entries
+        if (entry.get('type') or '').lower() == 'login'
+    ]
+
+
+def dmenu(items, invocation, encoding):
+    command = shlex.split(invocation)
+    process = subprocess.run(command, input='\n'.join(
+        items).encode(encoding), stdout=subprocess.PIPE)
+    return process.stdout.decode(encoding).strip()
+
+
+def type_text(text):
+    """Type a credential without putting it in argv, the clipboard or Qute."""
+    if '\n' in text or '\r' in text:
+        raise RuntimeError('Refusing to type a credential containing a newline')
+    process = subprocess.run(
+        ['wtype', '-'], input=text, text=True,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    if process.returncode:
+        raise RuntimeError('Wayland credential typing failed')
+
+
+def main(arguments):
+    if arguments.lock:
+        subprocess.run(
+            ['rbw', 'lock'], stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        qute_command('message-info "Bitwarden locked"')
+        return ExitCodes.SUCCESS
+    if not arguments.url:
+        argument_parser.print_help()
+        return ExitCodes.FAILURE
+
+    candidates = list_candidates(arguments.url, arguments.io_encoding)
+    if not candidates:
+        stderr('No pass candidates for URL {!r} found!'.format(arguments.url))
+        return ExitCodes.NO_PASS_CANDIDATES
+
+    hostname = normalize_hostname(urlparse(arguments.url).hostname)
+
+    selection = None
+    cached_id = read_cache(hostname)
+    if cached_id:
+        selection = next(
+            (c for c in candidates if c['id'] == cached_id), None)
+
+    if selection is None:
+        if len(candidates) == 1:
+            selection = candidates.pop()
+        else:
+            choices = ['{:s} | {:s}'.format(c['name'], c['login']['username']) for c in candidates]
+            choice = dmenu(choices, arguments.dmenu_invocation, arguments.io_encoding)
+            choice_tokens = choice.split('|')
+            choice_name = choice_tokens[0].strip()
+            choice_username = choice_tokens[1].strip()
+            selection = next((c for (i, c) in enumerate(candidates)
+                              if c['name'] == choice_name
+                              and c['login']['username'] == choice_username),
+                             None)
+
+    # Nothing was selected, simply return
+    if not selection:
+        return ExitCodes.SUCCESS
+
+    process = subprocess.run(
+        ['rbw', 'get', '--raw', selection['id']],
+        capture_output=True,
+    )
+    if process.returncode:
+        stderr(process.stderr.decode(arguments.io_encoding).strip())
+        return ExitCodes.FAILURE
+    login = json.loads(process.stdout.decode(arguments.io_encoding))['data']
+    username = login.get('username') or ''
+    password = login.get('password') or ''
+
+    # Refresh the cache timestamp so a follow-up invocation skips the picker.
+    write_cache(hostname, selection)
+
+    if arguments.insert_mode:
+        qute_command('mode-enter insert')
+        time.sleep(0.08)
+
+    if arguments.username_only:
+        type_text(username)
+    elif arguments.password_only:
+        type_text(password)
+    else:
+        type_text(username)
+        qute_command('fake-key <Tab>')
+        time.sleep(0.08)
+        type_text(password)
+
+    return ExitCodes.SUCCESS
+
+
+if __name__ == '__main__':
+    arguments = argument_parser.parse_args()
+    try:
+        sys.exit(main(arguments))
+    except RuntimeError as error:
+        stderr(str(error))
+        sys.exit(ExitCodes.FAILURE)

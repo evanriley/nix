@@ -30,13 +30,14 @@ between boots.
 | What | Stable path | Notes |
 | --- | --- | --- |
 | System SSD | Samsung 9100 PRO, 1.8T | Currently `nvme1n1` |
-| ESP | `/dev/disk/by-partuuid/15eb8d56-918f-4388-8647-0c4a9a3ad9db` | Reformatted, new label `BOOT` |
-| LUKS partition | `/dev/disk/by-uuid/87bb8815-a72f-494f-a7c0-0deb3f775dfc` | **Kept**. Mapped as `cryptroot` |
-| btrfs (inside LUKS) | `/dev/disk/by-label/cinderace` | Reformatted, new label `cinderace` |
+| ESP | `/dev/disk/by-partuuid/15eb8d56-918f-4388-8647-0c4a9a3ad9db` | Partition kept, filesystem recreated with label `BOOT` |
+| LUKS partition | `/dev/disk/by-partuuid/a657bd8b-27fe-4dc7-8d93-520caa984b3c` | **Kept**. Mapped as `cryptroot` |
+| btrfs (inside LUKS) | `/dev/mapper/cryptroot` | Recreated with label `cinderace` |
 | Media drive | `/dev/disk/by-uuid/79cdba09-88c5-4f14-901b-11731d773abe` | ext4, kept, holds staging |
 | Games drive | `/dev/disk/by-uuid/eaf05b17-caee-4b76-8754-9ffe20d4e0fb` | ext4, kept, has `SteamLibrary` |
 
-New btrfs layout (all `compress=zstd:3,noatime`):
+The layout is declared in `modules/hosts/cinderace/disko.nix`. The btrfs
+subvolumes (all `compress=zstd:3,noatime`):
 
 | Subvolume | Mount | Why |
 | --- | --- | --- |
@@ -104,7 +105,7 @@ prunes its own archives.
 ### 2.3 Prove the LUKS unlock methods before you depend on them
 
 ```bash
-LUKS=/dev/disk/by-uuid/87bb8815-a72f-494f-a7c0-0deb3f775dfc
+LUKS=/dev/disk/by-partuuid/a657bd8b-27fe-4dc7-8d93-520caa984b3c
 sudo systemd-cryptenroll "$LUKS"
 ```
 
@@ -244,16 +245,19 @@ Edit `~/nix/secrets/secrets.nix`. Replace the placeholders with the two
 
 Secrets are created from files, so nothing passes through your shell history.
 `EDITOR="cp -- <file>"` makes `agenix -e` copy that file in as the cleartext.
-Do this from `~/nix/secrets`:
+The repository holds unencrypted placeholders so the configuration builds
+before this phase; remove them first. Do this from `~/nix/secrets`:
 
 ```bash
 cd ~/nix/secrets
+rm -f -- *.age
 enc() { EDITOR="cp -- $2" agenix -e "$1"; }
 ```
 
 | Secret file | Source | How |
 | --- | --- | --- |
 | `evan-password.age` | Your login password as a yescrypt hash | See below |
+| `u2f-mappings.age` | `/etc/security/yubikey-u2f` (pam-u2f registrations) | `sudo cat /etc/security/yubikey-u2f > /tmp/u2f; enc u2f-mappings.age /tmp/u2f; shred -u /tmp/u2f` |
 | `borg-passphrase.age` | `~/.local/share/borgmatic-secrets/repository-passphrase` | `enc borg-passphrase.age <that path>` |
 | `borg-ssh-key.age` | `~/.local/share/borgmatic-secrets/id_ed25519-borgbase` | `enc borg-ssh-key.age <that path>` |
 | `syncthing-cert.age` | `~/.local/state/syncthing/cert.pem` | `enc …` (keeps the device ID) |
@@ -280,13 +284,14 @@ then `shred -u` it.
 - `slskd.env`: `SLSKD_SLSK_USERNAME=`, `SLSKD_SLSK_PASSWORD=` (the `soulseek:`
   block), `SLSKD_USERNAME=`, `SLSKD_PASSWORD=` (the `web: authentication:`
   block) and `SLSKD_API_KEY=` if your yml defines an API key for Soularr.
-- `soularr-config`: copy `config.ini` to `/tmp`, then change these values, since
-  there's no container network any more:
+- `soularr-config`: copy `config.ini` to `/tmp` and change the two host URLs.
+  Soularr still runs in a container, now on the host network, so there are no
+  `lidarr`/`slskd` container hostnames:
   - `[Lidarr] host_url = http://127.0.0.1:8686`
   - `[Slskd] host_url = http://127.0.0.1:5030`
-  - `[Slskd] download_dir = /data/Downloads/slskd/complete`
 
-  Leave the other settings alone.
+  Leave the other settings alone. `[Slskd] download_dir = /downloads` is the
+  container's mount of `/mnt/Media/Downloads/slskd/complete`.
 
 `/data` stays valid on NixOS because the config bind-mounts `/mnt/Media` at
 `/data`. Every path stored in Lidarr's database (`/data/Music`,
@@ -316,11 +321,14 @@ succeeds. Committing is required: flakes only include tracked files, so
 **Where:** Arch, bash. Choose a **staging passphrase** now; the installer asks
 for it. It only protects these temporary archives.
 
-### 5.1 System archive: host key, Secure Boot keys
+### 5.1 System archive: host key, Secure Boot keys, device state
+
+Tailscale keeps its node identity, and Bluetooth keeps its pairings (same
+adapter, same MAC):
 
 ```bash
 STAGE=/mnt/Media/nixos-migration
-sudo cp -a /var/lib/sbctl /root/migration-system/var/lib/
+sudo cp -a /var/lib/sbctl /var/lib/tailscale /var/lib/bluetooth /root/migration-system/var/lib/
 sudo tar -C /root/migration-system -cpf - . | zstd -T0 | age -p -o "$STAGE/system.tar.zst.age"
 ```
 
@@ -329,7 +337,7 @@ sudo tar -C /root/migration-system -cpf - . | zstd -T0 | age -p -o "$STAGE/syste
 This lets you recover if the header is ever damaged:
 
 ```bash
-sudo cryptsetup luksHeaderBackup /dev/disk/by-uuid/87bb8815-a72f-494f-a7c0-0deb3f775dfc \
+sudo cryptsetup luksHeaderBackup /dev/disk/by-partuuid/a657bd8b-27fe-4dc7-8d93-520caa984b3c \
   --header-backup-file /root/luks-header.img
 sudo cat /root/luks-header.img | age -p -o "$STAGE/luks-header.img.age"
 sudo shred -u /root/luks-header.img
@@ -442,14 +450,14 @@ the stick.
 sudo -i
 ```
 
-### 7.1 Network and variables
+### 7.1 Network, staging and repository
 
 Ethernet (RTL8126) should come up by itself:
 
 ```bash
 ping -c 3 cache.nixos.org
 
-LUKS=/dev/disk/by-uuid/87bb8815-a72f-494f-a7c0-0deb3f775dfc
+LUKS=/dev/disk/by-partuuid/a657bd8b-27fe-4dc7-8d93-520caa984b3c
 ESP=/dev/disk/by-partuuid/15eb8d56-918f-4388-8647-0c4a9a3ad9db
 MEDIA=/dev/disk/by-uuid/79cdba09-88c5-4f14-901b-11731d773abe
 STAGE=/media-staging/nixos-migration
@@ -465,6 +473,15 @@ lsblk -o NAME,SIZE,FSTYPE,LABEL,MODEL "$(readlink -f "$LUKS")" "$(readlink -f "$
 
 If anything differs, stop.
 
+Mount the staging drive read-only and copy the repository. The install runs
+from a root-owned copy, which avoids git ownership errors:
+
+```bash
+mkdir -p /media-staging && mount -o ro "$MEDIA" /media-staging
+cp -r "$STAGE/nix" /root/nix
+git -C /root/nix log --oneline -1
+```
+
 ### 7.2 Unlock with the passphrase
 
 ```bash
@@ -472,48 +489,35 @@ cryptsetup open "$LUKS" cryptroot
 ls /dev/mapper/cryptroot
 ```
 
-### 7.3 Wipe inside the container and create subvolumes
+### 7.3 Wipe inside the container, then format and mount with disko
 
 **This is the point of no return for Arch and the old home.**
 
-```bash
-mkfs.btrfs -f -L cinderace /dev/mapper/cryptroot
-mount -o subvolid=5 /dev/mapper/cryptroot /mnt
-for sv in @ @home @nix @log @snapshots; do btrfs subvolume create "/mnt/$sv"; done
-btrfs subvolume list /mnt
-umount /mnt
-```
-
-### 7.4 Mount the final layout
+`wipefs` clears the old btrfs and the old ESP filesystem. disko then creates
+everything declared in `modules/hosts/cinderace/disko.nix` that is missing.
+It adopts the existing partitions and the open LUKS container without
+recreating them: no `luksFormat`, and the partition table keeps its layout and
+GUIDs. `checks.x86_64-linux.cinderace-disko-adopt` tests this sequence
+against a copy of this disk layout.
 
 ```bash
-O=compress=zstd:3,noatime
-mount -o subvol=@,$O /dev/mapper/cryptroot /mnt
-mkdir -p /mnt/{home,nix,var/log,boot}
-mount -o subvol=@home,$O /dev/mapper/cryptroot /mnt/home
-mount -o subvol=@nix,$O  /dev/mapper/cryptroot /mnt/nix
-mount -o subvol=@log,$O  /dev/mapper/cryptroot /mnt/var/log
-mkdir -p /mnt/home/.snapshots
-mount -o subvol=@snapshots,$O /dev/mapper/cryptroot /mnt/home/.snapshots
-```
-
-### 7.5 Reformat and mount the ESP
-
-This removes the Arch UKIs and loader entries:
-
-```bash
-mkfs.fat -F 32 -n BOOT "$ESP"
-mount -o umask=0077 "$ESP" /mnt/boot
+wipefs -a /dev/mapper/cryptroot
+wipefs -a "$ESP"
+nix --extra-experimental-features 'nix-command flakes' \
+  run /root/nix#disko -- --mode format,mount --flake /root/nix#cinderace
 findmnt -R /mnt
 ```
 
-**Checkpoint:** `findmnt` shows `/mnt`, `/mnt/home`, `/mnt/home/.snapshots`,
-`/mnt/nix`, `/mnt/var/log` on `cryptroot` and `/mnt/boot` as vfat.
+disko prints two `Error encountered; not saving changes.` lines from `sgdisk`.
+That is its attempt to create the two partitions failing because they
+exist. It then only sets their names and types.
 
-### 7.6 Restore the host key and Secure Boot keys
+**Checkpoint:** `findmnt` shows `/mnt`, `/mnt/home`, `/mnt/home/.snapshots`,
+`/mnt/nix` and `/mnt/var/log` on `cryptroot`, and `/mnt/boot` as vfat.
+
+### 7.4 Restore the host key, Secure Boot keys and device state
 
 ```bash
-mkdir -p /media-staging && mount -o ro "$MEDIA" /media-staging
 nix-shell -p age zstd --run \
   "age -d $STAGE/system.tar.zst.age | zstd -d | tar -xpf - --numeric-owner -C /mnt"
 ls -l /mnt/etc/ssh/ssh_host_ed25519_key /mnt/var/lib/sbctl/keys
@@ -521,13 +525,11 @@ ls -l /mnt/etc/ssh/ssh_host_ed25519_key /mnt/var/lib/sbctl/keys
 
 **Checkpoint:** the host key is `-rw------- root`, and `keys/` has `PK KEK db`.
 
-### 7.7 Place the repo and install
+### 7.5 Install
 
-Install from a root-owned copy, to avoid git ownership errors. Evan's working
-copy goes in their home:
+Evan's working copy goes in their home:
 
 ```bash
-cp -r "$STAGE/nix" /root/nix
 install -d -o 1000 -g 1000 -m 700 /mnt/home/evan
 cp -a "$STAGE/nix" /mnt/home/evan/nix
 chown -R 1000:1000 /mnt/home/evan/nix
@@ -542,7 +544,7 @@ bootloader. lanzaboote signs everything with the restored keys.
 **If the bootloader step fails:** see Troubleshooting → "lanzaboote fails
 during install".
 
-### 7.8 Verify before rebooting
+### 7.6 Verify before rebooting
 
 ```bash
 nixos-enter --root /mnt -c 'sbctl verify'
@@ -560,7 +562,7 @@ Remove stale Arch entries, if any are shown (e.g. a direct-UKI entry):
 efibootmgr -b <XXXX> -B
 ```
 
-### 7.9 Stage the home archive inside the new home
+### 7.7 Stage the home archive inside the new home
 
 The next step is on the installed system, but the archive is decrypted now
 because the Media drive is already mounted:
@@ -572,7 +574,7 @@ nix-shell -p age zstd --run \
 ls /mnt/home/evan/.arch-home/evan
 ```
 
-### 7.10 Unmount and reboot
+### 7.8 Unmount and reboot
 
 ```bash
 umount /media-staging
@@ -610,12 +612,15 @@ sudo sbctl status                        # Secure Boot ✓ Enabled
 Then verify the rest:
 
 - [ ] `sudo ls /run/agenix` lists every secret.
-- [ ] Locking and unlocking with touch works. Password-only unlock works with
-      the keys removed.
+- [ ] Locking and unlocking with touch works (`desktopctl lock`, Mod+Alt+L).
+      Password-only unlock works with the keys removed. Then enable the idle
+      service, which stays inactive until locking has been tested:
+      `mkdir -p ~/.local/state/sway && touch ~/.local/state/sway/lock-tested && systemctl --user restart idle`
 - [ ] Both display modes: `display-mode` switching 6K/165 ↔ 3K/330.
 - [ ] Audio, Bluetooth, portals (screen share, file picker).
-- [ ] `systemctl status lidarr slskd soularr syncthing@evan` (or the user unit
-      the config uses) are active.
+- [ ] `systemctl --user --failed` lists nothing. `systemctl --user status waybar
+      swaync darkman display-mode idle` are active.
+- [ ] `systemctl status lidarr slskd podman-soularr syncthing` are active.
 
 ---
 
@@ -641,6 +646,8 @@ r .config/mozilla             # Firefox profile
 r .config/BraveSoftware
 r .local/share/qutebrowser
 r .local/state/yubikey-setup  # historical setup/test records
+r .local/bin/scapectl         # prebuilt binaries not packaged in nixpkgs
+r .local/bin/manta
 chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_*
 ```
 
@@ -654,7 +661,7 @@ T=$(mktemp -d) && git -C "$T" init -q && \
 ```
 
 **Media services.** Move Lidarr's database into the service's directory. slskd
-and Soularr state are small and optional:
+and Soularr state and the recommendations cache are small and optional:
 
 ```bash
 sudo systemctl stop lidarr
@@ -667,6 +674,14 @@ sudo systemctl stop slskd
 sudo rsync -a "$A/.local/share/media-stack/slskd/data/" /var/lib/slskd/data/
 sudo chown -R slskd:media /var/lib/slskd
 sudo systemctl start slskd
+
+sudo rsync -a "$A/.local/share/media-stack/soularr/failed_imports.json" /var/lib/soularr/
+sudo systemctl restart podman-soularr
+
+# The service uses DynamicUser; systemd fixes ownership on its next start.
+sudo install -d /var/lib/private/listenbrainz-recommendations
+sudo cp "$A/.local/state/arch-switch/listenbrainz-release-groups.json" \
+  /var/lib/private/listenbrainz-recommendations/
 ```
 
 Library permissions: the services now run as their own users in the `media`
@@ -695,6 +710,9 @@ sudo systemctl start borgmatic.service
 journalctl -u borgmatic -n 30
 ```
 
+The first run rebuilds Borg's local cache under `/root/.cache/borg`, so it
+takes longer than later runs.
+
 **Checkpoint:** a `home-cinderace-*` archive exists and the old
 `home-cinderance-*` archives are untouched.
 
@@ -722,7 +740,7 @@ After that, also:
 **Only a passphrase prompt, no FIDO2 prompt.** Type the passphrase to boot.
 Then check the config sets `boot.initrd.systemd.enable = true` and
 `crypttabExtraOpts = [ "fido2-device=auto" ]` for `cryptroot`, and run
-`sudo systemd-cryptenroll /dev/disk/by-uuid/87bb8815-a72f-494f-a7c0-0deb3f775dfc`.
+`sudo systemd-cryptenroll /dev/disk/by-partuuid/a657bd8b-27fe-4dc7-8d93-520caa984b3c`.
 It should still list both fido2 slots. Rebuild and reboot.
 
 **lanzaboote fails during install.** In `/root/nix`, make the host use
@@ -737,10 +755,15 @@ run `sudo sbctl verify`. Unsigned files mean `pkiBundle` isn't
 "Setup Mode" means the firmware keys were cleared: re-enroll with
 `sudo sbctl enroll-keys --microsoft` in setup mode.
 
-**Can't log in (password rejected).** The password secret didn't decrypt. Boot
-the USB and run steps 7.2 and 7.4 to unlock and mount. Then
-`nixos-enter --root /mnt -c 'passwd evan'`, reboot, and check the host key
-matches the `cinderace` recipient in `secrets.nix`.
+**Can't log in (password rejected).** The password secret didn't decrypt.
+`users.mutableUsers = false`, so `passwd` changes do not survive activation.
+Boot the USB and run 7.1 and 7.2, then mount with
+`nix run /root/nix#disko -- --mode mount --flake /root/nix#cinderace`. In
+`/root/nix/modules/system/users.nix`, temporarily replace `hashedPasswordFile`
+with `hashedPassword = "<output of mkpasswd -m yescrypt>";`, commit, and
+re-run the `nixos-install` command from 7.5. After booting, compare
+`/etc/ssh/ssh_host_ed25519_key.pub` with the `cinderace` recipient in
+`secrets/secrets.nix`, fix and rekey, then revert the change.
 
 **Want to fall back.** There's no Arch left to boot. The recovery path is the
 USB → `nixos-enter` for fixes. Borg (`home-cinderance-*`) and

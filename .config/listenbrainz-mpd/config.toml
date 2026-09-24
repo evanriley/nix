@@ -1,5 +1,0 @@
-[submission]
-token_file = "/home/evan/.config/listenbrainz-mpd/token"
-
-[mpd]
-address = "127.0.0.1:6600"

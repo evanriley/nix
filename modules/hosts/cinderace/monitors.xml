@@ -1,0 +1,24 @@
+<monitors version="2">
+  <configuration>
+    <layoutmode>logical</layoutmode>
+    <logicalmonitor>
+      <x>0</x>
+      <y>0</y>
+      <scale>2</scale>
+      <primary>yes</primary>
+      <monitor>
+        <monitorspec>
+          <connector>DP-2</connector>
+          <vendor>SAM</vendor>
+          <product>Odyssey G80HS</product>
+          <serial>HNAL700533</serial>
+        </monitorspec>
+        <mode>
+          <width>6144</width>
+          <height>3456</height>
+          <rate>164.996651</rate>
+        </mode>
+      </monitor>
+    </logicalmonitor>
+  </configuration>
+</monitors>
