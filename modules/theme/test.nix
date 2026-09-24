@@ -25,6 +25,11 @@ in
                 theme
               ];
               dotfiles.mutable = false;
+              # Keeps the test independent of the private berkeley-mono input (CI has no access).
+              stylix.fonts.monospace = pkgs.lib.mkForce {
+                name = "DejaVu Sans Mono";
+                package = pkgs.dejavu_fonts;
+              };
             };
           };
           virtualisation.memorySize = 2048;
