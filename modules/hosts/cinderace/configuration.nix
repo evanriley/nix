@@ -62,5 +62,10 @@ in
 
     # Existing profile restored from the Arch home.
     programs.firefox.profiles.default.path = "b437d468.default-release";
+
+    gtk.gtk3.bookmarks = [
+      "file:///mnt/Games Games"
+      "file:///mnt/Media Media"
+    ];
   };
 }
