@@ -34,7 +34,18 @@ in
       ...
     }:
     let
-      home = config.home.homeDirectory;
+      niri = "${pkgs.niri}/bin/niri";
+      lock = "${pkgs.swaylock}/bin/swaylock -f";
+      # display-mode pauses while this marker exists: the monitor drops its
+      # mode list when powered off.
+      monitorsOff = pkgs.writeShellScript "monitors-off" ''
+        touch "$XDG_RUNTIME_DIR/monitors-off"
+        exec ${niri} msg action power-off-monitors
+      '';
+      monitorsOn = pkgs.writeShellScript "monitors-on" ''
+        ${niri} msg action power-on-monitors
+        rm -f "$XDG_RUNTIME_DIR/monitors-off"
+      '';
     in
     {
       dotfiles.config = [
@@ -59,16 +70,35 @@ in
         darkman
         swaylock
         swayidle
-        swaybg
         fuzzel
         foot
-        grim
-        slurp
         wl-clipboard
         wtype
-        libnotify
         python3
       ];
+
+      xdg.configFile."swaylock/config".source =
+        config.lib.file.mkOutOfStoreSymlink "${config.xdg.stateHome}/darkman/swaylock.conf";
+
+      services.swayidle = {
+        enable = true;
+        timeouts = [
+          {
+            timeout = 300;
+            command = lock;
+          }
+          {
+            timeout = 600;
+            command = "${monitorsOff}";
+            resumeCommand = "${monitorsOn}";
+          }
+          {
+            timeout = 1800;
+            command = "${pkgs.systemd}/bin/systemctl suspend";
+          }
+        ];
+        events.before-sleep = lock;
+      };
 
       services.cliphist = {
         enable = true;
@@ -88,7 +118,7 @@ in
         };
 
         swaync = sessionService {
-          description = "Sway Notification Center";
+          description = "Notification daemon";
           exec = "${pkgs.swaynotificationcenter}/bin/swaync";
           service = {
             Type = "dbus";
@@ -108,11 +138,6 @@ in
             Type = "dbus";
             BusName = "nl.whynothugo.darkman";
           };
-        };
-
-        idle = sessionService {
-          description = "Idle lock, blank and suspend";
-          exec = "${home}/.local/bin/desktopctl idle";
         };
 
         yubikey-touch-detector = sessionService {

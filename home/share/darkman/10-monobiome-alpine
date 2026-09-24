@@ -4,9 +4,9 @@ set -eu
 
 mode=${1:?expected light or dark}
 case ${XDG_CURRENT_DESKTOP:-} in
-*niri*|*sway*) ;;
+*niri*) ;;
 *)
-    printf 'darkman: ignoring %s transition outside Niri or Sway\n' "$mode" >&2
+    printf 'darkman: ignoring %s transition outside Niri\n' "$mode" >&2
     exit 0
     ;;
 esac
@@ -127,21 +127,6 @@ window-rule {
 }
 EOF
 mv -f "$state_root/niri.kdl.new" "$state_root/niri.kdl"
-
-cat >"$state_root/sway.conf.new" <<EOF
-client.focused #$blue #$bg #$fg_max #$blue #$blue
-client.focused_inactive #$border #$bg #$fg_dim #$border #$border
-client.unfocused #$border #$bg #$fg_dim #$border #$border
-client.urgent #$red #$red #$bg #$red #$red
-output * bg #$bg solid_color
-EOF
-mv -f "$state_root/sway.conf.new" "$state_root/sway.conf"
-
-if [ -n "${SWAYSOCK:-}" ]; then
-    while IFS= read -r command; do
-        swaymsg "$command" >/dev/null 2>&1 || true
-    done <"$state_root/sway.conf"
-fi
 
 cat >"$state_root/swaylock.conf.new" <<EOF
 color=$bg
@@ -515,13 +500,6 @@ if [ -n "${NIRI_SOCKET:-}" ]; then
     restart_btop
 fi
 
-if pgrep -x swayosd-server >/dev/null 2>&1; then
-    pkill -x swayosd-server 2>/dev/null || true
-    if [ -n "${SWAYSOCK:-}" ]; then
-        swaymsg exec swayosd-server >/dev/null 2>&1 || true
-    else
-        niri msg action spawn -- swayosd-server >/dev/null 2>&1 || true
-    fi
-fi
+systemctl --user try-restart swayosd.service >/dev/null 2>&1 || true
 
 exit 0

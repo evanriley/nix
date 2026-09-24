@@ -1,64 +1,40 @@
 #!/usr/bin/env python3
-"""Shared desktop helpers for Sway and Niri."""
-
-from __future__ import annotations
+"""niri helpers: scratchpad terminals, power menu, suspend inhibitor."""
 
 import argparse
-import hashlib
 import json
-import os
-import shutil
-import shlex
 import subprocess
 import sys
 import time
-from datetime import datetime
-from pathlib import Path
-from typing import Any
 
-LOCK_ARGUMENTS = [
-    "swaylock", "-f", "-C",
-    str(Path.home() / ".local/state/darkman/swaylock.conf"),
-]
-SLEEP_INHIBIT_UNIT = "sleep-inhibit.service"
 SCRATCH_APPS = {
     "btop": ("scratch_btop", ["foot", "--app-id=scratch_btop", "btop"]),
     "rmpc": ("scratch_rmpc", ["foot", "--app-id=scratch_rmpc", "rmpc"]),
 }
+SLEEP_INHIBIT_UNIT = "sleep-inhibit.service"
 
-def is_niri() -> bool:
-    return bool(os.environ.get("NIRI_SOCKET"))
 
-def niri_json(command: str) -> Any:
+def niri_json(command):
     result = subprocess.run(["niri", "msg", "--json", command],
                             capture_output=True, check=True, text=True, timeout=5)
     return json.loads(result.stdout)
 
-def niri_action(*args: str) -> int:
+
+def niri_action(*args):
     return subprocess.run(["niri", "msg", "action", *args], check=False).returncode
 
-def monitor_power(state: str) -> int:
-    if not is_niri():
-        return subprocess.run(["swaymsg", "output", "*", "power", state], check=False).returncode
-    session = hashlib.sha256(os.environ["NIRI_SOCKET"].encode()).hexdigest()[:16]
-    marker = Path(os.environ["XDG_RUNTIME_DIR"]) / f"desktop-monitors-off-{session}"
-    if state == "off":
-        marker.touch(mode=0o600)
-    result = niri_action(f"power-{state}-monitors")
-    if state == "on" or result != 0:
-        marker.unlink(missing_ok=True)
-    return result
 
-def niri_scratch(name: str) -> int:
+def scratch(name):
+    """Show the app on the focused workspace, or park it on "scratch" if focused."""
     app_id, command = SCRATCH_APPS[name]
-    workspaces = niri_json("workspaces")
-    focused = next((w for w in workspaces if w["is_focused"]), None)
+    focused = next((w for w in niri_json("workspaces") if w["is_focused"]), None)
     if focused is None:
         print("desktopctl: no focused workspace", file=sys.stderr)
         return 1
 
     def find():
         return next((w for w in niri_json("windows") if w.get("app_id") == app_id), None)
+
     window = find()
     if window and window.get("is_focused") and focused.get("name") != "scratch":
         return niri_action("move-window-to-workspace", "--window-id", str(window["id"]),
@@ -77,368 +53,72 @@ def niri_scratch(name: str) -> int:
     target = focused.get("name") or str(focused["idx"])
     result = niri_action("move-window-to-workspace", "--window-id", window_id,
                          "--focus", "false", target)
-    if result:
-        return result
-    return niri_action("focus-window", "--id", window_id)
+    return result or niri_action("focus-window", "--id", window_id)
 
-def game_window() -> int:
-    if is_niri():
-        for action in [("move-window-to-floating",), ("set-window-width", "3840"),
-                       ("set-window-height", "2160"), ("center-window",)]:
-            result = niri_action(*action)
-            if result:
-                return result
-        return 0
-    return subprocess.run(["swaymsg", "floating enable, resize set width 3840 px height 2160 px, move position center"], check=False).returncode
 
-def run_lock() -> int:
-    arguments = LOCK_ARGUMENTS
-    return subprocess.run(arguments, check=False).returncode
+def menu(prompt, choices):
+    result = subprocess.run(["fuzzel", "--dmenu", "--prompt", prompt],
+                            input="\n".join(choices) + "\n", capture_output=True,
+                            text=True, check=False)
+    selected = result.stdout.strip()
+    return selected if result.returncode == 0 and selected in choices else None
 
-def run_idle() -> int:
-    marker = Path.home() / ".local/state/sway/lock-tested"
-    if not marker.is_file():
-        return 0
-    lock_arguments = LOCK_ARGUMENTS
-    arguments = [
-        "swayidle",
-        "-w",
-        "timeout",
-        "300",
-        shlex.join(lock_arguments),
-        "timeout",
-        "600",
-        shlex.join([str(Path.home() / ".local/bin/desktopctl"), "monitor-power", "off"]),
-        "resume",
-        shlex.join([str(Path.home() / ".local/bin/desktopctl"), "monitor-power", "on"]),
-        "timeout",
-        "1800",
-        "systemctl suspend --no-block",
-        "before-sleep",
-        shlex.join(lock_arguments),
-    ]
-    os.execvp(arguments[0], arguments)
-    return 2
 
-def sleep_inhibit_active() -> bool:
-    result = subprocess.run(
-        ["systemctl", "--user", "is-active", "--quiet", SLEEP_INHIBIT_UNIT],
-        check=False,
-    )
-    return result.returncode == 0
-
-def sleep_inhibit_status() -> int:
-    active = sleep_inhibit_active()
-    print(json.dumps({
-        "text": "" if active else "",
-        "class": "active" if active else "inactive",
-        "tooltip": (
-            "Automatic suspend blocked\nLocking and screen blanking remain enabled"
-            if active else
-            "Automatic suspend enabled\nClick to keep the computer awake"
-        ),
-    }))
+def power():
+    choice = menu("Power: ", ["Lock", "Suspend", "Logout", "Reboot", "Power Off"])
+    if choice == "Lock":
+        return subprocess.run(["swaylock", "-f"], check=False).returncode
+    if choice == "Suspend":
+        return subprocess.run(["systemctl", "suspend"], check=False).returncode
+    if choice and menu(f"Confirm {choice}: ", ["Yes", "No"]) == "Yes":
+        if choice == "Logout":
+            return niri_action("quit", "--skip-confirmation")
+        command = {"Reboot": "reboot", "Power Off": "poweroff"}[choice]
+        return subprocess.run(["systemctl", command], check=False).returncode
     return 0
 
-def sleep_inhibit_toggle() -> int:
-    action = "stop" if sleep_inhibit_active() else "start"
-    result = subprocess.run(
-        ["systemctl", "--user", action, SLEEP_INHIBIT_UNIT],
-        check=False,
-    )
-    subprocess.run(
-        ["pkill", "--signal", "RTMIN+10", "--exact", "waybar"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
+
+def sleep_inhibit_active():
+    return subprocess.run(["systemctl", "--user", "is-active", "--quiet", SLEEP_INHIBIT_UNIT],
+                          check=False).returncode == 0
+
+
+def sleep_inhibit(action):
+    """Waybar custom module: status prints its JSON, toggle flips the unit."""
+    if action == "status":
+        active = sleep_inhibit_active()
+        print(json.dumps({
+            "text": "\uf185" if active else "\uf186",
+            "class": "active" if active else "inactive",
+            "tooltip": ("Automatic suspend blocked\nLocking and screen blanking remain enabled"
+                        if active else
+                        "Automatic suspend enabled\nClick to keep the computer awake"),
+        }))
+        return 0
+    verb = "stop" if sleep_inhibit_active() else "start"
+    result = subprocess.run(["systemctl", "--user", verb, SLEEP_INHIBIT_UNIT], check=False)
+    subprocess.run(["pkill", "--signal", "RTMIN+10", "--exact", "waybar"], check=False,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return result.returncode
 
-def menu(prompt: str, choices: list[str]) -> str | None:
-    result = subprocess.run(
-        ["fuzzel", "--dmenu", "--prompt", prompt],
-        input=("\n".join(choices) + "\n").encode(),
-        stdout=subprocess.PIPE,
-        check=False,
-    )
-    if result.returncode != 0:
-        return None
-    selected = result.stdout.decode(errors="replace").strip()
-    return selected if selected in choices else None
 
-def confirmed(action: str) -> bool:
-    return menu(f"Confirm {action}: ", ["Yes", "No"]) == "Yes"
-
-def run_power() -> int:
-    choice = menu("Power: ", ["Lock", "Suspend", "Logout", "Reboot", "Power Off"])
-    if choice is None:
-        return 0
-    if choice == "Lock":
-        return run_lock()
-    if choice == "Suspend":
-        locked = run_lock()
-        if locked != 0:
-            return locked
-        return subprocess.run(["systemctl", "suspend"], check=False).returncode
-    if choice == "Logout":
-        if not confirmed(choice):
-            return 0
-        if is_niri():
-            return niri_action("quit", "--skip-confirmation")
-        return subprocess.run(["swaymsg", "exit"], check=False).returncode
-    if choice == "Reboot":
-        if not confirmed(choice):
-            return 0
-        return subprocess.run(["systemctl", "reboot"], check=False).returncode
-    if choice == "Power Off":
-        if not confirmed(choice):
-            return 0
-        return subprocess.run(["systemctl", "poweroff"], check=False).returncode
-    return 0
-
-def run_clipboard() -> int:
-    history = subprocess.run(["cliphist", "list"], stdout=subprocess.PIPE, check=False)
-    if history.returncode != 0:
-        return history.returncode
-    selection = subprocess.run(
-        ["fuzzel", "--dmenu", "--prompt", "Clipboard: "],
-        input=history.stdout,
-        stdout=subprocess.PIPE,
-        check=False,
-    )
-    if selection.returncode != 0 or not selection.stdout.strip():
-        return 0
-    decoded = subprocess.run(
-        ["cliphist", "decode"],
-        input=selection.stdout,
-        stdout=subprocess.PIPE,
-        check=False,
-    )
-    if decoded.returncode != 0:
-        return decoded.returncode
-    return subprocess.run(["wl-copy"], input=decoded.stdout, check=False).returncode
-
-def sway_json(message_type: str) -> Any | None:
-    result = subprocess.run(
-        ["swaymsg", "-t", message_type, "-r"],
-        stdout=subprocess.PIPE,
-        check=False,
-    )
-    if result.returncode != 0:
-        return None
-    try:
-        return json.loads(result.stdout)
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return None
-
-def focused_output() -> str | None:
-    outputs = sway_json("get_outputs")
-    if not isinstance(outputs, list):
-        return None
-    for output in outputs:
-        if isinstance(output, dict) and output.get("focused") is True:
-            name = output.get("name")
-            return name if isinstance(name, str) and name else None
-
-    workspaces = sway_json("get_workspaces")
-    if isinstance(workspaces, list):
-        for workspace in workspaces:
-            if isinstance(workspace, dict) and workspace.get("focused") is True:
-                name = workspace.get("output")
-                return name if isinstance(name, str) and name else None
-    return None
-
-def focused_leaf(node: Any) -> dict[str, Any] | None:
-    if not isinstance(node, dict):
-        return None
-    children: list[Any] = []
-    for key in ("nodes", "floating_nodes"):
-        value = node.get(key, [])
-        if isinstance(value, list):
-            children.extend(value)
-    for child in children:
-        found = focused_leaf(child)
-        if found is not None:
-            return found
-    if node.get("focused") is True and not children:
-        return node
-    return None
-
-def window_geometry() -> str | None:
-    node = focused_leaf(sway_json("get_tree"))
-    if node is None or not isinstance(node.get("rect"), dict):
-        return None
-    rect = node["rect"]
-    values = [rect.get(key) for key in ("x", "y", "width", "height")]
-    if any(type(value) is not int for value in values):
-        return None
-    x, y, width, height = values
-    if width <= 0 or height <= 0:
-        return None
-    return f"{x},{y} {width}x{height}"
-
-def screenshot_path() -> Path:
-    directory = Path.home() / "Pictures/Screenshots"
-    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-    stem = datetime.now().astimezone().strftime("%Y-%m-%d_%H-%M-%S")
-    candidate = directory / f"{stem}.png"
-    counter = 1
-    while candidate.exists():
-        candidate = directory / f"{stem}_{counter}.png"
-        counter += 1
-    return candidate
-
-def run_screenshot(kind: str) -> int:
-    if is_niri():
-        action = {"region": "screenshot", "output": "screenshot-screen", "window": "screenshot-window"}[kind]
-        return niri_action(action, "--show-pointer", "false", "--path", str(screenshot_path()))
-    grim_arguments = ["grim"]
-    if kind == "region":
-        selected = subprocess.run(["slurp"], stdout=subprocess.PIPE, check=False)
-        geometry = selected.stdout.decode(errors="replace").strip()
-        if selected.returncode != 0 or not geometry:
-            return 0
-        grim_arguments.extend(["-g", geometry])
-    elif kind == "output":
-        output = focused_output()
-        if output is None:
-            print(
-                "desktopctl: could not determine the focused output", file=sys.stderr
-            )
-            return 1
-        grim_arguments.extend(["-o", output])
-    elif kind == "window":
-        geometry = window_geometry()
-        if geometry is None:
-            print(
-                "desktopctl: could not determine the focused window", file=sys.stderr
-            )
-            return 1
-        grim_arguments.extend(["-g", geometry])
-
-    destination = screenshot_path()
-    grim_arguments.append(os.fspath(destination))
-    captured = subprocess.run(grim_arguments, check=False)
-    if captured.returncode != 0:
-        return captured.returncode
-    try:
-        image = destination.read_bytes()
-    except OSError as error:
-        print(f"desktopctl: cannot read screenshot: {error}", file=sys.stderr)
-        return 1
-    copied = subprocess.run(
-        ["wl-copy", "--type", "image/png"], input=image, check=False
-    )
-    if copied.returncode != 0:
-        return copied.returncode
-    if shutil.which("notify-send") is not None:
-        subprocess.run(
-            ["notify-send", "Screenshot saved", os.fspath(destination)], check=False
-        )
-    return 0
-
-def find_app(node: Any, app_id: str) -> dict[str, Any] | None:
-    if not isinstance(node, dict):
-        return None
-    if node.get("app_id") == app_id:
-        return node
-    for key in ("nodes", "floating_nodes"):
-        children = node.get(key, [])
-        if isinstance(children, list):
-            for child in children:
-                found = find_app(child, app_id)
-                if found is not None:
-                    return found
-    return None
-
-def find_app_id(node: Any, app_id: str) -> bool:
-    return find_app(node, app_id) is not None
-
-def show_scratch(app_id: str) -> int:
-    criteria = f'[app_id="^{app_id}$"]'
-    result = subprocess.run(
-        ["swaymsg", criteria, "scratchpad", "show"], check=False
-    ).returncode
-    if result != 0:
-        return result
-    node = find_app(sway_json("get_tree"), app_id)
-    mark = f"desktopctl_{app_id.removeprefix('scratch_')}_sized"
-    if node and node.get("visible") and mark not in node.get("marks", []):
-        return subprocess.run(
-            ["swaymsg", criteria,
-             f"resize set width 80 ppt height 80 ppt, move position center, mark --add {mark}"],
-            check=False,
-        ).returncode
-    return 0
-
-def run_scratch(name: str) -> int:
-    if is_niri():
-        return niri_scratch(name)
-    app_id, command = SCRATCH_APPS[name]
-    if find_app_id(sway_json("get_tree"), app_id):
-        return show_scratch(app_id)
-    subprocess.Popen(
-        command,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True,
-    )
-    deadline = time.monotonic() + 3.0
-    while time.monotonic() < deadline:
-        if find_app_id(sway_json("get_tree"), app_id):
-            return show_scratch(app_id)
-        time.sleep(0.1)
-    print(f"desktopctl: {app_id} did not appear within 3 seconds", file=sys.stderr)
-    return 1
-
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("game-window")
-    power = subparsers.add_parser("monitor-power")
-    power.add_argument("state", choices=("on", "off"))
-    subparsers.add_parser("lock")
-    subparsers.add_parser("idle")
-    subparsers.add_parser("sleep-inhibit-status")
-    subparsers.add_parser("sleep-inhibit-toggle")
-    subparsers.add_parser("power")
-    subparsers.add_parser("clipboard")
-    screenshot = subparsers.add_parser("screenshot")
-    screenshot.add_argument("kind", choices=("region", "output", "window"))
-    subparsers.add_parser("scratch-btop")
-    subparsers.add_parser("scratch-rmpc")
-    return parser.parse_args(argv)
-
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("scratch").add_argument("app", choices=SCRATCH_APPS)
+    commands.add_parser("power")
+    commands.add_parser("sleep-inhibit").add_argument("action", choices=("status", "toggle"))
+    args = parser.parse_args()
     try:
-        if args.command == "game-window":
-            return game_window()
-        if args.command == "monitor-power":
-            return monitor_power(args.state)
-        if args.command == "lock":
-            return run_lock()
-        if args.command == "idle":
-            return run_idle()
-        if args.command == "sleep-inhibit-status":
-            return sleep_inhibit_status()
-        if args.command == "sleep-inhibit-toggle":
-            return sleep_inhibit_toggle()
+        if args.command == "scratch":
+            return scratch(args.app)
         if args.command == "power":
-            return run_power()
-        if args.command == "clipboard":
-            return run_clipboard()
-        if args.command == "screenshot":
-            return run_screenshot(args.kind)
-        if args.command == "scratch-btop":
-            return run_scratch("btop")
-        if args.command == "scratch-rmpc":
-            return run_scratch("rmpc")
+            return power()
+        return sleep_inhibit(args.action)
     except (OSError, subprocess.SubprocessError, ValueError) as error:
         print(f"desktopctl: {error}", file=sys.stderr)
         return 2
-    return 2
+
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())

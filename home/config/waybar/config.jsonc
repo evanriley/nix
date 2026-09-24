@@ -33,7 +33,7 @@
   "cpu": {
     "format": "CPU {usage}%",
     "interval": 3,
-    "on-click": "~/.local/bin/desktopctl scratch-btop"
+    "on-click": "~/.local/bin/desktopctl scratch btop"
   },
   "memory": {
     "format": "RAM {}%",
@@ -55,11 +55,11 @@
     "max-volume": 100
   },
   "custom/sleep-inhibit": {
-    "exec": "~/.local/bin/desktopctl sleep-inhibit-status",
+    "exec": "~/.local/bin/desktopctl sleep-inhibit status",
     "return-type": "json",
     "interval": 5,
     "signal": 10,
-    "on-click": "~/.local/bin/desktopctl sleep-inhibit-toggle"
+    "on-click": "~/.local/bin/desktopctl sleep-inhibit toggle"
   },
   "tray": {
     "icon-size": 16,

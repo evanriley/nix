@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-"""Match the Odyssey G80HS desktop to its advertised dual-mode timings."""
+"""Match the Odyssey G80HS to its current hardware mode under niri.
+
+The monitor exposes either its 6K or its 3K mode list depending on a physical
+switch. This picks 6144x3456@165 (scale 2) or 3072x1728@330 (scale 1, with a
+240 Hz fallback) from whatever is advertised.
+"""
 
 import argparse
-import fcntl
-import hashlib
 import json
-import logging
-from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
-import select
 import socket
-import struct
 import subprocess
 import sys
 import time
@@ -86,195 +85,6 @@ def choose_mode(output):
             return max(modes, key=lambda m: m["refresh"]), scale
     return None
 
-LOG = logging.getLogger("display-mode")
-
-
-def setup_logging():
-    directory = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "display-mode"
-    directory.mkdir(parents=True, exist_ok=True)
-    handler = RotatingFileHandler(directory / "display-mode.log", maxBytes=2_000_000, backupCount=2)
-    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-    handler.setFormatter(formatter)
-    stream = logging.StreamHandler()
-    stream.setFormatter(formatter)
-    LOG.setLevel(logging.INFO)
-    LOG.addHandler(handler)
-    LOG.addHandler(stream)
-
-
-def sway_json(*args):
-    started = time.monotonic()
-    try:
-        result = subprocess.run(["swaymsg", "-r", *args], check=False,
-                                capture_output=True, text=True, timeout=8)
-    except subprocess.TimeoutExpired as error:
-        LOG.error("Sway timeout after %.2fs: %s stdout=%r stderr=%r",
-                  time.monotonic() - started, args, error.stdout, error.stderr)
-        raise
-    if result.returncode:
-        raise RuntimeError(f"Sway exit {result.returncode}: {args}: "
-                           f"stdout={result.stdout.strip()!r} stderr={result.stderr.strip()!r}")
-    return json.loads(result.stdout)
-
-
-def sway_command(command):
-    started = time.monotonic()
-    LOG.info("command: %s", command)
-    replies = sway_json(command)
-    if not replies or not all(r.get("success") for r in replies):
-        raise RuntimeError(f"Sway rejected {command}: {replies}")
-    LOG.info("command accepted in %.2fs", time.monotonic() - started)
-
-
-def mode_key(mode):
-    return tuple(mode.get(k) for k in ("width", "height", "refresh"))
-
-
-def timing(mode):
-    return f'{mode["width"]}x{mode["height"]}@{mode["refresh"] / 1000:.3f}Hz'
-
-
-def get_output(name):
-    return next((o for o in sway_json("-t", "get_outputs") if o["name"] == name), None)
-
-
-def mode_matches(output, mode, scale):
-    return bool(output and output.get("active") and output.get("power", True)
-                and mode_key(output.get("current_mode") or {}) == mode_key(mode)
-                and output.get("scale") == scale)
-
-
-def verify_output(name, mode, scale):
-    deadline = time.monotonic() + 6
-    stable = 0
-    observed = None
-    while time.monotonic() < deadline:
-        observed = get_output(name)
-        stable = stable + 1 if mode_matches(observed, mode, scale) else 0
-        if stable >= 3:
-            LOG.info("verified in Sway: %s %s scale %s", name, timing(mode), scale)
-            return
-        time.sleep(0.3)
-    raise RuntimeError(f"Output did not settle at {timing(mode)} scale {scale}: "
-                       f"{output_summary(observed)}")
-
-
-def output_summary(output):
-    if output is None:
-        return None
-    return {k: output.get(k) for k in
-            ("name", "active", "power", "current_mode", "scale", "modes")}
-
-
-def set_sway_mode(output, mode, scale, dry_run=False):
-    target = f'output {json.dumps(output["name"])}'
-    command = f'{target} mode {timing(mode)} scale {scale} power on'
-    power_cycle = (mode_key(output.get("current_mode") or {}) != mode_key(mode)
-                   and mode["width"] == 3072 and mode["refresh"] > 329000)
-    if dry_run:
-        if power_cycle:
-            print(f"{target} power off\n# wait 2 seconds")
-        print(command)
-        return
-    if power_cycle:
-        sway_command(f"{target} power off")
-        time.sleep(2)
-    sway_command(command)
-    verify_output(output["name"], mode, scale)
-
-
-class SwayModes:
-    def __init__(self):
-        self.families = {}
-        self.failed = {}
-        self.observed = None
-        self.pending = None
-        self.pending_since = 0
-
-    def apply(self, outputs, dry_run=False):
-        summaries = [output_summary(o) for o in outputs if o.get("model") == "Odyssey G80HS"]
-        if summaries != self.observed:
-            LOG.info("outputs: %s", json.dumps(summaries))
-            self.observed = summaries
-        for output in outputs:
-            selected = choose_mode(output)
-            if selected is None:
-                continue
-            mode, scale = selected
-            name = output["name"]
-            family = mode["width"]
-            if self.families.get(name) != family:
-                self.families[name] = family
-                self.failed[name] = set()
-            failed = self.failed[name]
-            candidates = [(mode, scale)]
-            if family == 3072 and mode["refresh"] > 329000:
-                fallback = [m for m in output["modes"] if m["width"] == 3072
-                            and m["height"] == 1728 and abs(m["refresh"] - 240000) < 1000]
-                if fallback:
-                    candidates.append((max(fallback, key=lambda m: m["refresh"]), 1))
-            candidates = [(m, s) for m, s in candidates if mode_key(m) not in failed]
-            if not candidates or mode_matches(output, *candidates[0]):
-                continue
-            if dry_run:
-                set_sway_mode(output, *candidates[0], dry_run=True)
-                continue
-            original = output
-            for candidate, candidate_scale in candidates:
-                fresh = get_output(name)
-                if not fresh or mode_key(candidate) not in {mode_key(m) for m in fresh.get("modes", [])}:
-                    LOG.info("output or advertised timing changed; waiting for reconnect")
-                    break
-                try:
-                    set_sway_mode(fresh, candidate, candidate_scale)
-                    break
-                except (OSError, subprocess.SubprocessError, RuntimeError, ValueError) as error:
-                    failed.add(mode_key(candidate))
-                    LOG.error("transition failed; suppressing %s until hardware mode changes: %s",
-                              timing(candidate), error)
-            else:
-                LOG.error("all target timings failed for %s", name)
-            fresh = get_output(name)
-            if any(mode_matches(fresh, m, s) for m, s in candidates):
-                continue
-            self.recover(original, fresh)
-
-    def recover(self, original, fresh):
-        name = original["name"]
-        if not fresh:
-            LOG.warning("%s disconnected; recovery deferred to reconnect", name)
-            return
-        available = fresh.get("modes", [])
-        previous = original.get("current_mode") or {}
-        recovery = next((m for m in available if mode_key(m) == mode_key(previous)), None)
-        scale = original.get("scale", 1)
-        if recovery is None:
-            recovery = next((m for m in available if m["width"] == 1920 and m["height"] == 1080
-                             and abs(m["refresh"] - 60000) < 1000), None)
-            scale = 1
-        try:
-            if recovery is not None:
-                LOG.warning("recovering %s at advertised %s", name, timing(recovery))
-                set_sway_mode(fresh, recovery, scale)
-            else:
-                LOG.warning("no safe advertised recovery mode; powering %s on", name)
-                sway_command(f'output {json.dumps(name)} power on')
-        except (OSError, subprocess.SubprocessError, RuntimeError, ValueError) as error:
-            LOG.error("recovery failed: %s", error)
-            sway_command(f'output {json.dumps(name)} power on')
-
-    def update(self, outputs, dry_run=False):
-        signature = [(o["name"], [mode_key(m) for m in o.get("modes", [])])
-                     for o in outputs if o.get("model") == "Odyssey G80HS"]
-        now = time.monotonic()
-        if signature != self.pending:
-            self.pending, self.pending_since = signature, now
-            LOG.info("mode list changed; allowing one second to settle: %s", signature)
-            return
-        if now - self.pending_since >= 1:
-            self.apply(outputs, dry_run)
-
-
 def niri_command(name, action, value):
     result = subprocess.run(["niri", "msg", "--json", "output", name, action, str(value)],
                             check=True, capture_output=True, text=True, timeout=5)
@@ -348,9 +158,10 @@ def apply_niri_outputs(outputs, dry_run=False):
             time.sleep(1)
             repair_niri_xwayland()
 
+
 def watch_niri(path, watch, dry_run):
-    session = hashlib.sha256(path.encode()).hexdigest()[:16]
-    paused = Path(os.environ["XDG_RUNTIME_DIR"]) / f"desktop-monitors-off-{session}"
+    # Written by swayidle while the monitors are powered off.
+    paused = Path(os.environ["XDG_RUNTIME_DIR"]) / "monitors-off"
     with socket.socket(socket.AF_UNIX) as sock:
         sock.settimeout(5)
         sock.connect(path)
@@ -374,33 +185,6 @@ def watch_niri(path, watch, dry_run):
                     return 0
                 time.sleep(3)
 
-class IPC:
-    def __init__(self, path):
-        self.sock = socket.socket(socket.AF_UNIX)
-        self.sock.settimeout(5)
-        self.sock.connect(path)
-
-    def read_exact(self, count):
-        data = b""
-        while len(data) < count:
-            part = self.sock.recv(count - len(data))
-            if not part:
-                raise EOFError("Sway closed the connection")
-            data += part
-        return data
-
-    def request(self, kind, payload=""):
-        data = payload.encode()
-        self.sock.sendall(struct.pack("=6sII", b"i3-ipc", len(data), kind) + data)
-        while True:
-            magic, length, reply_kind = struct.unpack("=6sII", self.read_exact(14))
-            if magic != b"i3-ipc":
-                raise RuntimeError("Invalid Sway IPC reply")
-            reply = json.loads(self.read_exact(length))
-            if reply_kind == 0x80000006:
-                raise EOFError("Sway is shutting down")
-            if reply_kind == kind:
-                return reply
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -408,76 +192,14 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--repair-xwayland", action="store_true")
     args = parser.parse_args()
-    setup_logging()
-    is_niri = bool(os.environ.get("NIRI_SOCKET"))
     if args.repair_xwayland:
-        if not is_niri:
-            raise RuntimeError("Xwayland repair is only available under Niri")
         repair_niri_xwayland(args.dry_run)
         return 0
-    path = os.environ["NIRI_SOCKET" if is_niri else "SWAYSOCK"]
-    if args.watch:
-        session = hashlib.sha256(path.encode()).hexdigest()[:16]
-        lock = (Path(os.environ["XDG_RUNTIME_DIR"]) / f"display-mode-{session}.lock").open("w")
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            return 0
-    if is_niri:
-        try:
-            return watch_niri(path, args.watch, args.dry_run)
-        except (EOFError, BrokenPipeError, ConnectionResetError):
-            return 0 if args.watch else 1
-    transaction = (Path(os.environ["XDG_RUNTIME_DIR"]) /
-                   f"display-mode-transition-{hashlib.sha256(path.encode()).hexdigest()[:16]}.lock").open("w")
-    controller = SwayModes()
-    LOG.info("starting Sway helper watch=%s dry_run=%s socket=%s", args.watch, args.dry_run, path)
-    ipc = IPC(path)
     try:
-        if args.watch:
-            reply = ipc.request(2, '["output", "shutdown"]')
-            if not reply.get("success"):
-                raise RuntimeError("Sway rejected output subscription")
-        while True:
-            try:
-                outputs = ipc.request(3)
-            except TimeoutError:
-                if not args.watch:
-                    raise
-                LOG.warning("Sway output query timed out; reconnecting IPC")
-                ipc.sock.close()
-                time.sleep(1)
-                if not Path(path).exists():
-                    return 0
-                ipc = IPC(path)
-                ipc.request(2, '["output", "shutdown"]')
-                continue
-            try:
-                fcntl.flock(transaction, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                if not args.watch:
-                    LOG.info("another display transition is already in progress")
-                    return 0
-                time.sleep(1)
-                continue
-            try:
-                if args.watch:
-                    controller.update(outputs, args.dry_run)
-                else:
-                    controller.apply(outputs, args.dry_run)
-            except (subprocess.SubprocessError, RuntimeError, ValueError) as error:
-                if not args.watch:
-                    raise
-                LOG.exception("Sway update failed: %s", error)
-            finally:
-                fcntl.flock(transaction, fcntl.LOCK_UN)
-            if not args.watch:
-                return 0
-            select.select([ipc.sock], [], [], 1)
+        return watch_niri(os.environ["NIRI_SOCKET"], args.watch, args.dry_run)
     except (EOFError, BrokenPipeError, ConnectionResetError):
         return 0 if args.watch else 1
-    finally:
-        ipc.sock.close()
+
 
 if __name__ == "__main__":
     try:

@@ -614,14 +614,12 @@ sudo sbctl status                        # Secure Boot ✓ Enabled
 Then verify the rest:
 
 - [ ] `sudo ls /run/agenix` lists every secret.
-- [ ] Locking and unlocking with touch works (`desktopctl lock`, Mod+Alt+L).
-      Password-only unlock works with the keys removed. Then enable the idle
-      service, which stays inactive until locking has been tested:
-      `mkdir -p ~/.local/state/sway && touch ~/.local/state/sway/lock-tested && systemctl --user restart idle`
+- [ ] Locking and unlocking with touch works (Mod+Alt+L). Password-only
+      unlock works with the keys removed.
 - [ ] Both display modes: `display-mode` switching 6K/165 ↔ 3K/330.
 - [ ] Audio, Bluetooth, portals (screen share, file picker).
 - [ ] `systemctl --user --failed` lists nothing. `systemctl --user status waybar
-      swaync darkman display-mode idle` are active.
+      swaync darkman display-mode swayidle` are active.
 - [ ] `systemctl status lidarr slskd podman-soularr syncthing` are active.
 
 ---

@@ -125,13 +125,13 @@ binds {
     Mod+Space repeat=false { spawn "fuzzel"; }
     Mod+E repeat=false { spawn "nautilus"; }
     Mod+P repeat=false { spawn "/home/evan/.local/bin/desktopctl" "power"; }
-    Mod+Alt+L repeat=false { spawn "/home/evan/.local/bin/desktopctl" "lock"; }
-    Mod+Ctrl+T repeat=false { spawn "/home/evan/.local/bin/desktopctl" "scratch-btop"; }
-    Mod+Ctrl+R repeat=false { spawn "/home/evan/.local/bin/desktopctl" "scratch-rmpc"; }
+    Mod+Alt+L repeat=false { spawn "swaylock" "-f"; }
+    Mod+Ctrl+T repeat=false { spawn "/home/evan/.local/bin/desktopctl" "scratch" "btop"; }
+    Mod+Ctrl+R repeat=false { spawn "/home/evan/.local/bin/desktopctl" "scratch" "rmpc"; }
     Mod+Ctrl+N repeat=false { spawn "swaync-client" "-t"; }
     Mod+Ctrl+B repeat=false { spawn "pkill" "-USR1" "-x" "waybar"; }
     Mod+Ctrl+M repeat=false { spawn "/home/evan/.local/bin/display-mode"; }
-    Mod+Alt+V repeat=false { spawn "/home/evan/.local/bin/desktopctl" "clipboard"; }
+    Mod+Alt+V repeat=false { spawn-sh "cliphist list | fuzzel --dmenu --prompt 'Clipboard: ' | cliphist decode | wl-copy"; }
     Mod+Shift+E repeat=false { spawn "/home/evan/.local/bin/desktopctl" "power"; }
     Ctrl+Alt+Delete repeat=false { spawn "/home/evan/.local/bin/desktopctl" "power"; }
     Mod+Alt+M { spawn-sh "~/.config/scripts/watch-media"; }
@@ -158,10 +158,10 @@ binds {
     Mod+V { toggle-window-floating; }
     Mod+Shift+V { switch-focus-between-floating-and-tiling; }
     Mod+Shift+Slash { show-hotkey-overlay; }
-    Print { spawn "/home/evan/.local/bin/desktopctl" "screenshot" "region"; }
-    Ctrl+Print { spawn "/home/evan/.local/bin/desktopctl" "screenshot" "output"; }
-    Alt+Print { spawn "/home/evan/.local/bin/desktopctl" "screenshot" "window"; }
-    Mod+F4 { spawn "/home/evan/.local/bin/desktopctl" "game-window"; }
+    Print { screenshot show-pointer=false; }
+    Ctrl+Print { screenshot-screen show-pointer=false; }
+    Alt+Print { screenshot-window; }
+    Mod+F4 { spawn-sh "niri msg action move-window-to-floating && niri msg action set-window-width 3840 && niri msg action set-window-height 2160 && niri msg action center-window"; }
     Mod+H { focus-column-left; }
     Mod+Shift+H { move-column-left; }
     Mod+Ctrl+H { focus-monitor-left; }
