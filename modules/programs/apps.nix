@@ -1,6 +1,7 @@
 { config, ... }:
 let
   inherit (config.flake.lib) sessionService;
+  inherit (config.meta) user;
 in
 {
   flake.modules.homeManager.apps =
@@ -56,7 +57,7 @@ in
       programs.rbw = {
         enable = true;
         settings = {
-          email = "evan@evanriley.com";
+          inherit (user) email;
           lock_timeout = 43200;
           sync_interval = 900;
           pinentry = pkgs.pinentry-gnome3;

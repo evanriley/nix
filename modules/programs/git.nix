@@ -62,7 +62,6 @@ in
           core = {
             autocrlf = false;
             safecrlf = false;
-            filemode = false;
             trustctime = false;
           };
           init.defaultBranch = "main";
@@ -89,7 +88,6 @@ in
           rerere.enabled = true;
           submodule.recurse = true;
           github.user = "evanriley";
-          hub.protocol = "https";
           fsck.zeroPaddedFilemode = "ignore";
           alias = {
             st = "status --short --branch";

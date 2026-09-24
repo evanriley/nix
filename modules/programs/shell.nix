@@ -12,7 +12,6 @@ in
         enable = true;
         nix-direnv.enable = true;
       };
-      documentation.man.cache.enable = true;
     };
 
   flake.modules.homeManager.shell =
