@@ -16,7 +16,10 @@
 
       boot.plymouth = {
         enable = true;
-        theme = "spinner";
+        theme = "lone";
+        themePackages = [
+          (pkgs.adi1090x-plymouth-themes.override { selected_themes = [ "lone" ]; })
+        ];
       };
       boot.consoleLogLevel = 3;
       boot.initrd.verbose = false;
