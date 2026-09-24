@@ -21,6 +21,13 @@ in
       themeDir = "${config.xdg.configHome}/theme";
       baseLink = "${config.xdg.stateHome}/theme/base";
 
+      # Restores Inherits=AdwaitaLegacy, which nixpkgs drops; legacy icon names break without it.
+      adwaitaIcons = pkgs.adwaita-icon-theme.overrideAttrs {
+        postPatch = ''
+          substituteInPlace index.theme --replace-fail "Hidden=true" ""
+        '';
+      };
+
       footColors = name: q: ''
         [colors-${name}]
         foreground=${q.fg_max}
@@ -157,7 +164,7 @@ in
           };
           cursor = {
             name = "Adwaita";
-            package = pkgs.adwaita-icon-theme;
+            package = adwaitaIcons;
             size = 24;
           };
           targets = {
@@ -540,7 +547,10 @@ in
           '';
         };
 
-        home.packages = [ applyTheme ];
+        home.packages = [
+          applyTheme
+          pkgs.adwaita-icon-theme-legacy
+        ];
       };
     };
 }

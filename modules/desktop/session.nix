@@ -88,6 +88,7 @@ in
         wl-clipboard
         wtype
         python3
+        yubikey-touch-detector
       ];
 
       services.swayidle = {
