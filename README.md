@@ -98,10 +98,6 @@ cd ~/nix/secrets
 agenix -r -i ~/.config/age/yubikeys.txt
 ```
 
-### Installation
-
-[INSTALL.md](INSTALL.md) covers a full install of `cinderace`.
-
 ## Inspiration and resources
 
 - [mightyiam/dendritic](https://github.com/mightyiam/dendritic)

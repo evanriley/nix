@@ -6,7 +6,7 @@
     # Partition UUIDs and types match the existing disk. disko adopts existing
     # partitions and an existing LUKS container instead of recreating them, so
     # the LUKS header (passphrase, recovery key, FIDO2 enrollments) survives a
-    # reinstall. Checked by checks.x86_64-linux.cinderace-disko-adopt.
+    # reinstall.
     disko.devices.disk.main = {
       type = "disk";
       device = "/dev/disk/by-id/nvme-Samsung_SSD_9100_PRO_2TB_S7YCNJ0Y201797K";
