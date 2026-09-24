@@ -28,6 +28,11 @@ in
             "/var/lib/slskd"
             "/var/lib/soularr"
             "/var/lib/private/listenbrainz-recommendations"
+            "/var/lib/sbctl"
+            "/etc/ssh/ssh_host_ed25519_key"
+            "/etc/ssh/ssh_host_ed25519_key.pub"
+            "/var/lib/tailscale"
+            "/var/lib/bluetooth"
           ];
           # Lidarr writes its database continuously; back up a consistent dump
           # instead of the live file.
@@ -122,6 +127,9 @@ in
             ];
         };
       };
+
+      # The upstream unit loads an encrypted credential for the passphrase; agenix provides it instead.
+      systemd.services.borgmatic.serviceConfig.LoadCredentialEncrypted = "";
 
       systemd.timers.borgmatic.timerConfig = {
         OnCalendar = [
