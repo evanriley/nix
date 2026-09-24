@@ -198,6 +198,7 @@
         brave
         chromium
         discord
+        claude-code
         # Font for the modernx OSC.
         mpvScripts.modernx
         yt-dlp

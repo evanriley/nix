@@ -24,6 +24,9 @@ in
 
       programs.nix-ld.enable = true;
 
+      # Lix needs git for this flake before home-manager provides it.
+      programs.git.enable = true;
+
       programs.nh = {
         enable = true;
         flake = repo;
