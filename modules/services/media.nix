@@ -62,7 +62,7 @@ in
       virtualisation.oci-containers = {
         backend = "podman";
         containers.soularr = {
-          image = "docker.io/mrusse08/soularr:latest";
+          image = "docker.io/mrusse08/soularr:latest@sha256:9d17bdc35108afd747c4862dc32a0c1cba821638d170e1374188a977ce255c76";
           environment = {
             TZ = config.time.timeZone;
             SCRIPT_INTERVAL = "300";
