@@ -39,10 +39,8 @@ hotkey-overlay { skip-at-startup; }
 gestures { hot-corners { off; }; }
 screenshot-path "~/Pictures/Screenshots/%Y-%m-%d_%H-%M-%S.png"
 
-// Session daemons are systemd user services bound to graphical-session.target
-// (declared in modules/desktop/session.nix). Only applications start here.
-spawn-at-startup "steam" "-silent"
-spawn-at-startup "discord"
+// Autostarted programs, including Steam and Discord, are systemd user services
+// bound to graphical-session.target, not spawn-at-startup.
 
 window-rule {
     match app-id="^foot$"

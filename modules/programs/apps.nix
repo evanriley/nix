@@ -1,3 +1,7 @@
+{ config, ... }:
+let
+  inherit (config.flake.lib) sessionService;
+in
 {
   flake.modules.homeManager.apps =
     {
@@ -192,6 +196,18 @@
       };
       home.file = {
         "${profileDir}/chrome/userChrome.css".source = config.dotfiles.link "firefox/userChrome.css";
+      };
+
+      # spawn-at-startup lost both to a race at login and discarded their output.
+      systemd.user.services = {
+        steam = sessionService {
+          description = "Steam";
+          exec = "/run/current-system/sw/bin/steam -silent";
+        };
+        discord = sessionService {
+          description = "Discord";
+          exec = lib.getExe pkgs.discord;
+        };
       };
 
       home.packages = with pkgs; [
