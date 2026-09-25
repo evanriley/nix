@@ -13,10 +13,6 @@ in
           "nix-command"
           "flakes"
         ];
-        trusted-users = [
-          "root"
-          "@wheel"
-        ];
         auto-optimise-store = true;
         extra-substituters = [ "https://devenv.cachix.org" ];
         extra-trusted-public-keys = [

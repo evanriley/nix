@@ -18,7 +18,6 @@ in
           "wheel"
           "networkmanager"
           "video"
-          "input"
         ];
         hashedPasswordFile = config.age.secrets.user-password.path;
       };
