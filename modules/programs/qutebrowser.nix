@@ -50,9 +50,12 @@
             wrapProgram $out/qute-mpv --prefix PATH : ${lib.makeBinPath [ config.programs.mpv.finalPackage ]}
           '';
 
+      dictionary = pkgs.hunspellDictsChromium.en_US;
+
       dataFiles = {
         "qutebrowser/greasemonkey".source = greasemonkey;
         "qutebrowser/userscripts".source = userscripts;
+        "qutebrowser/qtwebengine_dictionaries/${dictionary.dictFileName}".source = dictionary;
       };
     in
     lib.mkMerge [
