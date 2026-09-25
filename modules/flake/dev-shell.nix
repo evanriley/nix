@@ -2,6 +2,7 @@
 {
   perSystem =
     {
+      config,
       pkgs,
       lib,
       system,
@@ -16,6 +17,7 @@
           pkgs.nixfmt
         ]
         ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.mkpasswd;
+        shellHook = config.pre-commit.installationScript;
       };
 
       formatter = pkgs.nixfmt-tree;
