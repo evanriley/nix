@@ -58,7 +58,7 @@ in
           with pkgs;
           [
             coreutils
-            jq
+            gnused
           ]
           # macOS provides pkill and pgrep.
           ++ lib.optionals stdenv.hostPlatform.isLinux [
@@ -72,8 +72,9 @@ in
           if [ "$current" != "$mode" ]; then
             base=$(readlink -f "${baseLink}")
             case "$mode" in
-              dark) "$base/activate" ;;
-              light) "$base/specialisation/light/activate" ;;
+              # THEME_SWITCH stops themeBase from reapplying the mode a second time.
+              dark) THEME_SWITCH=1 "$base/activate" ;;
+              light) THEME_SWITCH=1 "$base/specialisation/light/activate" ;;
               *) echo "apply-theme: unsupported mode: $mode" >&2; exit 2 ;;
             esac
           fi
@@ -87,6 +88,11 @@ in
           systemctl --user kill --kill-whom=main --signal=USR2 waybar.service 2>/dev/null || true
           swaync-client --reload-css >/dev/null 2>&1 || true
           systemctl --user try-restart swayosd.service 2>/dev/null || true
+          # darkman starts before niri, so its environment has no NIRI_SOCKET.
+          if [ -z "''${NIRI_SOCKET:-}" ] && command -v systemctl >/dev/null; then
+            NIRI_SOCKET=$(systemctl --user show-environment 2>/dev/null | sed -n 's/^NIRI_SOCKET=//p' || true)
+            export NIRI_SOCKET
+          fi
           if [ -n "''${NIRI_SOCKET:-}" ]; then niri msg action load-config-file >/dev/null 2>&1 || true; fi
           if pgrep -f '(/bin/\.?qutebrowser(-wrapped)?|/MacOS/qutebrowser)( |$)' >/dev/null; then qutebrowser ':config-source' >/dev/null 2>&1 || true; fi
           if tmux list-sessions >/dev/null 2>&1; then tmux source-file "${themeDir}/tmux.conf" || true; fi
@@ -98,29 +104,8 @@ in
             rmpc remote --pid "$rmpc_pid" set theme "${themeDir}/rmpc.ron" >/dev/null 2>&1 || true
           fi
 
-          # btop reads its theme only at startup: restart the scratchpad copy in place.
-          [ -n "''${NIRI_SOCKET:-}" ] || exit 0
-          window=$(niri msg --json windows | jq -r 'first(.[] | select(.app_id == "scratch_btop")
-            | [.pid, .id, .workspace_id, .is_focused] | map(tostring) | join(" ")) // empty')
-          [ -n "$window" ] || exit 0
-          read -r old_pid old_id workspace_id was_focused <<<"$window"
-          workspace=$(niri msg --json workspaces | jq -r --argjson id "$workspace_id" \
-            'first(.[] | select(.id == $id) | (.name // (.idx | tostring))) // empty')
-          kill "$old_pid" 2>/dev/null || exit 0
-          for _ in $(seq 20); do kill -0 "$old_pid" 2>/dev/null || break; sleep 0.1; done
-          niri msg action spawn -- foot --app-id=scratch_btop btop >/dev/null
-          new_id=
-          for _ in $(seq 30); do
-            new_id=$(niri msg --json windows | jq -r --arg old "$old_id" \
-              'first(.[] | select(.app_id == "scratch_btop" and (.id | tostring) != $old) | .id) // empty')
-            [ -n "$new_id" ] && break
-            sleep 0.1
-          done
-          [ -n "$new_id" ] || exit 0
-          if [ -n "$workspace" ] && [ "$workspace" != scratch ]; then
-            niri msg action move-window-to-workspace --window-id "$new_id" --focus=false "$workspace" || true
-          fi
-          if [ "$was_focused" = true ]; then niri msg action focus-window --id "$new_id" || true; fi
+          # btop reloads its config and theme on SIGUSR2.
+          pkill -USR2 -x btop || true
         '';
       };
     in
@@ -203,13 +188,15 @@ in
             + (
               if isLinux then
                 ''
-                  if ${pkgs.systemd}/bin/systemctl --user is-active --quiet darkman.service; then
+                  if [ -z "''${THEME_SWITCH:-}" ] && ${pkgs.systemd}/bin/systemctl --user is-active --quiet darkman.service; then
                     run ${pkgs.systemd}/bin/systemctl --user start --no-block theme-sync.service
                   fi
                 ''
               else
                 ''
-                  run /bin/launchctl kickstart -k "gui/$(id -u)/org.nix-community.home.theme-appearance" || true
+                  if [ -z "''${THEME_SWITCH:-}" ]; then
+                    run /bin/launchctl kickstart -k "gui/$(id -u)/org.nix-community.home.theme-appearance" || true
+                  fi
                 ''
             )
           )
