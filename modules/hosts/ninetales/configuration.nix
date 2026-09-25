@@ -34,7 +34,10 @@ in
     # Requires Homebrew itself to be installed first (https://brew.sh).
     homebrew = {
       enable = true;
-      casks = [ "helium-browser" ];
+      casks = [
+        "firefox"
+        "helium-browser"
+      ];
       # Nothing is removed until casks are managed here.
       onActivation.cleanup = "none";
     };
@@ -78,7 +81,7 @@ in
         mru-spaces = false;
         # Home Manager copies apps here; a Nix store path would break the pins on every rebuild.
         persistent-apps = [
-          "/Users/${user.name}/Applications/Home Manager Apps/Firefox.app"
+          "/Applications/Firefox.app"
           "/Users/${user.name}/Applications/Home Manager Apps/Ghostty.app"
         ];
         persistent-others = [ ];

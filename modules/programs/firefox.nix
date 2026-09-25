@@ -7,15 +7,20 @@
       ...
     }:
     let
+      inherit (pkgs.stdenv.hostPlatform) isDarwin;
       firefox = config.programs.firefox;
-      profileDir = "${firefox.configPath}/${firefox.profiles.default.path}";
+      # home-manager keeps macOS profiles under Profiles/.
+      profileDir = "${firefox.configPath}${lib.optionalString isDarwin "/Profiles"}/${firefox.profiles.default.path}";
     in
     {
       programs.firefox = {
         enable = true;
-        # macOS 27 lets only Mozilla-signed Firefox use Application Support/Firefox.
-        # home-manager applies this path itself from stateVersion 26.11 on.
-        configPath = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "Library/Application Support/org.nixos.firefox";
+        # Homebrew's Mozilla build on macOS: nixpkgs' app starts a binary from another
+        # bundle, so macOS never registers it and window managers cannot place it.
+        package = lib.mkIf isDarwin null;
+        # macOS 27 lets only Mozilla's Firefox write Application Support/Firefox, so the
+        # profile lives here and Firefox's own profiles.ini points to it by absolute path.
+        configPath = lib.mkIf isDarwin "Library/Application Support/org.nixos.firefox";
         policies.DisableTelemetry = true;
         policies.DisableFirefoxStudies = true;
         # Installed on first start and updated by Firefox; can be disabled, not removed.
