@@ -13,6 +13,7 @@ in
     imports = with darwin; [
       nix
       shell
+      omniwm
     ];
 
     nixpkgs.hostPlatform = "aarch64-darwin";
