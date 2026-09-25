@@ -68,6 +68,32 @@ in
       WindowManager.GloballyEnabled = false;
       controlcenter.BatteryShowPercentage = true;
       trackpad.Clicking = true;
+
+      # Each rule hides a Spotlight category; everything except applications.
+      CustomUserPreferences."com.apple.Spotlight".EnabledPreferenceRules = [
+        "Custom.relatedContents"
+        "com.apple.AppStore"
+        "com.apple.iBooksX"
+        "com.apple.calculator"
+        "com.apple.iCal"
+        "com.apple.AddressBook"
+        "com.apple.Dictionary"
+        "com.apple.mail"
+        "com.apple.MobileSMS"
+        "com.apple.Notes"
+        "com.apple.Photos"
+        "com.apple.podcasts"
+        "com.apple.reminders"
+        "com.apple.Safari"
+        "com.apple.shortcuts"
+        "com.apple.systempreferences"
+        "com.apple.tips"
+        "com.apple.VoiceMemos"
+        "System.files"
+        "System.folders"
+        "System.iphoneApps"
+        "System.menuItems"
+      ];
     };
 
     system.keyboard = {
