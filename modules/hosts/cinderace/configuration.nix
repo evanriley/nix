@@ -18,6 +18,7 @@ in
       home-manager-vm
       locale
       networking
+      nextdns
       yubikey
       desktop
       audio

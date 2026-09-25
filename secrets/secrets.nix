@@ -12,12 +12,11 @@ let
   # /etc/ssh/ssh_host_ed25519_key.pub of each host.
   hosts = {
     cinderace = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIDES4qGRr0cZtmy1BQ0aO+5Ti1O+7Pyzk7O6XJnfuAI root@cinderace";
+    ninetales = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINCffWfU8zD0rbzO2bcefQZf0uQ7meUM+jVA+OuB88J4";
   };
 
-  shared = names: {
-    ${names} = {
-      publicKeys = admins ++ builtins.attrValues hosts;
-    };
+  shared = hostNames: name: {
+    ${name}.publicKeys = admins ++ map (host: hosts.${host}) hostNames;
   };
 
   hostSecrets =
@@ -29,8 +28,9 @@ let
       }) names
     );
 in
-shared "evan-password.age"
-// shared "listenbrainz-token.age"
+shared [ "cinderace" ] "evan-password.age"
+// shared [ "cinderace" ] "listenbrainz-token.age"
+// shared [ "cinderace" "ninetales" ] "nextdns.conf.age"
 // hostSecrets "cinderace" [
   "u2f-mappings.age"
   "borg-passphrase.age"

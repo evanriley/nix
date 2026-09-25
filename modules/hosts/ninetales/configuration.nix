@@ -12,6 +12,8 @@ in
   flake.modules.darwin.ninetales = {
     imports = with darwin; [
       nix
+      secrets
+      nextdns
       shell
       omniwm
     ];
