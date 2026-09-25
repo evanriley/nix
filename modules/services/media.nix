@@ -43,7 +43,7 @@ in
         openFirewall = true;
         environmentFile = config.age.secrets.slskd-env.path;
         settings = {
-          web.address = "127.0.0.1";
+          web.ip_address = "127.0.0.1";
           web.https.disabled = true;
           directories = {
             incomplete = "/data/Downloads/slskd/incomplete";
@@ -66,7 +66,8 @@ in
           environment = {
             TZ = config.time.timeZone;
             SCRIPT_INTERVAL = "300";
-            WEBUI_ENABLED = "true";
+            # Its unauthenticated /api/config serves config.ini, API keys included.
+            WEBUI_ENABLED = "false";
           };
           volumes = [
             "/var/lib/soularr:/data"
