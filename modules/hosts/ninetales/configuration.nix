@@ -38,10 +38,17 @@ in
       onActivation.cleanup = "none";
     };
 
-    # niri on cinderace: 300 ms delay, 90/s. macOS counts in 15 ms steps; 1 is its fastest rate.
-    system.defaults.NSGlobalDomain = {
-      InitialKeyRepeat = 20;
-      KeyRepeat = 1;
+    system.defaults = {
+      NSGlobalDomain = {
+        # 15 ms steps; 1 is the fastest repeat rate.
+        InitialKeyRepeat = 10;
+        KeyRepeat = 1;
+      };
+    };
+
+    system.keyboard = {
+      enableKeyMapping = true;
+      remapCapsLockToControl = true;
     };
 
     system.stateVersion = 7;
