@@ -56,6 +56,7 @@ in
       apps
       qutebrowser
       music
+      gaming
     ];
 
     services.mpd.musicDirectory = "/mnt/Media/Music";

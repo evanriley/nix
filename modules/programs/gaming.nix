@@ -6,11 +6,9 @@ in
   flake.modules.nixos.gaming =
     { pkgs, ... }:
     {
-      programs.steam = {
-        enable = true;
-        # Selectable per game under Properties → Compatibility.
-        extraCompatPackages = [ pkgs.proton-ge-bin ];
-      };
+      programs.steam.enable = true;
+      # No capSysNice: Steam's sandbox then refuses to start gamescope (nixpkgs#351516).
+      programs.gamescope.enable = true;
 
       # Launch option for a game: gamemoderun %command%
       programs.gamemode.enable = true;
@@ -24,5 +22,32 @@ in
       '';
 
       boot.kernel.sysctl."kernel.split_lock_mitigate" = 0;
+    };
+
+  flake.modules.homeManager.gaming =
+    { pkgs, ... }:
+    {
+      # Steam and Faugus both list compatibilitytools.d. Not named GE-Proton: umu
+      # treats that name as "download the latest GE-Proton".
+      home.file.".local/share/Steam/compatibilitytools.d/GE-Proton-Nix".source =
+        pkgs.proton-ge-bin.steamcompattool;
+
+      programs.mangohud = {
+        enable = true;
+        settings = {
+          toggle_hud = "Shift_R+F12";
+          position = "top-left";
+          fps = true;
+          frametime = true;
+          frame_timing = true;
+          gpu_stats = true;
+          gpu_temp = true;
+          gpu_power = true;
+          cpu_stats = true;
+          cpu_temp = true;
+          ram = true;
+          vram = true;
+        };
+      };
     };
 }
