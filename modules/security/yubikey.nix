@@ -37,4 +37,14 @@
         swaylock.u2fAuth = true;
       };
     };
+
+  flake.modules.homeManager.yubikey =
+    { pkgs, ... }:
+    {
+      home.packages = [
+        pkgs.age
+        pkgs.age-plugin-yubikey
+      ];
+      dotfiles.config = [ "age/yubikeys.txt" ];
+    };
 }

@@ -1,0 +1,14 @@
+#       Serial: 20477902, Slot: 1
+#         Name: cinderace-primary
+#      Created: Thu, 24 Sep 2026 17:03:01 +0000
+#   PIN policy: Once   (A PIN is required once per session, if set)
+# Touch policy: Cached (A physical touch is required for decryption, and is cached for 15 seconds)
+#    Recipient: age1yubikey1qtd2ghr0jy6k32srxygw4wf83dggd8zzuvywqq56f47gfdnp0ut26lhjj27
+AGE-PLUGIN-YUBIKEY-1EEMNSQVZKDKKF3CQJUUPL
+#       Serial: 20477782, Slot: 1
+#         Name: cinderace-backup
+#      Created: Thu, 24 Sep 2026 17:05:15 +0000
+#   PIN policy: Once   (A PIN is required once per session, if set)
+# Touch policy: Cached (A physical touch is required for decryption, and is cached for 15 seconds)
+#    Recipient: age1yubikey1qv98gry9ya6gj4tg4py8adrcl6z65te7kdy2a75cs7369t7lj407sv4ayc5
+AGE-PLUGIN-YUBIKEY-12EMNSQVZUMY0MGC4VSDMS
