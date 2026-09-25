@@ -15,7 +15,6 @@ in
       secure-boot
       secrets
       users
-      home-manager-vm
       locale
       networking
       nextdns
@@ -30,7 +29,6 @@ in
       music
       backup
       syncthing
-      vm
     ];
 
     networking.hostName = "cinderace";

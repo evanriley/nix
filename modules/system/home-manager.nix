@@ -1,7 +1,6 @@
 { config, inputs, ... }:
 let
   inherit (config.meta) user;
-  top = config;
 in
 {
   flake.homeConfigurations =
@@ -18,21 +17,6 @@ in
           config.flake.nixosConfigurations // config.flake.darwinConfigurations or { }
         )
       );
-
-  flake.modules.nixos.home-manager-vm =
-    { config, lib, ... }:
-    {
-      virtualisation.vmVariant = {
-        imports = [ inputs.home-manager.nixosModules.home-manager ];
-        home-manager = {
-          useGlobalPkgs = true;
-          users.${user.name} = {
-            imports = [ top.flake.modules.homeManager.${config.networking.hostName} ];
-            dotfiles.mutable = false;
-          };
-        };
-      };
-    };
 
   flake.modules.homeManager.base =
     {
