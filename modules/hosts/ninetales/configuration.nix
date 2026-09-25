@@ -46,6 +46,26 @@ in
         AppleInterfaceStyleSwitchesAutomatically = true;
         "com.apple.swipescrolldirection" = false;
         "com.apple.mouse.tapBehavior" = 1;
+        # Finder options only cover Finder; these also apply to Open/Save dialogs.
+        AppleShowAllExtensions = true;
+        AppleShowAllFiles = true;
+        NSAutomaticSpellingCorrectionEnabled = false;
+        NSAutomaticQuoteSubstitutionEnabled = false;
+        NSAutomaticDashSubstitutionEnabled = false;
+        NSAutomaticCapitalizationEnabled = false;
+        NSAutomaticPeriodSubstitutionEnabled = false;
+        ApplePressAndHoldEnabled = false;
+      };
+
+      finder = {
+        AppleShowAllExtensions = true;
+        AppleShowAllFiles = true;
+        FXEnableExtensionChangeWarning = false;
+        ShowPathbar = true;
+        ShowStatusBar = true;
+        _FXShowPosixPathInTitle = true;
+        FXPreferredViewStyle = "Nlsv";
+        NewWindowTarget = "Home";
       };
 
       dock = {
@@ -53,6 +73,7 @@ in
         orientation = "bottom";
         magnification = false;
         show-recents = false;
+        mru-spaces = false;
         # Home Manager copies apps here; a Nix store path would break the pins on every rebuild.
         persistent-apps = [
           "/Users/${user.name}/Applications/Home Manager Apps/Firefox.app"
@@ -65,7 +86,12 @@ in
         wvous-br-corner = 1;
       };
 
-      WindowManager.GloballyEnabled = false;
+      WindowManager = {
+        GloballyEnabled = false;
+        EnableStandardClickToShowDesktop = false;
+      };
+      spaces.spans-displays = false;
+
       controlcenter.BatteryShowPercentage = true;
       trackpad.Clicking = true;
 
