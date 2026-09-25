@@ -59,6 +59,7 @@ in
         firefox
         mpv
         bitwarden
+        yubikey
         qutebrowser
         music
         gaming

@@ -176,6 +176,7 @@ in
         discord
         mpv
         bitwarden
+        yubikey
         ghostty
         syncthing
         omniwm
