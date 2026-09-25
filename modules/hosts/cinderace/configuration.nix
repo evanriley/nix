@@ -42,32 +42,39 @@ in
     system.stateVersion = "26.05";
   };
 
-  flake.modules.homeManager.cinderace = {
-    imports = with homeManager; [
-      base
-      dotfiles
-      shell
-      git
-      kakoune
-      neovim
-      session
-      theme
-      apps
-      discord
-      firefox
-      mpv
-      bitwarden
-      qutebrowser
-      music
-      gaming
-    ];
+  flake.modules.homeManager.cinderace =
+    { pkgs, ... }:
+    {
+      imports = with homeManager; [
+        base
+        dotfiles
+        shell
+        git
+        kakoune
+        neovim
+        session
+        theme
+        apps
+        discord
+        firefox
+        mpv
+        bitwarden
+        qutebrowser
+        music
+        gaming
+      ];
 
-    services.mpd.musicDirectory = "/mnt/Media/Music";
+      services.mpd.musicDirectory = "/mnt/Media/Music";
 
-    # The existing profile; another path starts an empty one.
-    programs.firefox.profiles.default.path = "b437d468.default-release";
+      programs.btop = {
+        package = pkgs.btop.override { rocmSupport = true; };
+        settings.shown_boxes = "cpu mem net proc gpu0";
+      };
 
-    # File manager bookmarks; Nautilus writes through the link into the repo.
-    dotfiles.config = [ "gtk-3.0/bookmarks" ];
-  };
+      # The existing profile; another path starts an empty one.
+      programs.firefox.profiles.default.path = "b437d468.default-release";
+
+      # File manager bookmarks; Nautilus writes through the link into the repo.
+      dotfiles.config = [ "gtk-3.0/bookmarks" ];
+    };
 }
