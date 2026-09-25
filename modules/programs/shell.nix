@@ -82,6 +82,7 @@ in
 
       home.packages = with pkgs; [
         bat
+        devenv
         eza
         fastfetch
         fd
