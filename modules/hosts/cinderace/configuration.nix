@@ -54,6 +54,9 @@ in
       session
       theme
       apps
+      firefox
+      mpv
+      bitwarden
       qutebrowser
       music
       gaming
