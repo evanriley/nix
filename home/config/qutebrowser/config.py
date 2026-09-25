@@ -287,7 +287,6 @@ c.content.notifications.enabled = False
 c.content.persistent_storage = False
 c.content.register_protocol_handler = False
 
-c.content.javascript.clipboard = 'access'
 
 c.content.javascript.log_message.excludes['userscript:_qute_js'] = [
     '*TrustedHTML*',

@@ -137,11 +137,14 @@ def write_cache(hostname, selection):
 
 
 def list_candidates(url, encoding):
-    """Return matching metadata without fetching any decrypted passwords."""
+    """Return (candidates, matched) without fetching any decrypted passwords.
+
+    matched is False when no saved URI matches and every login is offered.
+    """
     process = subprocess.run(['rbw', 'list', '--raw'], capture_output=True)
     if process.returncode:
         stderr(process.stderr.decode(encoding).strip())
-        return []
+        return [], False
 
     hostname = normalize_hostname(urlparse(url).hostname)
     entries = json.loads(process.stdout.decode(encoding))
@@ -160,7 +163,7 @@ def list_candidates(url, encoding):
                 })
                 break
     if candidates:
-        return candidates
+        return candidates, True
 
     # Some services keep authentication on a different parent domain from the
     # URI stored in Bitwarden. Fall back to a searchable picker of every login
@@ -173,7 +176,7 @@ def list_candidates(url, encoding):
         }
         for entry in entries
         if (entry.get('type') or '').lower() == 'login'
-    ]
+    ], False
 
 
 def dmenu(items, invocation, encoding):
@@ -207,7 +210,7 @@ def main(arguments):
         argument_parser.print_help()
         return ExitCodes.FAILURE
 
-    candidates = list_candidates(arguments.url, arguments.io_encoding)
+    candidates, matched = list_candidates(arguments.url, arguments.io_encoding)
     if not candidates:
         stderr('No pass candidates for URL {!r} found!'.format(arguments.url))
         return ExitCodes.NO_PASS_CANDIDATES
@@ -221,18 +224,22 @@ def main(arguments):
             (c for c in candidates if c['id'] == cached_id), None)
 
     if selection is None:
-        if len(candidates) == 1:
+        # Never auto-select from the unmatched fallback: an unfamiliar or
+        # look-alike domain must not fill a login without a deliberate choice.
+        if matched and len(candidates) == 1:
             selection = candidates.pop()
         else:
             choices = ['{:s} | {:s}'.format(c['name'], c['login']['username']) for c in candidates]
+            if not matched:
+                qute_command('message-warning "No saved login matches {}"'.format(hostname))
+                choices.insert(0, '-- no saved login matches {} --'.format(hostname))
             choice = dmenu(choices, arguments.dmenu_invocation, arguments.io_encoding)
-            choice_tokens = choice.split('|')
-            choice_name = choice_tokens[0].strip()
-            choice_username = choice_tokens[1].strip()
-            selection = next((c for (i, c) in enumerate(candidates)
-                              if c['name'] == choice_name
-                              and c['login']['username'] == choice_username),
-                             None)
+            choice_name, separator, choice_username = choice.partition('|')
+            if separator:
+                selection = next((c for c in candidates
+                                  if c['name'] == choice_name.strip()
+                                  and c['login']['username'] == choice_username.strip()),
+                                 None)
 
     # Nothing was selected, simply return
     if not selection:
