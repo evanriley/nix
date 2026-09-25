@@ -33,7 +33,7 @@ c.statusbar.show = 'in-mode'
 c.statusbar.padding = {'top': 5, 'bottom': 5, 'left': 5, 'right': 5}
 c.statusbar.widgets = ['keypress', 'url', 'scroll', 'history', 'tabs', 'progress']
 
-c.content.user_stylesheets = ["/home/evan/.config/qutebrowser/youtube.css"]
+c.content.user_stylesheets = [str(config.configdir / 'youtube.css')]
 
 PALETTE_FILE = (
     pathlib.Path(os.environ.get('XDG_CONFIG_HOME') or pathlib.Path.home()
@@ -372,8 +372,8 @@ except Exception:
     pass
 
 # MPV
-config.bind('M', 'hint links spawn --detach /home/evan/.local/share/qutebrowser/userscripts/qute-mpv {hint-url}')
-config.bind('xm', 'spawn --detach /home/evan/.local/share/qutebrowser/userscripts/qute-mpv {url}')
+config.bind('M', 'hint links userscript qute-mpv')
+config.bind('xm', 'spawn --userscript qute-mpv')
 
 config.bind('<Space>pl', 'spawn --userscript qute-bitwarden-fuzzel')
 config.bind('<Space>pu', 'spawn --userscript qute-bitwarden-fuzzel --username-only')

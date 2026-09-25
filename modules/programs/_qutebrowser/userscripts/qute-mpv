@@ -2,7 +2,7 @@
 
 set -eu
 
-url=${1:?missing media URL}
+url=${1:-${QUTE_URL:?missing media URL}}
 log_dir=${XDG_CACHE_HOME:-$HOME/.cache}/mpv
 mkdir -p "$log_dir"
 
