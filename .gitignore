@@ -14,7 +14,6 @@ __pycache__/
 
 # Written by applications into live-linked directories
 home/config/fish/fish_variables
-home/config/gtk-3.0/bookmarks
 home/config/kak/result
 home/config/mpv/scripts/sponsorblock_shared/sponsorblock.txt
 home/config/qutebrowser/autoconfig.yml
