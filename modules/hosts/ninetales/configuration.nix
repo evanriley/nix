@@ -171,6 +171,7 @@ in
         bitwarden
         ghostty
         syncthing
+        omniwm
       ];
 
       # screencapture.location must already exist.
