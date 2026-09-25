@@ -7,65 +7,57 @@
 
 ## Usage
 
-Clone to `~/nix`, where `nh` expects the flake (`NH_FLAKE`):
-
 ```sh
 git clone git@github.com:evanriley/nix.git ~/nix
 ```
 
-The system and the home configuration are applied separately:
-
 | | cinderace | ninetales |
 | --- | --- | --- |
-| System | `nh os switch` | `nh darwin switch` |
-| Home | `nh home switch` | `nh home switch` |
+| Apply system | `nh os switch` | `nh darwin switch` |
+| Apply home | `nh home switch` | `nh home switch` |
 | Build only | `nh os build`, `nh home build` | `nh darwin build`, `nh home build` |
+| Roll back system | `nh os rollback` | `sudo darwin-rebuild --rollback` |
+| Roll back home | `home-manager generations`, then `<path>/activate` | `home-manager generations`, then `<path>/activate` |
 
-The home configuration fetches Berkeley Mono from the private
-`evanriley/berkeley-mono` repository, so it needs GitHub SSH access.
+Update inputs with `nix flake update --flake ~/nix`. The `update-flake-lock`
+workflow opens a pull request every Monday for the public, unpinned inputs;
+`berkeley-mono`, `helix`, `kak-*`, `friendly-snippets`, `monobiome` and
+`lanzaboote` are updated by hand.
 
-Update inputs:
+After a bad update, restore the previous lock and switch again:
 
 ```sh
-nix flake update --flake ~/nix
+git -C ~/nix checkout HEAD~1 -- flake.lock
 ```
 
-Start a project from a template (`rust`, `zig`, `ocaml`, `gleam`, `python`,
-`clojure`):
+`nh home switch` needs GitHub SSH access to fetch the private
+`evanriley/berkeley-mono` input.
+
+### Secrets
+
+Secrets are [agenix](https://github.com/ryantm/agenix) files in `secrets/`,
+decrypted at boot with each host's SSH key. Editing needs a YubiKey; the paper
+key is the recovery recipient.
+
+Edit a secret:
 
 ```sh
-nix flake init -t ~/nix#<template>
-```
-
-The theme follows darkman on cinderace and the system appearance on
-ninetales. To switch cinderace manually:
-
-```sh
-darkman set light
-darkman set dark
-```
-
-### Secrets and YubiKeys
-
-The configurations only work with their secrets: the login password, pam-u2f
-registrations, and the backup, Syncthing, media service and DNS credentials
-are [agenix](https://github.com/ryantm/agenix) files in `secrets/`, decrypted
-at boot with each host's SSH key. Editing them needs one of the two YubiKeys
-(PIV identity and touch); an offline paper key is the recovery recipient. SSH,
-commit signing and sudo on cinderace also use the YubiKeys.
-
-Edit or create a secret from the development shell:
-
-```sh
-nix develop ~/nix
 cd ~/nix/secrets
-agenix -e <name>.age -i ~/.config/age/yubikeys.txt
+nix develop ~/nix -c agenix -e <path>.age -i ~/.config/age/yubikeys.txt
 ```
 
-After changing recipients in `secrets/secrets.nix`, rekey every secret:
+Add a secret:
+
+1. Add it to `secrets/secrets.nix` (`hostSecrets "<host>" [ … ]` or `shared [ … ]`).
+2. Create it with the edit command above.
+3. Declare it: `age.secrets.<name>.file = inputs.self + "/secrets/<path>.age";`
+4. `git add` the `.age` file and switch.
+
+After changing recipients in `secrets/secrets.nix`, rekey:
 
 ```sh
-agenix -r -i ~/.config/age/yubikeys.txt
+cd ~/nix/secrets
+nix develop ~/nix -c agenix -r -i ~/.config/age/yubikeys.txt
 ```
 
 ## Inspiration and resources
