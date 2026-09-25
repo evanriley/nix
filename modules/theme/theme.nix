@@ -91,7 +91,7 @@ in
           swaync-client --reload-css >/dev/null 2>&1 || true
           systemctl --user try-restart swayosd.service 2>/dev/null || true
           if [ -n "''${NIRI_SOCKET:-}" ]; then niri msg action load-config-file >/dev/null 2>&1 || true; fi
-          if pgrep -f '/bin/\.?qutebrowser(-wrapped)?( |$)' >/dev/null; then qutebrowser ':config-source' >/dev/null 2>&1 || true; fi
+          if pgrep -f '(/bin/\.?qutebrowser(-wrapped)?|/MacOS/qutebrowser)( |$)' >/dev/null; then qutebrowser ':config-source' >/dev/null 2>&1 || true; fi
           if tmux list-sessions >/dev/null 2>&1; then tmux source-file "${themeDir}/tmux.conf" || true; fi
           for session in $(kak -l 2>/dev/null || true); do
             printf 'source %s\n' "${themeDir}/theme.kak" | kak -p "$session" >/dev/null 2>&1 || true

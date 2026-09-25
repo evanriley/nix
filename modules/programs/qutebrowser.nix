@@ -9,10 +9,28 @@
     let
       inherit (pkgs.stdenv.hostPlatform) isDarwin;
 
+      # nixpkgs' Darwin app starts Python from the store, so macOS never registers the
+      # process as the app and window managers cannot place its windows. Homebrew
+      # disabled the cask, so use the upstream PyInstaller bundle directly.
       qutebrowser =
         if isDarwin then
-          pkgs.qutebrowser.overrideAttrs (old: {
-            patches = (old.patches or [ ]) ++ [ ./_qutebrowser/ignore-launcher-file-open.patch ];
+          pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
+            pname = "qutebrowser";
+            version = "3.7.0";
+            src = pkgs.fetchurl {
+              url = "https://github.com/qutebrowser/qutebrowser/releases/download/v${finalAttrs.version}/qutebrowser-${finalAttrs.version}-arm64.dmg";
+              hash = "sha256-mBcCQb8Sov4d6r/8gSC3DcjgDlVbtxLDh1HESPBJVKM=";
+            };
+            nativeBuildInputs = [ pkgs.undmg ];
+            sourceRoot = "qutebrowser.app";
+            # Fixup would rewrite the ad-hoc signed binaries.
+            dontFixup = true;
+            installPhase = ''
+              mkdir -p $out/Applications/qutebrowser.app $out/bin
+              cp -R . $out/Applications/qutebrowser.app
+              ln -s $out/Applications/qutebrowser.app/Contents/MacOS/qutebrowser $out/bin/qutebrowser
+            '';
+            meta.sourceProvenance = [ lib.sourceTypes.binaryNativeCode ];
           })
         else
           pkgs.qutebrowser;
