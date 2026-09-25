@@ -12,4 +12,8 @@ in
 
     programs.nm-applet.enable = true;
   };
+
+  flake.modules.darwin.networking = {
+    services.tailscale.enable = true;
+  };
 }

@@ -13,6 +13,7 @@ in
     imports = with darwin; [
       nix
       secrets
+      networking
       nextdns
       shell
       omniwm

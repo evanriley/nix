@@ -42,9 +42,9 @@ in
 
       services.nextdns = {
         enable = true;
-        arguments = arguments config;
+        # Falls back to the network's DNS while a Wi-Fi login page is up.
+        arguments = arguments config ++ [ "-detect-captive-portals" ];
       };
-      # "Use Tailscale DNS" must be off in the Tailscale app.
       # agenix decrypts at boot in its own daemon; without the profile nextdns would
       # start unfiltered, so wait for the secret.
       launchd.daemons.nextdns.serviceConfig = {
