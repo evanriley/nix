@@ -9,6 +9,14 @@
     let
       inherit (pkgs.stdenv.hostPlatform) isDarwin;
 
+      qutebrowser =
+        if isDarwin then
+          pkgs.qutebrowser.overrideAttrs (old: {
+            patches = (old.patches or [ ]) ++ [ ./_qutebrowser/ignore-launcher-file-open.patch ];
+          })
+        else
+          pkgs.qutebrowser;
+
       sponsorblock = pkgs.fetchurl {
         url = "https://raw.githubusercontent.com/afreakk/greasemonkeyscripts/1ab9f20435cdc39c6551e940fb7788d3207161e6/youtube_sponsorblock.js";
         hash = "sha256-2sNlWL0KOAOMe2pllyKVBT4gAICokyDOuHPkVfUrYN4=";
@@ -59,7 +67,7 @@
       };
     in
     lib.mkMerge [
-      { home.packages = [ pkgs.qutebrowser ]; }
+      { home.packages = [ qutebrowser ]; }
       (lib.mkIf (!isDarwin) {
         dotfiles.config = [ "qutebrowser" ];
         xdg.dataFile = dataFiles;
@@ -72,10 +80,6 @@
         // lib.mapAttrs' (
           name: value: lib.nameValuePair "Library/Application Support/${name}" value
         ) dataFiles;
-
-        # Python runs qutebrowser as a script, and Cocoa opens that script's path as a
-        # file (a tab showing its source) unless unknown arguments are ignored.
-        targets.darwin.defaults.NSGlobalDomain.NSTreatUnknownArgumentsAsOpen = false;
       })
     ];
 }

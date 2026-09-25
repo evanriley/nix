@@ -1,0 +1,14 @@
+--- a/qutebrowser/app.py
++++ b/qutebrowser/app.py
+@@ -580,6 +580,11 @@
+             return super().event(e)
+ 
+         url = e.url()
++        # Python's command line holds the launcher script, which Cocoa
++        # reports as a file to open when the app starts.
++        if (url.isLocalFile() and
++                os.path.basename(url.toLocalFile()) == '.qutebrowser-wrapped'):
++            return True
+         if url.isValid():
+             open_url(url, no_raise=True)
+         else:
