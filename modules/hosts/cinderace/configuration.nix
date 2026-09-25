@@ -54,6 +54,7 @@ in
       session
       theme
       apps
+      discord
       firefox
       mpv
       bitwarden

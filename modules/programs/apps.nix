@@ -60,22 +60,17 @@ in
           };
       };
 
-      # spawn-at-startup lost both to a race at login and discarded their output.
+      # spawn-at-startup lost it to a race at login and discarded its output.
       systemd.user.services = {
         steam = sessionService {
           description = "Steam";
           exec = "/run/current-system/sw/bin/steam -silent";
-        };
-        discord = sessionService {
-          description = "Discord";
-          exec = lib.getExe pkgs.discord;
         };
       };
 
       home.packages = with pkgs; [
         brave
         chromium
-        discord
         swayimg
         nautilus
         pavucontrol

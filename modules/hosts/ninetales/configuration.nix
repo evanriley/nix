@@ -88,6 +88,7 @@ in
       neovim
       theme
       firefox
+      discord
       mpv
       bitwarden
       ghostty
