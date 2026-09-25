@@ -33,7 +33,7 @@ in
     # Requires Homebrew itself to be installed first (https://brew.sh).
     homebrew = {
       enable = true;
-      casks = [ ];
+      casks = [ "helium-browser" ];
       # Nothing is removed until casks are managed here.
       onActivation.cleanup = "none";
     };
