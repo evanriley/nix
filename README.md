@@ -1,51 +1,28 @@
 # nix
 
-NixOS, nix-darwin and home-manager configuration, structured with the
-[dendritic pattern](https://github.com/mightyiam/dendritic): every file is a
-flake-parts module that configures one feature across NixOS, nix-darwin and
-home-manager.
-
-| Host | Platform | Status |
-| --- | --- | --- |
-| `cinderace` | NixOS, x86_64 desktop | Active |
-| `ninetales` | nix-darwin, aarch64 MacBook Pro | Active |
+| Host | Hardware | System | Status |
+| --- | --- | --- | --- |
+| `cinderace` | Desktop: Ryzen 7 9800X3D, Radeon RX 9070 XT | NixOS, x86_64-linux | Active |
+| `ninetales` | MacBook Pro, M1 Pro | nix-darwin, aarch64-darwin | Active |
 
 ## Usage
 
-Clone:
+Clone to `~/nix`, where `nh` expects the flake (`NH_FLAKE`):
 
 ```sh
 git clone git@github.com:evanriley/nix.git ~/nix
 ```
 
-The system and the user environment are applied separately. `nh` reads the
-flake location from `NH_FLAKE` (`/home/evan/nix`).
+The system and the home configuration are applied separately:
 
-Apply the system configuration:
+| | cinderace | ninetales |
+| --- | --- | --- |
+| System | `nh os switch` | `nh darwin switch` |
+| Home | `nh home switch` | `nh home switch` |
+| Build only | `nh os build`, `nh home build` | `nh darwin build`, `nh home build` |
 
-```sh
-nh os switch
-```
-
-Apply the home configuration (no sudo). It fetches Berkeley Mono from the
-private `evanriley/berkeley-mono` repository, which needs GitHub SSH access:
-
-```sh
-nh home switch
-```
-
-Build without switching:
-
-```sh
-nh os build
-nh home build
-```
-
-Boot the configuration in a VM:
-
-```sh
-nix run ~/nix#nixosConfigurations.cinderace.config.system.build.vm
-```
+The home configuration fetches Berkeley Mono from the private
+`evanriley/berkeley-mono` repository, so it needs GitHub SSH access.
 
 Update inputs:
 
@@ -53,41 +30,34 @@ Update inputs:
 nix flake update --flake ~/nix
 ```
 
-Enter the development shell (agenix, age, age-plugin-yubikey, mkpasswd):
+Start a project from a template (`rust`, `zig`, `ocaml`, `gleam`, `python`,
+`clojure`):
 
 ```sh
-nix develop ~/nix
+nix flake init -t ~/nix#<template>
 ```
 
-### Dotfiles
-
-Application configuration files are symlinked from this repository into
-`~/.config` without going through the Nix store. Edits to them apply
-immediately. Adding or removing a linked file requires a rebuild.
-
-### Theme
-
-Colors come from the Monobiome Alpine palette in `modules/theme/palette.nix`.
-darkman switches between the dark base generation and the `light`
-specialisation at sunrise and sunset. Switch manually with:
+The theme follows darkman on cinderace and the system appearance on
+ninetales. To switch cinderace manually:
 
 ```sh
 darkman set light
 darkman set dark
 ```
 
-### Secrets
+### Secrets and YubiKeys
 
-Secrets are encrypted with [agenix](https://github.com/ryantm/agenix). The
-recipients for each secret are listed in `secrets/secrets.nix`:
+The configurations only work with their secrets: the login password, pam-u2f
+registrations, and the backup, Syncthing, media service and DNS credentials
+are [agenix](https://github.com/ryantm/agenix) files in `secrets/`, decrypted
+at boot with each host's SSH key. Editing them needs one of the two YubiKeys
+(PIV identity and touch); an offline paper key is the recovery recipient. SSH,
+commit signing and sudo on cinderace also use the YubiKeys.
 
-- the host SSH key, used to decrypt at boot
-- a PIV identity on each YubiKey, used to edit and rekey
-- an offline paper key, for recovery
-
-Edit or create a secret (requires a YubiKey touch):
+Edit or create a secret from the development shell:
 
 ```sh
+nix develop ~/nix
 cd ~/nix/secrets
 agenix -e <name>.age -i ~/.config/age/yubikeys.txt
 ```
@@ -95,17 +65,31 @@ agenix -e <name>.age -i ~/.config/age/yubikeys.txt
 After changing recipients in `secrets/secrets.nix`, rekey every secret:
 
 ```sh
-cd ~/nix/secrets
 agenix -r -i ~/.config/age/yubikeys.txt
 ```
 
 ## Inspiration and resources
 
-- [mightyiam/dendritic](https://github.com/mightyiam/dendritic)
+Configurations:
+
 - [NotAShelf/nyx](https://github.com/NotAShelf/nyx)
+
+Structure:
+
+- [mightyiam/dendritic](https://github.com/mightyiam/dendritic)
 - [flake-parts](https://flake.parts)
 - [vic/import-tree](https://github.com/vic/import-tree)
+
+Tools:
+
+- [Lix](https://lix.systems)
 - [home-manager](https://github.com/nix-community/home-manager)
+- [nix-darwin](https://github.com/nix-darwin/nix-darwin)
+- [nh](https://github.com/nix-community/nh)
+- [disko](https://github.com/nix-community/disko)
+- [lanzaboote](https://github.com/nix-community/lanzaboote)
 - [agenix](https://github.com/ryantm/agenix)
 - [age-plugin-yubikey](https://github.com/str4d/age-plugin-yubikey)
-- [lanzaboote](https://github.com/nix-community/lanzaboote)
+- [Stylix](https://github.com/nix-community/stylix)
+- [nvf](https://github.com/notashelf/nvf)
+- [Monobiome](https://github.com/endofunctorio/monobiome)

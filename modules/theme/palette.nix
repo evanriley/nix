@@ -1,5 +1,5 @@
 {
-  # Monobiome 1.5.5 Alpine (https://github.com/samgriesemer/monobiome): OKLCH
+  # Monobiome 1.5.5 Alpine (https://github.com/endofunctorio/monobiome): OKLCH
   # lightness steps of a neutral gray plus five hues, each with a regular and
   # a higher-contrast variant.
   flake.lib.monobiome = {
