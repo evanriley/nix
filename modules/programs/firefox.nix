@@ -1,6 +1,11 @@
 {
   flake.modules.homeManager.firefox =
-    { config, lib, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       firefox = config.programs.firefox;
       profileDir = "${firefox.configPath}/${firefox.profiles.default.path}";
@@ -8,6 +13,9 @@
     {
       programs.firefox = {
         enable = true;
+        # macOS 27 lets only Mozilla-signed Firefox use Application Support/Firefox.
+        # home-manager applies this path itself from stateVersion 26.11 on.
+        configPath = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin "Library/Application Support/org.nixos.firefox";
         policies.DisableTelemetry = true;
         policies.DisableFirefoxStudies = true;
         # Installed on first start and updated by Firefox; can be disabled, not removed.
