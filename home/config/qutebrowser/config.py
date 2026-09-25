@@ -1,6 +1,7 @@
 import os
 import pathlib
 import re
+import sys
 
 config.load_autoconfig(False)
 c.auto_save.session = True
@@ -375,10 +376,10 @@ except Exception:
 config.bind('M', 'hint links userscript qute-mpv')
 config.bind('xm', 'spawn --userscript qute-mpv')
 
-config.bind('<Space>pl', 'spawn --userscript qute-bitwarden-fuzzel')
-config.bind('<Space>pu', 'spawn --userscript qute-bitwarden-fuzzel --username-only')
-config.bind('<Space>pp', 'spawn --userscript qute-bitwarden-fuzzel --password-only')
-config.bind('<Space>pL', 'spawn --userscript qute-bitwarden-fuzzel --lock')
+config.bind('<Space>pl', 'spawn --userscript qute-bitwarden')
+config.bind('<Space>pu', 'spawn --userscript qute-bitwarden --username-only')
+config.bind('<Space>pp', 'spawn --userscript qute-bitwarden --password-only')
+config.bind('<Space>pL', 'spawn --userscript qute-bitwarden --lock')
 
 config.bind('J', 'tab-next')
 config.bind('K', 'tab-prev')
@@ -389,8 +390,16 @@ config.bind('b', 'cmd-set-text -s :quickmark-load')
 config.bind('B', 'cmd-set-text -s :quickmark-load -t')
 config.bind('ss', 'open -t {primary}')
 
-c.editor.command = [
-    'foot', '--app-id=qute-editor', 'nvim', '-f', '{file}',
+if sys.platform == 'darwin':
+    # open -W returns once Ghostty quits, so it must quit with its last window.
+    terminal = [
+        'open', '-W', '-n', '-a', 'Ghostty', '--args',
+        '--quit-after-last-window-closed=true', '-e',
+    ]
+else:
+    terminal = ['foot', '--app-id=qute-editor']
+c.editor.command = terminal + [
+    'nvim', '-f', '{file}',
     '-c', 'call cursor({line}, {column})',
 ]
 

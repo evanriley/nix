@@ -10,7 +10,7 @@ Insert login information using rbw and a dmenu-compatible application
 """
 
 USAGE = """The saved Bitwarden URI is matched against the current site. Login
-information is typed through Wayland as [USERNAME]<Tab>[PASSWORD], which is
+information is typed as [USERNAME]<Tab>[PASSWORD], which is
 compatible with most login forms.
 
 You must have an unlocked rbw vault prior to use of this script; rbw-agent
@@ -19,9 +19,9 @@ handles unlocking itself.
 To use in qutebrowser, run: `spawn --userscript qute-bitwarden`
 """
 
-EPILOG = """Dependencies: rbw, fuzzel and wtype. Credentials are sent to wtype
-over standard input, so they do not enter qutebrowser's log or clipboard
-history."""
+EPILOG = """Dependencies: rbw and a dmenu-compatible picker, plus wtype on
+Linux or osascript on macOS. Credentials are sent to the typing program over
+standard input, so they do not enter qutebrowser's log or clipboard history."""
 
 import argparse
 import enum
@@ -186,16 +186,35 @@ def dmenu(items, invocation, encoding):
     return process.stdout.decode(encoding).strip()
 
 
+# Reads the credential from stdin; System Events needs qutebrowser to have
+# the Accessibility permission. qutebrowser drops keys from a single
+# keystroke call partway through, so characters go one at a time.
+MACOS_TYPE_SCRIPT = """
+ObjC.import('Foundation');
+const data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;
+const text = $.NSString.alloc.initWithDataEncoding(data, $.NSUTF8StringEncoding).js;
+const events = Application('System Events');
+for (const character of text) {
+    events.keystroke(character);
+    delay(0.02);
+}
+"""
+
+
 def type_text(text):
     """Type a credential without putting it in argv, the clipboard or Qute."""
     if '\n' in text or '\r' in text:
         raise RuntimeError('Refusing to type a credential containing a newline')
+    if sys.platform == 'darwin':
+        command = ['/usr/bin/osascript', '-l', 'JavaScript', '-e', MACOS_TYPE_SCRIPT]
+    else:
+        command = ['wtype', '-']
     process = subprocess.run(
-        ['wtype', '-'], input=text, text=True,
+        command, input=text, text=True,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
     if process.returncode:
-        raise RuntimeError('Wayland credential typing failed')
+        raise RuntimeError('Credential typing failed')
 
 
 def main(arguments):

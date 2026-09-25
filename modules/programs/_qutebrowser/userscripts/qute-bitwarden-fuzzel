@@ -1,5 +1,0 @@
-#!/bin/sh
-
-exec "$(dirname "$0")/qute-bitwarden-local" \
-    --dmenu-invocation 'fuzzel --dmenu --prompt=Bitwarden: --minimal-lines' \
-    "$@"
