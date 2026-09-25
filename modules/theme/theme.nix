@@ -393,7 +393,8 @@ in
             set recolor-reverse-video true
           '';
 
-          "theme/btop.theme".text = ''
+          # btop only loads themes from its themes directories, by name.
+          "btop/themes/monobiome.theme".text = ''
             theme[main_bg]="#${p.bg}"
             theme[main_fg]="#${p.fg_max}"
             theme[title]="#${p.blue}"
@@ -401,6 +402,10 @@ in
             theme[selected_bg]="#${p.selection}"
             theme[selected_fg]="#${p.fg_max}"
             theme[inactive_fg]="#${p.muted}"
+            theme[graph_text]="#${p.fg_dim}"
+            theme[meter_bg]="#${p.selection}"
+            theme[followed_bg]="#${p.selection}"
+            theme[followed_fg]="#${p.fg_max}"
             theme[proc_misc]="#${p.blue_bright}"
             theme[cpu_box]="#${p.border}"
             theme[mem_box]="#${p.border}"
@@ -431,6 +436,9 @@ in
             theme[upload_start]="#${p.orange}"
             theme[upload_mid]="#${p.red}"
             theme[upload_end]="#${p.red_bright}"
+            theme[process_start]="#${p.green}"
+            theme[process_mid]="#${p.yellow}"
+            theme[process_end]="#${p.red}"
           '';
 
           "theme/rmpc.ron".text = ''

@@ -98,7 +98,7 @@ in
       programs.btop = {
         enable = true;
         settings = {
-          color_theme = "${config.xdg.configHome}/theme/btop.theme";
+          color_theme = "monobiome";
           theme_background = false;
           show_battery = false;
           save_config_on_exit = false;
