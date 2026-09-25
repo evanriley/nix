@@ -35,3 +35,6 @@ jobs:
 
       - name: Evaluate the cinderace system
         run: nix build --dry-run .#nixosConfigurations.cinderace.config.system.build.toplevel
+
+      - name: Evaluate the ninetales system
+        run: nix eval --raw .#darwinConfigurations.ninetales.system.drvPath

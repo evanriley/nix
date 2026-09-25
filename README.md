@@ -8,6 +8,7 @@ home-manager.
 | Host | Platform | Status |
 | --- | --- | --- |
 | `cinderace` | NixOS, x86_64 desktop | Active |
+| `ninetales` | nix-darwin, aarch64 MacBook Pro | Active |
 
 ## Usage
 

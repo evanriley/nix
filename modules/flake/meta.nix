@@ -11,6 +11,7 @@
       fullName = "Evan Riley";
       email = "evan@evanriley.com";
     };
-    repo = "/home/evan/nix";
+    # Checkout location relative to the home directory (/home/evan or /Users/evan).
+    repoDir = "nix";
   };
 }

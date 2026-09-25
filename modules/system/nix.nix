@@ -1,6 +1,16 @@
 { config, ... }:
 let
-  inherit (config.meta) repo;
+  inherit (config.meta) user repoDir;
+  settings = {
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
+    extra-substituters = [ "https://devenv.cachix.org" ];
+    extra-trusted-public-keys = [
+      "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
+    ];
+  };
 in
 {
   flake.modules.nixos.nix =
@@ -8,16 +18,8 @@ in
     {
       nix.package = pkgs.lix;
       nix.channel.enable = false;
-      nix.settings = {
-        experimental-features = [
-          "nix-command"
-          "flakes"
-        ];
+      nix.settings = settings // {
         auto-optimise-store = true;
-        extra-substituters = [ "https://devenv.cachix.org" ];
-        extra-trusted-public-keys = [
-          "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw="
-        ];
       };
 
       nixpkgs.config.allowUnfree = true;
@@ -29,7 +31,7 @@ in
 
       programs.nh = {
         enable = true;
-        flake = repo;
+        flake = "/home/${user.name}/${repoDir}";
         # Also collects home-manager generations, which theme switches create.
         clean = {
           enable = true;
@@ -37,5 +39,29 @@ in
           extraArgs = "--keep-since 30d --keep 5";
         };
       };
+    };
+
+  flake.modules.darwin.nix =
+    { pkgs, ... }:
+    {
+      nix.package = pkgs.lix;
+      nix.channel.enable = false;
+      nix.settings = settings;
+      # auto-optimise-store is unreliable on macOS; optimise on a schedule instead.
+      nix.optimise.automatic = true;
+      nix.gc = {
+        automatic = true;
+        options = "--delete-older-than 30d";
+      };
+
+      nixpkgs.config.allowUnfree = true;
+
+      environment.systemPackages = [
+        pkgs.git
+        pkgs.nh
+        # Apple's ssh lacks FIDO2 support; the YubiKey keys fetch private inputs.
+        pkgs.openssh
+      ];
+      environment.variables.NH_FLAKE = "/Users/${user.name}/${repoDir}";
     };
 }

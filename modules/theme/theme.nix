@@ -17,6 +17,7 @@ in
     }:
     let
       inherit (config.theme) mode;
+      isLinux = pkgs.stdenv.hostPlatform.isLinux;
       p = monobiome.${mode};
       themeDir = "${config.xdg.configHome}/theme";
       baseLink = "${config.xdg.stateHome}/theme/base";
@@ -56,13 +57,18 @@ in
 
       applyTheme = pkgs.writeShellApplication {
         name = "apply-theme";
-        runtimeInputs = with pkgs; [
-          coreutils
-          procps
-          jq
-          niri
-          systemd
-        ];
+        runtimeInputs =
+          with pkgs;
+          [
+            coreutils
+            jq
+          ]
+          # macOS provides pkill and pgrep.
+          ++ lib.optionals stdenv.hostPlatform.isLinux [
+            procps
+            niri
+            systemd
+          ];
         text = ''
           mode=''${1:?expected light or dark}
           current=$(cat "${themeDir}/mode" 2>/dev/null || true)
@@ -83,7 +89,7 @@ in
           pkill -USR1 -x '\.nvim-wrapped' || true
           systemctl --user kill --kill-whom=main --signal=USR2 waybar.service 2>/dev/null || true
           swaync-client --reload-css >/dev/null 2>&1 || true
-          systemctl --user try-restart swayosd.service || true
+          systemctl --user try-restart swayosd.service 2>/dev/null || true
           if [ -n "''${NIRI_SOCKET:-}" ]; then niri msg action load-config-file >/dev/null 2>&1 || true; fi
           if pgrep -f '/bin/\.?qutebrowser(-wrapped)?( |$)' >/dev/null; then qutebrowser ':config-source' >/dev/null 2>&1 || true; fi
           if tmux list-sessions >/dev/null 2>&1; then tmux source-file "${themeDir}/tmux.conf" || true; fi
@@ -164,20 +170,20 @@ in
               package = pkgs.noto-fonts-color-emoji;
             };
           };
-          cursor = {
+          cursor = lib.mkIf isLinux {
             name = "Adwaita";
             package = adwaitaIcons;
             size = 24;
           };
           targets = {
-            gtk.enable = true;
-            qt.enable = true;
+            gtk.enable = isLinux;
+            qt.enable = isLinux;
             fontconfig.enable = true;
             font-packages.enable = true;
           };
         };
 
-        services.darkman = {
+        services.darkman = lib.mkIf isLinux {
           enable = true;
           settings = {
             lat = 36;
@@ -190,17 +196,29 @@ in
 
         # Recorded by every normal switch (not by the light specialisation),
         # because activating a specialisation creates a generation without
-        # specialisations of its own. theme-sync then applies the current mode.
+        # specialisations of its own. The current mode is then reapplied
+        # asynchronously: theme-sync on Linux, the appearance agent on macOS.
         home.activation.themeBase = lib.mkIf (config.specialisation != { }) (
-          lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-            run mkdir -p "$(dirname "${baseLink}")"
-            run ln -sfn "$newGenPath" "${baseLink}"
-            if ${pkgs.systemd}/bin/systemctl --user is-active --quiet darkman.service; then
-              run ${pkgs.systemd}/bin/systemctl --user start --no-block theme-sync.service
-            fi
-          ''
+          lib.hm.dag.entryAfter [ "linkGeneration" "setupLaunchAgents" ] (
+            ''
+              run mkdir -p "$(dirname "${baseLink}")"
+              run ln -sfn "$newGenPath" "${baseLink}"
+            ''
+            + (
+              if isLinux then
+                ''
+                  if ${pkgs.systemd}/bin/systemctl --user is-active --quiet darkman.service; then
+                    run ${pkgs.systemd}/bin/systemctl --user start --no-block theme-sync.service
+                  fi
+                ''
+              else
+                ''
+                  run /bin/launchctl kickstart -k "gui/$(id -u)/org.nix-community.home.theme-appearance" || true
+                ''
+            )
+          )
         );
-        systemd.user.services.theme-sync = {
+        systemd.user.services.theme-sync = lib.mkIf isLinux {
           Unit.Description = "Apply darkman's current mode";
           Service = {
             Type = "oneshot";
@@ -549,10 +567,27 @@ in
           '';
         };
 
-        home.packages = [
-          applyTheme
-          pkgs.adwaita-icon-theme-legacy
-        ];
+        # macOS: dark-mode-notify runs the script at start and on every
+        # appearance change, with DARKMODE=1 or 0.
+        launchd.agents.theme-appearance = lib.mkIf (!isLinux) {
+          enable = true;
+          config = {
+            ProgramArguments = [
+              (lib.getExe pkgs.dark-mode-notify)
+              (toString (
+                pkgs.writeShellScript "theme-appearance" ''
+                  if [ "''${DARKMODE:-0}" = 1 ]; then mode=dark; else mode=light; fi
+                  exec ${lib.getExe applyTheme} "$mode"
+                ''
+              ))
+            ];
+            KeepAlive = true;
+            RunAtLoad = true;
+            ProcessType = "Interactive";
+          };
+        };
+
+        home.packages = [ applyTheme ] ++ lib.optional isLinux pkgs.adwaita-icon-theme-legacy;
       };
     };
 }

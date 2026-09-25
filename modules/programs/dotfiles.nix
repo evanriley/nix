@@ -1,6 +1,6 @@
 { config, inputs, ... }:
 let
-  inherit (config.meta) repo;
+  inherit (config.meta) repoDir;
 in
 {
   flake.modules.homeManager.dotfiles =
@@ -34,7 +34,7 @@ in
         dotfiles.link =
           path:
           if cfg.mutable then
-            config.lib.file.mkOutOfStoreSymlink "${repo}/home/${path}"
+            config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/${repoDir}/home/${path}"
           else
             inputs.self + "/home/${path}";
 

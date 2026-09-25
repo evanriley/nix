@@ -14,8 +14,34 @@ in
       };
     };
 
+  flake.modules.darwin.shell =
+    { pkgs, ... }:
+    {
+      programs.fish.enable = true;
+      # nix-darwin only changes the login shell of users it manages.
+      users.knownUsers = [ user.name ];
+      users.users.${user.name} = {
+        uid = 501;
+        home = "/Users/${user.name}";
+        shell = pkgs.fish;
+      };
+    };
+
   flake.modules.homeManager.shell =
-    { config, pkgs, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
+    let
+      isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
+      # The hand-edited kak and tmux configs copy through wl-copy/wl-paste.
+      macClipboard = [
+        (pkgs.writeShellScriptBin "wl-copy" "exec /usr/bin/pbcopy")
+        (pkgs.writeShellScriptBin "wl-paste" "exec /usr/bin/pbpaste")
+      ];
+    in
     {
       imports = [ inputs.nix-index-database.homeModules.nix-index ];
 
@@ -80,22 +106,38 @@ in
         };
       };
 
-      home.packages = with pkgs; [
-        bat
-        devenv
-        eza
-        fastfetch
-        fd
-        gh
-        jq
-        lazygit
-        man-pages
-        ripgrep
-        rsync
-        tmux
-        tree-sitter
-        unzip
-        uv
-      ];
+      # NixOS provides direnv system-wide.
+      programs.direnv = lib.mkIf isDarwin {
+        enable = true;
+        nix-direnv.enable = true;
+      };
+
+      home.packages =
+        lib.optionals isDarwin (
+          macClipboard
+          ++ [
+            # GNU ls for the aliases above.
+            pkgs.coreutils
+          ]
+        )
+        ++ (with pkgs; [
+          bat
+          claude-code
+          codex
+          devenv
+          eza
+          fastfetch
+          fd
+          gh
+          jq
+          lazygit
+          man-pages
+          ripgrep
+          rsync
+          tmux
+          tree-sitter
+          unzip
+          uv
+        ]);
     };
 }
