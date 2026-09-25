@@ -72,6 +72,10 @@
         // lib.mapAttrs' (
           name: value: lib.nameValuePair "Library/Application Support/${name}" value
         ) dataFiles;
+
+        # Python runs qutebrowser as a script, and Cocoa opens that script's path as a
+        # file (a tab showing its source) unless unknown arguments are ignored.
+        targets.darwin.defaults.NSGlobalDomain.NSTreatUnknownArgumentsAsOpen = false;
       })
     ];
 }
