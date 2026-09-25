@@ -43,7 +43,31 @@ in
         # 15 ms steps; 1 is the fastest repeat rate.
         InitialKeyRepeat = 10;
         KeyRepeat = 1;
+        AppleInterfaceStyleSwitchesAutomatically = true;
+        "com.apple.swipescrolldirection" = false;
+        "com.apple.mouse.tapBehavior" = 1;
       };
+
+      dock = {
+        autohide = true;
+        orientation = "bottom";
+        magnification = false;
+        show-recents = false;
+        # Home Manager copies apps here; a Nix store path would break the pins on every rebuild.
+        persistent-apps = [
+          "/Users/${user.name}/Applications/Home Manager Apps/Firefox.app"
+          "/Users/${user.name}/Applications/Home Manager Apps/Ghostty.app"
+        ];
+        persistent-others = [ ];
+        wvous-tl-corner = 1;
+        wvous-tr-corner = 1;
+        wvous-bl-corner = 1;
+        wvous-br-corner = 1;
+      };
+
+      WindowManager.GloballyEnabled = false;
+      controlcenter.BatteryShowPercentage = true;
+      trackpad.Clicking = true;
     };
 
     system.keyboard = {
