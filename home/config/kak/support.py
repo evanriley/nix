@@ -138,8 +138,6 @@ def grep_open(root, choice):
     print(f'edit -existing {quote(Path(root) / filename)} {row} {col}')
 
 
-# Explorer ----------------------------------------------------------------------------------
-
 def explorer_list(directory, hidden):
     entries = []
     for entry in os.scandir(directory):

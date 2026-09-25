@@ -66,8 +66,6 @@ def project_root(filename):
     return root_for(filename, ROOT_MARKERS)
 
 
-# --- bencode ------------------------------------------------------------------------------
-
 class BencodeIncomplete(Exception):
     pass
 
@@ -133,8 +131,6 @@ def bdecode(data):
         values.append(value)
     return values, data[position:]
 
-
-# --- Clojure source ----------------------------------------------------------------------
 
 OPENERS = b'([{'
 CLOSERS = b')]}'
@@ -226,8 +222,6 @@ def ns_form_code(data):
     span = form_range(data, match.start(0) + match[0].index(b'('), False)
     return data[span[0]:span[1] + 1].decode('utf-8', 'replace') if span else ''
 
-
-# --- daemon plumbing -----------------------------------------------------------------------
 
 def runtime_directory():
     base = os.environ.get('XDG_RUNTIME_DIR') or os.environ.get('TMPDIR') or '/tmp'
@@ -336,8 +330,6 @@ def statuses(messages):
 def failed(messages):
     return any(state in ('eval-error', 'error') for state in statuses(messages))
 
-
-# --- daemon --------------------------------------------------------------------------------
 
 class Daemon:
 
@@ -791,8 +783,6 @@ class Daemon:
         return 0
 
 
-# --- Kakoune entry points --------------------------------------------------------------------
-#
 # Each entry point runs inside `evaluate-commands -draft %{ execute-keys % ... }`, so
 # kak_selection holds the whole buffer, and prints Kakoune commands for the caller to run.
 

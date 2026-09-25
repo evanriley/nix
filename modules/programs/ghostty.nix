@@ -42,7 +42,6 @@ in
           monobiome-light = theme monobiome.light;
         };
         settings = {
-          # Follows the system appearance.
           theme = "light:monobiome-light,dark:monobiome-dark";
           font-family = "Berkeley Mono";
           font-size = 14;

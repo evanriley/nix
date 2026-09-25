@@ -2,7 +2,6 @@
 {
   imports = [ inputs.git-hooks.flakeModule ];
 
-  # Installed into .git/hooks by the dev shell; also runs as checks.pre-commit.
   perSystem =
     { pkgs, ... }:
     {

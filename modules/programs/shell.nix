@@ -45,7 +45,6 @@ in
     {
       imports = [ inputs.nix-index-database.homeModules.nix-index ];
 
-      # Prompt and functions stay hand-edited; config.fish is generated below.
       dotfiles.config = [
         "fastfetch"
         "fish/functions"

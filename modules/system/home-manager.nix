@@ -4,8 +4,6 @@ let
   top = config;
 in
 {
-  # Standalone home-manager: homeConfigurations."<user>@<host>" is built from
-  # flake.modules.homeManager.<host> with that host's nixpkgs instance.
   flake.homeConfigurations =
     inputs.nixpkgs.lib.mapAttrs'
       (host: system: {

@@ -1,7 +1,3 @@
-# Clojure through nREPL (the client is nrepl.py). Results show inline at the end of the
-# evaluated form, in the echo area, and in a popup when they are long; everything,
-# including printed output, goes to the log (, l …).
-
 declare-option -docstring 'evaluate in this namespace instead of the buffer''s ns form' str nrepl_namespace
 declare-option -docstring 'command that starts the project nREPL (default: detected; see nrepl.py)' \
     str-list nrepl_jack_in_command
@@ -82,8 +78,6 @@ define-command nrepl-set-namespace -docstring 'evaluate in another namespace (em
     prompt -init %opt{nrepl_namespace} 'namespace: ' %{ set-option buffer nrepl_namespace %val{text} }
 }
 
-# Inline results -------------------------------------------------------------------------------
-
 define-command -hidden nrepl-nop-with-0 nop
 
 define-command -hidden nrepl-clear-results %{
@@ -134,8 +128,6 @@ hook global BufSetOption filetype=clojure %{
     hook buffer -group nrepl-eval-results BufReload .* nrepl-clear-results
 }
 
-# Runtime completion ------------------------------------------------------------------------
-
 define-command -hidden nrepl-detect-namespace %{
     set-option buffer nrepl_buffer_namespace user
     try %{
@@ -171,9 +163,6 @@ hook global WinSetOption filetype=clojure %{
     }
 }
 
-# Log --------------------------------------------------------------------------------------
-
-# Show the log in this client: a fifo buffer fed by tail -F, highlighted as Clojure.
 define-command nrepl-log-show -docstring 'show the nREPL log in this client' %{
     nrepl-run log-path
     try %{ buffer *nrepl-log* } catch %{

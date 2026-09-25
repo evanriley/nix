@@ -4,8 +4,6 @@ let
   top = config;
 in
 {
-  # Topping DX5 II (speakers) and Fractal Scape (headset). ScapeCtl switches
-  # the default sink when the headset powers on or off.
   flake.modules.nixos.cinderace =
     { pkgs, ... }:
     {

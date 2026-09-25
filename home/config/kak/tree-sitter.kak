@@ -1,5 +1,4 @@
-# Tree-sitter highlighting and text objects (kak-tree-sitter). Grammars and queries are
-# built by modules/programs/kakoune.nix; the config it generated sits in Kakoune's runtime directory.
+# Grammars, queries and the kak-tree-sitter config come from modules/programs/kakoune.nix.
 
 evaluate-commands %sh{
     config="$kak_runtime/tree-sitter/config.toml"

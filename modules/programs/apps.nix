@@ -60,7 +60,7 @@ in
           };
       };
 
-      # spawn-at-startup lost it to a race at login and discarded its output.
+      # Not niri spawn-at-startup: it dies in a race at login and niri discards its output.
       systemd.user.services = {
         steam = sessionService {
           description = "Steam";

@@ -4,8 +4,6 @@ let
   homeManager = config.flake.modules.homeManager;
 in
 {
-  # Activates the home configuration, then switches light -> dark -> light
-  # with apply-theme, the way darkman does at sunrise and sunset.
   perSystem =
     { pkgs, system, ... }:
     inputs.nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {

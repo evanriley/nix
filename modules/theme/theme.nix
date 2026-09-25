@@ -3,9 +3,6 @@ let
   inherit (config.flake.lib) monobiome;
 in
 {
-  # Light/dark theming. The base generation is dark; specialisation "light"
-  # re-evaluates everything with the light palette. darkman activates one or
-  # the other at sunrise and sunset, then tells running programs to reload.
   # Hand-written configs in home/config include the generated files under
   # ~/.config/theme instead of carrying colors themselves.
   flake.modules.homeManager.theme =
@@ -142,7 +139,6 @@ in
       config = {
         specialisation.light.configuration.theme.mode = "light";
 
-        # Writes the default-font rules and adds the home profile's fonts.
         fonts.fontconfig.enable = true;
 
         stylix = {

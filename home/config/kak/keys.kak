@@ -1,9 +1,4 @@
-# Every mapping lives here.
-#   <space>  general (mirrors the Neovim leader layout)
-#   ,        local leader: REPL, tests, docs; same keys in every language (Conjure layout)
 # Kakoune's own , (keep only the main selection) moves to <space>,.
-
-# Normal mode --------------------------------------------------------------------------------
 
 map global normal / '/(?i)' -docstring 'search (case-insensitive)'
 map global normal <a-/> '<a-/>(?i)' -docstring 'search backward (case-insensitive)'
@@ -20,7 +15,6 @@ map global goto r '<esc>: lsp-references<ret>' -docstring 'references'
 map global goto y '<esc>: lsp-type-definition<ret>' -docstring 'type definition'
 map global goto I '<esc>: lsp-implementation<ret>' -docstring 'implementation'
 
-# Insert mode ------------------------------------------------------------------------------
 # <tab>/<s-tab> walk the completion menu and <ret> accepts the selected candidate (expanding
 # a snippet); with no menu, <tab> jumps to the next snippet placeholder.
 
@@ -46,8 +40,6 @@ hook global InsertCompletionShow .* %{
         unmap window insert <ret>
     }
 }
-
-# <space> -----------------------------------------------------------------------------------
 
 map global user <space> ': picker-files<ret>' -docstring 'find files'
 map global user / ': picker-grep<ret>' -docstring 'grep the project'
@@ -98,8 +90,6 @@ map global toggles e ': toggle-eval-results<ret>' -docstring 'inline evaluation 
 map global toggles p ': parinfer-toggle<ret>' -docstring 'parinfer'
 map global toggles r ': rainbow-enable-window<ret>' -docstring 'rainbow delimiters on'
 map global toggles R ': rainbow-disable-window<ret>' -docstring 'rainbow delimiters off'
-
-# , local leader ----------------------------------------------------------------------------
 
 declare-user-mode local
 declare-user-mode local-eval
@@ -155,5 +145,4 @@ map global local-refresh r ': repl refresh changed<ret>' -docstring 'changed nam
 map global local-refresh a ': repl refresh all<ret>' -docstring 'all namespaces'
 map global local-refresh c ': repl refresh clear<ret>' -docstring 'clear the refresh tracker'
 
-# Modeline: show the REPL connection before the usual fields.
 set-option global modelinefmt "%%opt{repl_modeline} %opt{modelinefmt}"

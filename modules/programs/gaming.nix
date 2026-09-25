@@ -10,7 +10,6 @@ in
       # No capSysNice: Steam's sandbox then refuses to start gamescope (nixpkgs#351516).
       programs.gamescope.enable = true;
 
-      # Launch option for a game: gamemoderun %command%
       programs.gamemode.enable = true;
       users.users.${user.name}.extraGroups = [ "gamemode" ];
 

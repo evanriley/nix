@@ -28,7 +28,6 @@
         extraPortals = [
           pkgs.xdg-desktop-portal-gnome
           pkgs.xdg-desktop-portal-gtk
-          # Settings portal: apps follow darkman's light/dark mode.
           pkgs.darkman
           pkgs.gnome-keyring
         ];

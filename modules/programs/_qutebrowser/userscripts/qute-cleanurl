@@ -202,7 +202,6 @@ def strip_fields(url, rules):
     if not changed:
         return url, False
     new_query = '&'.join(kept)
-    # If nothing survives, drop the '?' entirely.
     if new_query.strip('&') == '':
         return prefix + fragment, True
     return prefix + '?' + new_query + fragment, True
@@ -272,7 +271,6 @@ def clean_once(url, providers, referral_marketing):
 def clean_url(url, providers, referral_marketing=True):
     """Return (cleaned_url, changed). Raises on anything unexpected."""
     if not is_web_url(url):
-        # mailto:, qute://, about:, file: ... nothing to strip.
         return url, False
 
     changed = False

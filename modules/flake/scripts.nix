@@ -1,6 +1,4 @@
 {
-  # A script from this repository as a package: shebang patched to the store
-  # and its runtime tools prepended to PATH.
   flake.lib.mkScript =
     pkgs:
     {

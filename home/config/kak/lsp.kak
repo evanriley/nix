@@ -54,7 +54,6 @@ hook -group lsp-filetype-python global BufSetOption filetype=python %{
         organizeImports = true
         fixAll = true
     }
-    # A type checker, when the project provides one.
     evaluate-commands %sh{
         for server in basedpyright-langserver pyright-langserver; do
             command -v "$server" >/dev/null || continue

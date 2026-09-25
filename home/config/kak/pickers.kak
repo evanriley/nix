@@ -1,5 +1,3 @@
-# Pickers: fzf with a preview in a tmux popup, or Kakoune's own fuzzy prompt outside tmux.
-
 declare-option -docstring 'most recently opened files remembered for the recent-files picker' \
     int recent_files_limit 200
 declare-option -docstring 'file holding the recent-files list' \
@@ -37,8 +35,6 @@ define-command picker-grep-word -docstring 'search the project for the selection
 define-command picker-buffers -docstring 'switch to an open buffer' %{
     prompt -menu -buffer-completion 'buffer: ' %{ buffer %val{text} }
 }
-
-# Fallbacks without tmux ---------------------------------------------------------------------
 
 define-command -hidden picker-prompt-files %{
     prompt -menu -shell-script-candidates %{

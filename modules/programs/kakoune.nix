@@ -5,7 +5,6 @@
     let
       inherit (inputs) helix;
 
-      # Kakoune filetype -> Helix grammar name.
       treeSitterLanguages = {
         clojure = "clojure";
         zig = "zig";

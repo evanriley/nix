@@ -21,7 +21,6 @@ in
       services.borgmatic = {
         enable = true;
         configurations.home = {
-          # Media service state lives outside $HOME since the move to NixOS.
           source_directories = [
             home
             "/var/lib/lidarr"

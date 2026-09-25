@@ -21,7 +21,6 @@
       };
     };
 
-  # Launchers and the niri bindings OmniWM has only as omniwmctl commands.
   flake.modules.darwin.omniwm =
     { lib, pkgs, ... }:
     let

@@ -3,7 +3,6 @@ let
   inherit (config.flake.lib) mkScript;
 in
 {
-  # Mod+Alt+M in niri: pick a video under /mnt/Media with fuzzel, play in mpv.
   flake.modules.homeManager.cinderace =
     {
       config,

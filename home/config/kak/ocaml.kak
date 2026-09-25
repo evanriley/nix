@@ -1,5 +1,4 @@
-# OCaml: dune projects, opam files, ocamllsp and utop. Tools run through `opam exec` when
-# opam is installed, so the active switch applies.
+# Tools run through `opam exec` when opam is installed, so the active switch applies.
 
 hook global BufCreate (.*/)?(dune|dune-project|dune-workspace)$ %{
     set-option buffer filetype lisp
@@ -29,7 +28,6 @@ hook global BufSetOption filetype=ocaml %{
     set-option buffer comment_block_end '*)'
 }
 
-# dune verbs for OCaml sources and dune files.
 hook global BufSetOption filetype=(ocaml|opam|lisp) %{
     evaluate-commands %sh{
         if [ "$kak_opt_filetype" = lisp ]; then

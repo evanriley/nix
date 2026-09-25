@@ -66,7 +66,7 @@ in
 
     services.mpd.musicDirectory = "/mnt/Media/Music";
 
-    # Existing profile restored from the Arch home.
+    # The existing profile; another path starts an empty one.
     programs.firefox.profiles.default.path = "b437d468.default-release";
 
     # File manager bookmarks; Nautilus writes through the link into the repo.

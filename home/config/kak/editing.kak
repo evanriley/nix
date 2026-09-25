@@ -1,6 +1,3 @@
-# Clipboard ---------------------------------------------------------------------------------
-
-# Every yank also lands in the Wayland clipboard; <space>p pastes from it.
 hook -group clipboard global RegisterModified '"' %{
     nop %sh{
         eval "set -- $kak_quoted_reg_dquote"
@@ -20,8 +17,6 @@ define-command -hidden clipboard-paste -params 1 %{
         execute-keys '"c' %arg{1}
     }
 }
-
-# Lines -------------------------------------------------------------------------------------
 
 define-command trim-whitespace -docstring 'remove trailing whitespace from every line' %{
     try %{ execute-keys -draft '%s\h+$<ret>"_d' }
@@ -43,8 +38,6 @@ define-command -hidden move-lines -params 1 %{
     }
 }
 
-# Pairs and surround ------------------------------------------------------------------------
-
 try %{ enable-auto-pairs }
 
 declare-user-mode surround
@@ -56,7 +49,7 @@ map global surround t ': surround-with-tag<ret>' -docstring 'surround with tag'
 map global surround T ': change-surrounding-tag<ret>' -docstring 'change surrounding tag'
 map global surround D ': delete-surrounding-tag<ret>' -docstring 'delete surrounding tag'
 
-# Lisps: parinfer owns the parentheses, so auto-pairs steps aside -----------------------------
+# Lisps: parinfer owns the parentheses, so auto-pairs steps aside.
 
 declare-option -hidden str parinfer_saved_auto_close
 

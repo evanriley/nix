@@ -7,7 +7,6 @@
     "aarch64-darwin"
   ];
 
-  # Helpers shared between modules (flake.lib.<name>), merged across files.
   options.flake = lib.mkOption {
     type = lib.types.submoduleWith {
       modules = [

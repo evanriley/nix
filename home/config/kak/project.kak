@@ -1,5 +1,3 @@
-# Projects: one set of verbs for every language.
-#
 # Commands are str-lists; test_file_command and test_cursor_command may use {file} and
 # {name} (the test around the cursor, found with test_name_regex). A project can override
 # any of them in a .kakrc at its root (<space>cC loads it).

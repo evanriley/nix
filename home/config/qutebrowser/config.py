@@ -79,22 +79,18 @@ def load_palette(path):
 
 
 def apply_palette(p):
-    # Tab Colors
     c.colors.tabs.bar.bg = p['bg']
 
-    # Inactive Tabs (Background color + Muted Text)
     c.colors.tabs.odd.bg = p['bg']
     c.colors.tabs.even.bg = p['bg']
     c.colors.tabs.odd.fg = p['muted']
     c.colors.tabs.even.fg = p['muted']
 
-    # Active Tab (Selection Background + Bright Text)
     c.colors.tabs.selected.odd.bg = p['selection']
     c.colors.tabs.selected.even.bg = p['selection']
     c.colors.tabs.selected.odd.fg = p['fg']
     c.colors.tabs.selected.even.fg = p['fg']
 
-    # Pinned Tabs
     c.colors.tabs.pinned.even.bg = p['selection']
     c.colors.tabs.pinned.odd.bg = p['selection']
     c.colors.tabs.pinned.even.fg = p['fg_alt']
@@ -107,7 +103,6 @@ def apply_palette(p):
     c.colors.tabs.indicator.stop = p['green_alt']
     c.colors.tabs.indicator.error = p['red']
 
-    # Status bar
     c.colors.statusbar.normal.bg = p['bg_alt']
     c.colors.statusbar.normal.fg = p['fg']
     c.colors.statusbar.insert.bg = p['blue']
@@ -131,12 +126,10 @@ def apply_palette(p):
     c.colors.statusbar.url.success.http.fg = p['muted']
     c.colors.statusbar.url.success.https.fg = p['green']
 
-    # HINTS
     c.colors.hints.bg = p['yellow_bright']
     c.colors.hints.fg = p['bg']
     c.colors.hints.match.fg = p['red']
 
-    # COMPLETION MENU
     c.colors.completion.category.bg = p['bg']
     c.colors.completion.category.fg = p['fg_alt']
     c.colors.completion.category.border.top = p['border']
@@ -153,7 +146,6 @@ def apply_palette(p):
     c.colors.completion.scrollbar.bg = p['bg_alt']
     c.colors.completion.scrollbar.fg = p['fg_alt']
 
-    # Prompts, messages, downloads, and key hints
     c.colors.prompts.bg = p['bg_alt']
     c.colors.prompts.fg = p['fg']
     c.colors.prompts.border = '1px solid ' + p['border']
@@ -236,8 +228,7 @@ try:
                     # A locked or read-only history database would otherwise
                     # raise into the completion itself. Recency also happens
                     # to be the right fallback: without the index the frecency
-                    # sort is a full table scan per candidate row, 2175ms
-                    # against 8.8ms for an empty pattern.
+                    # sort is a full table scan per candidate row.
                     pass
                 else:
                     querystr = querystr.replace(
@@ -254,7 +245,7 @@ c.tabs.mode_on_change = 'restore'
 c.confirm_quit = ['downloads']
 c.spellcheck.languages = ['en-US']
 
-c.scrolling.smooth = False # Instant scrolling (snappy)
+c.scrolling.smooth = False
 c.qt.chromium.process_model = 'process-per-site'
 c.content.autoplay = False
 c.content.pdfjs = True
@@ -372,7 +363,6 @@ try:
 except Exception:
     pass
 
-# MPV
 config.bind('M', 'hint links userscript qute-mpv')
 config.bind('xm', 'spawn --userscript qute-mpv')
 
@@ -405,7 +395,7 @@ c.editor.command = terminal + [
 
 c.colors.webpage.darkmode.enabled = mode == 'dark'
 c.colors.webpage.darkmode.algorithm = 'lightness-cielab'
-c.colors.webpage.darkmode.policy.images = 'smart' # Don't invert photos
+c.colors.webpage.darkmode.policy.images = 'smart'
 
 darkmode_native_sites = [
     '*://*.youtube.com/*',

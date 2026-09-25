@@ -32,7 +32,6 @@ define-command repl -params 1.. -docstring 'repl <action> [<arguments>]: run a R
     }
 }
 
-# Tests use the REPL when one is connected (Clojure), the project's test commands otherwise.
 define-command repl-test -params 1 -docstring 'repl-test <cursor|namespace|all|rerun>' %{
     evaluate-commands %sh{
         if [ "$kak_opt_repl_backend" = nrepl ] && [ "$kak_opt_nrepl_connected" = true ]; then
@@ -48,7 +47,6 @@ define-command repl-test -params 1 -docstring 'repl-test <cursor|namespace|all|r
     }
 }
 
-# Documentation and definitions come from the running REPL when there is one.
 define-command repl-doc -docstring 'documentation for the symbol under the cursor' %{
     evaluate-commands %sh{
         if [ "$kak_opt_repl_backend" = nrepl ] && [ "$kak_opt_nrepl_connected" = true ]; then
@@ -68,8 +66,6 @@ define-command repl-definition -docstring 'go to the definition of the symbol un
         fi
     }
 }
-
-# tmux backend -----------------------------------------------------------------------------
 
 declare-option -hidden str tmux_repl_pane
 declare-option -docstring 'appended to code sent to the REPL pane (OCaml: ;;)' str repl_terminator
