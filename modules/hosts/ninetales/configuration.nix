@@ -46,6 +46,7 @@ in
         AppleInterfaceStyleSwitchesAutomatically = true;
         "com.apple.swipescrolldirection" = false;
         "com.apple.mouse.tapBehavior" = 1;
+        AppleShowScrollBars = "Always";
         # Finder options only cover Finder; these also apply to Open/Save dialogs.
         AppleShowAllExtensions = true;
         AppleShowAllFiles = true;
@@ -92,6 +93,26 @@ in
       };
       spaces.spans-displays = false;
 
+      screencapture = {
+        location = "/Users/${user.name}/Pictures/Screenshots";
+        type = "png";
+        disable-shadow = true;
+        show-thumbnail = false;
+      };
+
+      menuExtraClock = {
+        Show24Hour = false;
+        ShowAMPM = true;
+        ShowDate = 1;
+        ShowDayOfWeek = true;
+        ShowDayOfMonth = true;
+      };
+
+      screensaver = {
+        askForPassword = true;
+        askForPasswordDelay = 0;
+      };
+      loginwindow.GuestEnabled = false;
       controlcenter.BatteryShowPercentage = true;
       trackpad.Clicking = true;
 
@@ -122,6 +143,8 @@ in
       ];
     };
 
+    system.startup.chime = false;
+
     system.keyboard = {
       enableKeyMapping = true;
       remapCapsLockToControl = true;
@@ -130,22 +153,29 @@ in
     system.stateVersion = 7;
   };
 
-  flake.modules.homeManager.ninetales = {
-    imports = with homeManager; [
-      base
-      dotfiles
-      shell
-      git
-      kakoune
-      neovim
-      theme
-      firefox
-      qutebrowser
-      discord
-      mpv
-      bitwarden
-      ghostty
-      syncthing
-    ];
-  };
+  flake.modules.homeManager.ninetales =
+    { lib, ... }:
+    {
+      imports = with homeManager; [
+        base
+        dotfiles
+        shell
+        git
+        kakoune
+        neovim
+        theme
+        firefox
+        qutebrowser
+        discord
+        mpv
+        bitwarden
+        ghostty
+        syncthing
+      ];
+
+      # screencapture.location must already exist.
+      home.activation.screenshotsDir = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        run mkdir -p "$HOME/Pictures/Screenshots"
+      '';
+    };
 }
