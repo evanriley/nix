@@ -55,6 +55,8 @@ in
       home.file.".local/share/Steam/compatibilitytools.d/GE-Proton-Nix".source =
         pkgs.proton-ge-bin.steamcompattool;
 
+      home.packages = [ pkgs.wowup-cf ];
+
       # Not niri spawn-at-startup: it dies in a race at login and niri discards its output.
       systemd.user.services.steam = sessionService {
         description = "Steam";
