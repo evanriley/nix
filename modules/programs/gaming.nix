@@ -52,51 +52,65 @@ in
     };
 
   flake.modules.homeManager.gaming =
-    { config, pkgs, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       replayDir = "${config.home.homeDirectory}/${replaysDir}";
+      sizeArg = lib.optionalString (config.gaming.replay.size != null) "-s ${config.gaming.replay.size}";
       notifySaved = pkgs.writeShellScript "replay-saved" ''
         exec ${pkgs.libnotify}/bin/notify-send --app-name=Replay "Replay saved" "$1"
       '';
     in
     {
-      # Shift+Print in niri saves the buffer; the system module installs the KMS capture wrapper.
-      systemd.user.services.gpu-screen-recorder-replay = sessionService {
-        description = "GPU Screen Recorder replay buffer";
-        # Full-size capture of the 6K mode makes niri's animations stutter.
-        # AV1 plays in Firefox and Discord, unlike HEVC.
-        exec = "/run/current-system/sw/bin/gpu-screen-recorder -w screen -s 3072x1728 -f 60 -k av1 -bm cbr -q 40000 -r 60 -c mkv -a default_output -sc ${notifySaved} -o ${replayDir}";
-        service.ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${replayDir}";
+      options.gaming.replay.size = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        example = "2560x1440";
+        description = "Replay buffer resolution; null records at the monitor's size.";
       };
 
-      # Steam and Faugus both list compatibilitytools.d. Not named GE-Proton: umu
-      # treats that name as "download the latest GE-Proton".
-      home.file.".local/share/Steam/compatibilitytools.d/GE-Proton-Nix".source =
-        pkgs.proton-ge-bin.steamcompattool;
+      config = {
+        # Shift+Print in niri saves the buffer; the system module installs the KMS capture wrapper.
+        systemd.user.services.gpu-screen-recorder-replay = sessionService {
+          description = "GPU Screen Recorder replay buffer";
+          # AV1 plays in Firefox and Discord, unlike HEVC.
+          exec = "/run/current-system/sw/bin/gpu-screen-recorder -w screen ${sizeArg} -f 60 -k av1 -bm cbr -q 40000 -r 60 -c mkv -a default_output -sc ${notifySaved} -o ${replayDir}";
+          service.ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${replayDir}";
+        };
 
-      home.packages = [ pkgs.wowup-cf ];
+        # Steam and Faugus both list compatibilitytools.d. Not named GE-Proton: umu
+        # treats that name as "download the latest GE-Proton".
+        home.file.".local/share/Steam/compatibilitytools.d/GE-Proton-Nix".source =
+          pkgs.proton-ge-bin.steamcompattool;
 
-      # Not niri spawn-at-startup: it dies in a race at login and niri discards its output.
-      systemd.user.services.steam = sessionService {
-        description = "Steam";
-        exec = "/run/current-system/sw/bin/steam -silent";
-      };
+        home.packages = [ pkgs.wowup-cf ];
 
-      programs.mangohud = {
-        enable = true;
-        settings = {
-          toggle_hud = "Shift_R+F12";
-          position = "top-left";
-          fps = true;
-          frametime = true;
-          frame_timing = true;
-          gpu_stats = true;
-          gpu_temp = true;
-          gpu_power = true;
-          cpu_stats = true;
-          cpu_temp = true;
-          ram = true;
-          vram = true;
+        # Not niri spawn-at-startup: it dies in a race at login and niri discards its output.
+        systemd.user.services.steam = sessionService {
+          description = "Steam";
+          exec = "/run/current-system/sw/bin/steam -silent";
+        };
+
+        programs.mangohud = {
+          enable = true;
+          settings = {
+            toggle_hud = "Shift_R+F12";
+            position = "top-left";
+            fps = true;
+            frametime = true;
+            frame_timing = true;
+            gpu_stats = true;
+            gpu_temp = true;
+            gpu_power = true;
+            cpu_stats = true;
+            cpu_temp = true;
+            ram = true;
+            vram = true;
+          };
         };
       };
     };

@@ -37,5 +37,8 @@ in
         description = "Follow the monitor's hardware mode";
         exec = "${lib.getExe display-mode} --watch";
       };
+
+      # Full-size capture of the 6K mode makes niri's animations stutter.
+      gaming.replay.size = "3072x1728";
     };
 }
