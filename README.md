@@ -1,5 +1,8 @@
 # nix
 
+NixOS and nix-darwin configurations for my machines. They depend on private
+inputs and secrets, so they won't build as-is elsewhere.
+
 | Host | Hardware | System | Status |
 | --- | --- | --- | --- |
 | `cinderace` | Desktop: Ryzen 7 9800X3D, Radeon RX 9070 XT | NixOS, x86_64-linux | Active |
