@@ -70,7 +70,7 @@ in
 
       home.packages = with pkgs; [
         brave
-        chromium
+        (chromium.override { enableWideVine = true; })
         swayimg
         nautilus
         pavucontrol
