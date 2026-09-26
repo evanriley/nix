@@ -9,13 +9,16 @@
           builtins.readDir (inputs.self + "/home/config/ai/skills")
         )
       );
+      skills = ownSkills // {
+        skill-creator = inputs.anthropic-skills + "/skills/skill-creator";
+      };
       # Per skill, because claude.ai keeps its synced skills in ~/.claude/skills.
       linkSkills =
         dir:
         lib.mapAttrs' (name: source: {
           name = "${dir}/${name}";
           value = { inherit source; };
-        }) ownSkills;
+        }) skills;
     in
     {
       dotfiles.config = [ "ai" ];
