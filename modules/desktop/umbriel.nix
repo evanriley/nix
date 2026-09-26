@@ -247,7 +247,6 @@ in
             "Alt+Print" = spawn "${bin}/desktopctl screenshot window";
             "Shift+Print" =
               spawn "systemctl --user kill --signal=SIGUSR1 --kill-whom=main gpu-screen-recorder-replay.service";
-            "Mod+Escape" = "session-quit";
 
             "Mod+O" = "overview-toggle";
             "Mod+Q" = "window-close";
