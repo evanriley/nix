@@ -61,32 +61,6 @@ cd ~/nix/secrets
 nix develop ~/nix -c agenix -r -i ~/.config/age/yubikeys.txt
 ```
 
-## Inspiration and resources
-
-Configurations:
-
-- [NotAShelf/nyx](https://github.com/NotAShelf/nyx)
-
-Structure:
-
-- [mightyiam/dendritic](https://github.com/mightyiam/dendritic)
-- [flake-parts](https://flake.parts)
-- [vic/import-tree](https://github.com/vic/import-tree)
-
-Tools:
-
-- [Lix](https://lix.systems)
-- [home-manager](https://github.com/nix-community/home-manager)
-- [nix-darwin](https://github.com/nix-darwin/nix-darwin)
-- [nh](https://github.com/nix-community/nh)
-- [disko](https://github.com/nix-community/disko)
-- [lanzaboote](https://github.com/nix-community/lanzaboote)
-- [agenix](https://github.com/ryantm/agenix)
-- [age-plugin-yubikey](https://github.com/str4d/age-plugin-yubikey)
-- [Stylix](https://github.com/nix-community/stylix)
-- [nvf](https://github.com/notashelf/nvf)
-- [Monobiome](https://github.com/endofunctorio/monobiome)
-
 ## First-time setup
 
 ### ninetales
@@ -145,3 +119,29 @@ export BORG_RSH="ssh -i /tmp/borg-ssh-key" BORG_REPO="ssh://<repo>@<repo>.repo.b
 nix shell nixpkgs#borgbackup -c borg list
 nix shell nixpkgs#borgbackup -c borg extract ::<archive> <path>
 ```
+
+## Inspiration and resources
+
+Configurations:
+
+- [NotAShelf/nyx](https://github.com/NotAShelf/nyx)
+
+Structure:
+
+- [mightyiam/dendritic](https://github.com/mightyiam/dendritic)
+- [flake-parts](https://flake.parts)
+- [vic/import-tree](https://github.com/vic/import-tree)
+
+Tools:
+
+- [Lix](https://lix.systems)
+- [home-manager](https://github.com/nix-community/home-manager)
+- [nix-darwin](https://github.com/nix-darwin/nix-darwin)
+- [nh](https://github.com/nix-community/nh)
+- [disko](https://github.com/nix-community/disko)
+- [lanzaboote](https://github.com/nix-community/lanzaboote)
+- [agenix](https://github.com/ryantm/agenix)
+- [age-plugin-yubikey](https://github.com/str4d/age-plugin-yubikey)
+- [Stylix](https://github.com/nix-community/stylix)
+- [nvf](https://github.com/notashelf/nvf)
+- [Monobiome](https://github.com/endofunctorio/monobiome)
