@@ -125,8 +125,8 @@ decrypt with that host key.
 
 ## Restoring from Borg
 
-cinderace backs up daily to BorgBase repository `asfr5z3s`
-(`modules/services/backup.nix`).
+Both hosts back up daily to BorgBase (`modules/services/backup.nix`): cinderace
+to `asfr5z3s`, ninetales to `o0dskefv`.
 
 ```sh
 sudo borgmatic repo-list --last 5
@@ -134,14 +134,14 @@ sudo borgmatic extract --archive latest --path home/evan/<path> --destination /t
 ```
 
 On a new machine, borgmatic has no credentials yet. The passphrase and the key
-export `borg-key-cinderace` are in Bitwarden; the SSH key decrypts with a
+export (`borg-key-<host>`) are in Bitwarden; the SSH key decrypts with a
 YubiKey:
 
 ```sh
 cd ~/nix/secrets
-nix develop ~/nix -c agenix -d cinderace/borg-ssh-key.age -i ~/.config/age/yubikeys.txt > /tmp/borg-ssh-key
+nix develop ~/nix -c agenix -d <host>/borg-ssh-key.age -i ~/.config/age/yubikeys.txt > /tmp/borg-ssh-key
 chmod 600 /tmp/borg-ssh-key
-export BORG_RSH="ssh -i /tmp/borg-ssh-key" BORG_REPO="ssh://asfr5z3s@asfr5z3s.repo.borgbase.com/./repo"
+export BORG_RSH="ssh -i /tmp/borg-ssh-key" BORG_REPO="ssh://<repo>@<repo>.repo.borgbase.com/./repo"
 nix shell nixpkgs#borgbackup -c borg list
 nix shell nixpkgs#borgbackup -c borg extract ::<archive> <path>
 ```
