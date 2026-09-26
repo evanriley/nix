@@ -17,6 +17,7 @@ in
       nextdns
       yubikey
       desktop
+      niri
       plymouth
       audio
       bluetooth
@@ -46,6 +47,7 @@ in
       imports = with homeManager; [
         workstation
         session
+        niri
         apps
         music
         gaming

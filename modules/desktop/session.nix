@@ -55,7 +55,6 @@ in
       dotfiles.config = [
         "foot"
         "fuzzel"
-        "niri"
         "swaync/style.css"
         "swayosd/style.css"
         "waybar"
