@@ -155,10 +155,13 @@ in
               default_extent_fraction = 1.0;
               center_focused = "never";
             };
+            master.default_width_fraction = 0.5;
           };
 
           workspaces.back_and_forth = true;
-          workspace = map (name: { inherit name; }) workspaces;
+          workspace = map (
+            name: { inherit name; } // lib.optionalAttrs (name == "web") { layout.mode = "master"; }
+          ) workspaces;
 
           scratchpad = [
             { name = "btop"; }
