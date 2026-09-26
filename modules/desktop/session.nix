@@ -64,16 +64,18 @@ in
         mkScript pkgs {
           name = "desktopctl";
           src = ./_scripts/desktopctl;
-          runtimeInputs = with pkgs; [
+          runtimeInputs = [
+            config.programs.btop.package
+            config.programs.rmpc.package
+          ]
+          ++ (with pkgs; [
             niri
             foot
-            btop
-            rmpc
             fuzzel
             swaylock
             systemd
             procps
-          ];
+          ]);
         }
       );
 
