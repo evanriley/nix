@@ -2,6 +2,10 @@
 let
   inherit (config.meta) user;
   inherit (config.flake.lib) macClipboard;
+  atuinKey = {
+    file = inputs.self + "/secrets/atuin-key.age";
+    owner = user.name;
+  };
 in
 {
   # The hand-edited kak and tmux configs and qute-cleanurl copy through wl-copy/wl-paste.
@@ -15,6 +19,7 @@ in
     {
       programs.fish.enable = true;
       users.users.${user.name}.shell = pkgs.fish;
+      age.secrets.atuin-key = atuinKey;
       programs.direnv = {
         enable = true;
         nix-direnv.enable = true;
@@ -26,6 +31,7 @@ in
     {
       programs.fish.enable = true;
       users.users.${user.name}.shell = pkgs.fish;
+      age.secrets.atuin-key = atuinKey;
     };
 
   flake.modules.homeManager.shell =
@@ -86,7 +92,19 @@ in
         '';
       };
 
-      programs.fzf.enable = true;
+      programs.fzf = {
+        enable = true;
+        # Leaves CTRL-R to Atuin.
+        historyWidget.command = "";
+      };
+      programs.atuin = {
+        enable = true;
+        flags = [ "--disable-up-arrow" ];
+        settings = {
+          update_check = false;
+          key_path = "/run/agenix/atuin-key";
+        };
+      };
       programs.nix-your-shell.enable = true;
       programs.zoxide.enable = true;
       programs.nix-index.enable = true;
