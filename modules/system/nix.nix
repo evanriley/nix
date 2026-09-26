@@ -14,7 +14,7 @@ let
 in
 {
   flake.modules.nixos.nix =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     {
       nix.package = pkgs.lix;
       nix.channel.enable = false;
@@ -31,7 +31,7 @@ in
 
       programs.nh = {
         enable = true;
-        flake = "/home/${user.name}/${repoDir}";
+        flake = "${config.users.users.${user.name}.home}/${repoDir}";
         # Also collects home-manager generations, which theme switches create.
         clean = {
           enable = true;
@@ -42,7 +42,7 @@ in
     };
 
   flake.modules.darwin.nix =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     {
       nix.package = pkgs.lix;
       nix.channel.enable = false;
@@ -62,6 +62,6 @@ in
         # Apple's ssh lacks FIDO2 support; the YubiKey keys fetch private inputs.
         pkgs.openssh
       ];
-      environment.variables.NH_FLAKE = "/Users/${user.name}/${repoDir}";
+      environment.variables.NH_FLAKE = "${config.users.users.${user.name}.home}/${repoDir}";
     };
 }

@@ -24,7 +24,7 @@ in
   flake.modules.nixos.syncthing =
     { config, ... }:
     let
-      home = "/home/${user.name}";
+      home = config.users.users.${user.name}.home;
     in
     {
       age.secrets = {
