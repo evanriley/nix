@@ -178,7 +178,10 @@ in
             (rule {
               app_id = "^([Ff]irefox|org\\.mozilla\\.firefox|[Ll]ibre[Ww]olf|com\\.brave\\.Browser|brave-browser|org\\.qutebrowser\\.qutebrowser|qutebrowser)$";
             } { default_workspace = "web"; })
-            (rule { app_id = "^([Dd]iscord|com\\.discordapp\\.Discord)$"; } { default_workspace = "social"; })
+            (rule { app_id = "^([Dd]iscord|com\\.discordapp\\.Discord)$"; } {
+              default_workspace = "social";
+              default_focused = false;
+            })
             (rule { app_id = "^dev\\.deedles\\.Trayscale$"; } (
               { default_workspace = "system"; } // floating 520 620
             ))
