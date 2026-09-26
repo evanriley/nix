@@ -1,3 +1,7 @@
+{ config, ... }:
+let
+  inherit (config.flake.lib) macClipboard;
+in
 {
   flake.modules.homeManager.qutebrowser =
     {
@@ -66,9 +70,7 @@
               lib.makeBinPath [ (if isDarwin then pkgs.choose-gui else pkgs.fuzzel) ]
             }
             wrapProgram $out/qute-cleanurl --prefix PATH : ${
-              lib.makeBinPath [
-                (if isDarwin then pkgs.writeShellScriptBin "wl-copy" "exec /usr/bin/pbcopy" else pkgs.wl-clipboard)
-              ]
+              lib.makeBinPath (if isDarwin then macClipboard pkgs else [ pkgs.wl-clipboard ])
             }
             wrapProgram $out/qute-mpv --prefix PATH : ${lib.makeBinPath [ config.programs.mpv.finalPackage ]}
           '';

@@ -1,8 +1,15 @@
 { config, inputs, ... }:
 let
   inherit (config.meta) user;
+  inherit (config.flake.lib) macClipboard;
 in
 {
+  # The hand-edited kak and tmux configs and qute-cleanurl copy through wl-copy/wl-paste.
+  flake.lib.macClipboard = pkgs: [
+    (pkgs.writeShellScriptBin "wl-copy" "exec /usr/bin/pbcopy")
+    (pkgs.writeShellScriptBin "wl-paste" "exec /usr/bin/pbpaste")
+  ];
+
   flake.modules.nixos.shell =
     { pkgs, ... }:
     {
@@ -36,11 +43,6 @@ in
     }:
     let
       isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
-      # The hand-edited kak and tmux configs copy through wl-copy/wl-paste.
-      macClipboard = [
-        (pkgs.writeShellScriptBin "wl-copy" "exec /usr/bin/pbcopy")
-        (pkgs.writeShellScriptBin "wl-paste" "exec /usr/bin/pbpaste")
-      ];
     in
     {
       imports = [ inputs.nix-index-database.homeModules.nix-index ];
@@ -113,7 +115,7 @@ in
 
       home.packages =
         lib.optionals isDarwin (
-          macClipboard
+          macClipboard pkgs
           ++ [
             # GNU ls for the aliases above.
             pkgs.coreutils
