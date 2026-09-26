@@ -71,7 +71,7 @@ Profiles in `modules/profiles/`:
 | Module | Contents |
 | --- | --- |
 | `nixos.base`, `darwin.base` | Nix, agenix, user, locale, networking, fish |
-| `homeManager.cli` | Home basics, dotfiles, shell, Atuin, git, Kakoune, Neovim, theme |
+| `homeManager.cli` | Home basics, dotfiles, shell, Atuin, git, jj, Kakoune, Neovim, theme |
 | `homeManager.workstation` | `cli` plus browsers, Discord, mpv, Bitwarden, YubiKey tools |
 
 1. Create `modules/hosts/<host>/configuration.nix` with

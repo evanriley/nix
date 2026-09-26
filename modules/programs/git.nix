@@ -7,7 +7,8 @@ in
     { config, pkgs, ... }:
     let
       # Commit signing uses whichever enrolled YubiKey is plugged in: "-f
-      # yubikey" becomes the non-resident handle for that key's serial.
+      # yubikey" becomes the non-resident handle for that key's serial. jj sends
+      # ~/.ssh/yubikey instead: it treats a bare "yubikey" as an inline key.
       signer = pkgs.writeShellApplication {
         name = "git-ssh-keygen";
         runtimeInputs = [
@@ -18,7 +19,7 @@ in
           args=("$@")
           if [ "''${1:-}" = -Y ] && [ "''${2:-}" = sign ]; then
             for i in "''${!args[@]}"; do
-              if [ "''${args[i]}" = -f ] && [ "''${args[i + 1]:-}" = yubikey ]; then
+              if [ "''${args[i]}" = -f ] && { [ "''${args[i + 1]:-}" = yubikey ] || [ "''${args[i + 1]:-}" = "$HOME/.ssh/yubikey" ]; }; then
                 key=
                 for serial in $(timeout 10 ykman list --serials); do
                   candidate="$HOME/.ssh/id_ed25519_sk_sign_$serial"
@@ -108,6 +109,27 @@ in
         enable = true;
         enableGitIntegration = true;
         options.navigate = true;
+      };
+
+      programs.jujutsu = {
+        enable = true;
+        settings = {
+          user = {
+            name = user.fullName;
+            inherit (user) email;
+          };
+          # jj rewrites commits constantly; signing each one would need a YubiKey touch every time.
+          signing = {
+            behavior = "drop";
+            backend = "ssh";
+            key = "~/.ssh/yubikey";
+            backends.ssh = {
+              program = "${signer}/bin/git-ssh-keygen";
+              allowed-signers = "${config.xdg.configHome}/git/allowed_signers";
+            };
+          };
+          git.sign-on-push = true;
+        };
       };
 
       xdg.configFile."git/allowed_signers".text = ''
