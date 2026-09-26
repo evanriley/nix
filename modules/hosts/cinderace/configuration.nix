@@ -18,6 +18,7 @@ in
       yubikey
       desktop
       niri
+      umbriel
       plymouth
       audio
       bluetooth
@@ -48,6 +49,7 @@ in
         workstation
         session
         niri
+        umbriel
         apps
         music
         gaming
