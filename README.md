@@ -92,10 +92,18 @@ Then, by hand:
 
 ### cinderace
 
-Installed from the NixOS installer with disko and `nixos-install --flake
-~/nix#cinderace`. Restore `/etc/ssh/ssh_host_ed25519_key` and `/var/lib/sbctl`
-from Borg first: the agenix secrets, including the login password, only
-decrypt with that host key.
+1. Boot the NixOS installer, clone to `~/nix`, and partition and mount the
+   disks with disko.
+2. Restore the host SSH key and the Secure Boot keys from Borg into `/mnt`
+   (see [Restoring from Borg](#restoring-from-borg)). The agenix secrets,
+   including the login password, only decrypt with that host key.
+
+   ```sh
+   cd /mnt
+   sudo -E nix shell nixpkgs#borgbackup -c borg extract ::<archive> etc/ssh/ssh_host_ed25519_key etc/ssh/ssh_host_ed25519_key.pub var/lib/sbctl
+   ```
+
+3. `nixos-install --flake ~/nix#cinderace`
 
 ## Restoring from Borg
 
@@ -104,8 +112,10 @@ to `asfr5z3s`, ninetales to `o0dskefv`.
 
 ```sh
 sudo borgmatic repo-list --last 5
-sudo borgmatic extract --archive latest --path home/evan/<path> --destination /tmp/restore
+sudo borgmatic extract --archive latest --path <home>/<path> --destination /tmp/restore
 ```
+
+`<home>` is `home/evan` on cinderace and `Users/evan` on ninetales.
 
 On a new machine, borgmatic has no credentials yet. The passphrase and the key
 export (`borg-key-<host>`) are in Bitwarden; the SSH key decrypts with a
