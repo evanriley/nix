@@ -182,6 +182,7 @@ in
                 "Library/Logs"
                 "Library/Developer"
                 "Library/Metadata/CoreSpotlight"
+                "Library/Application Support/com.apple.wallpaper/aerials"
                 "Library/Application Support/discord/Cache"
                 "Library/Application Support/discord/Code Cache"
                 "Library/Application Support/discord/GPUCache"
