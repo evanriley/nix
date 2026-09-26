@@ -1,7 +1,15 @@
-{ inputs, ... }:
+{ config, inputs, ... }:
+let
+  inherit (config.flake.lib) mkScript;
+in
 {
   flake.modules.homeManager.ai =
-    { config, lib, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       inherit (config.dotfiles) link;
       ownSkills = lib.mapAttrs (name: _: link "config/ai/skills/${name}") (
@@ -22,6 +30,22 @@
     in
     {
       dotfiles.config = [ "ai" ];
+
+      home.packages = [
+        (mkScript pkgs {
+          name = "agent-notify";
+          src = ./_ai/agent-notify;
+          runtimeInputs = [ pkgs.jq ] ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.libnotify;
+        })
+        (mkScript pkgs {
+          name = "agent-format";
+          src = ./_ai/agent-format;
+          runtimeInputs = [
+            pkgs.jq
+            pkgs.nixfmt
+          ];
+        })
+      ];
 
       home.file = {
         ".claude/CLAUDE.md".source = link "config/ai/AGENTS.md";

@@ -3,5 +3,23 @@
   "attribution": {
     "commit": "",
     "pr": ""
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [{ "type": "command", "command": "agent-notify" }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "agent-notify" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [{ "type": "command", "command": "agent-format" }]
+      }
+    ]
   }
 }
