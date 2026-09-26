@@ -13,6 +13,7 @@ in
       nix
       boot
       secure-boot
+      zram
       secrets
       users
       locale

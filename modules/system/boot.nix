@@ -14,11 +14,6 @@
       boot.loader.efi.canTouchEfiVariables = true;
       boot.loader.timeout = 2;
 
-      boot.kernelParams = [
-        # zswap in front of zram compresses twice.
-        "zswap.enabled=0"
-      ];
-
       services.fwupd.enable = true;
     };
 }
