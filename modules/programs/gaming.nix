@@ -17,6 +17,8 @@ in
       programs.gamemode.enable = true;
       users.users.${user.name}.extraGroups = [ "gamemode" ];
 
+      programs.gpu-screen-recorder.enable = true;
+
       environment.systemPackages = [ pkgs.faugus-launcher ];
 
       boot.kernelModules = [ "ntsync" ];
@@ -48,8 +50,22 @@ in
     };
 
   flake.modules.homeManager.gaming =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
+    let
+      replayDir = "${config.home.homeDirectory}/Videos/Replays";
+      notifySaved = pkgs.writeShellScript "replay-saved" ''
+        exec ${pkgs.libnotify}/bin/notify-send --app-name=Replay "Replay saved" "$1"
+      '';
+    in
     {
+      # Shift+Print in niri saves the buffer; the system module installs the KMS capture wrapper.
+      systemd.user.services.gpu-screen-recorder-replay = sessionService {
+        description = "GPU Screen Recorder replay buffer";
+        # AV1: H.264 encoders stop at 4096 pixels wide.
+        exec = "/run/current-system/sw/bin/gpu-screen-recorder -w screen -f 60 -k av1 -bm cbr -q 40000 -r 60 -c mkv -a default_output -sc ${notifySaved} -o ${replayDir}";
+        service.ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${replayDir}";
+      };
+
       # Steam and Faugus both list compatibilitytools.d. Not named GE-Proton: umu
       # treats that name as "download the latest GE-Proton".
       home.file.".local/share/Steam/compatibilitytools.d/GE-Proton-Nix".source =

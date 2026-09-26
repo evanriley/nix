@@ -167,6 +167,7 @@ binds {
     Print { screenshot show-pointer=false; }
     Ctrl+Print { screenshot-screen show-pointer=false; }
     Alt+Print { screenshot-window; }
+    Shift+Print { spawn "systemctl" "--user" "kill" "--signal=SIGUSR1" "--kill-whom=main" "gpu-screen-recorder-replay.service"; }
     Mod+F4 { spawn-sh "niri msg action move-window-to-floating && niri msg action set-window-width 3840 && niri msg action set-window-height 2160 && niri msg action center-window"; }
     Mod+H { focus-column-left; }
     Mod+Shift+H { move-column-left; }
