@@ -112,7 +112,13 @@ in
           appearance = {
             border_width = 2;
             prefer_no_csd = true;
+            corner_radius = 0;
+            blur.enabled = false;
+            shadow.enabled = false;
           };
+
+          colors.overview.background_tint = "#00000000";
+          overview.background_blur = false;
 
           layout = {
             gap = 6;
@@ -137,6 +143,10 @@ in
 
           # std::regex has no (?i); spell out case variants.
           window_rule = [
+            (rule { is_scratchpad = true; } {
+              corner_radius = 10;
+              shadow = true;
+            })
             (rule { app_id = "^foot$"; } { default_scrolling_extent = 0.5; })
             (rule {
               app_id = "^([Ff]irefox|org\\.mozilla\\.firefox|[Ll]ibre[Ww]olf|com\\.brave\\.Browser|brave-browser|org\\.qutebrowser\\.qutebrowser|qutebrowser)$";

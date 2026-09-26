@@ -292,9 +292,6 @@ in
             [colors.border]
             focused = "#${p.blue}"
             unfocused = "#${p.border}"
-
-            [colors.overview]
-            background_tint = "#${p.bg_alt}"
           '';
 
           "theme/tmux.conf".text = ''
