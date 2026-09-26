@@ -64,7 +64,11 @@ in
           exit 1
         }
         run mkdir -p "$HOME/.claude"
-        run install -m 600 /dev/stdin "$settings" <<<"$merged"
+        # macOS install cannot copy from /dev/stdin.
+        tmp=$(mktemp)
+        printf '%s\n' "$merged" >"$tmp"
+        run install -m 600 "$tmp" "$settings"
+        rm -f "$tmp"
       '';
     };
 }
