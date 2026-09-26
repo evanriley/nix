@@ -41,3 +41,7 @@ shared [ "cinderace" ] "evan-password.age"
   "slskd.env.age"
   "soularr-config.age"
 ]
+// hostSecrets "ninetales" [
+  "borg-passphrase.age"
+  "borg-ssh-key.age"
+]

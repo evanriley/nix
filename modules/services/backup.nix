@@ -168,4 +168,108 @@ in
       };
     };
 
+  flake.modules.darwin.backup =
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
+    let
+      home = "/Users/${user.name}";
+      settings =
+        borgmaticSettings {
+          inherit lib;
+          inherit (config.networking) hostName;
+          repo = "o0dskefv";
+          ssh = "/usr/bin/ssh";
+          secrets = config.age.secrets;
+        }
+        // {
+          local_path = lib.getExe' pkgs.borgbackup "borg";
+          # Some Apple app data stays unreadable even with Full Disk Access; skip it
+          # with a warning in the log instead of failing the whole backup.
+          borg_exit_codes = [
+            {
+              code = 104;
+              treat_as = "warning";
+            }
+          ];
+          source_directories = [
+            home
+            "/etc/ssh/ssh_host_ed25519_key"
+            "/etc/ssh/ssh_host_ed25519_key.pub"
+          ];
+          exclude_patterns =
+            map (path: "${home}/${path}") [
+              ".cache"
+              ".npm"
+              ".Trash"
+              "Downloads"
+              "Applications/Home Manager Apps"
+              "Library/Caches"
+              "Library/Logs"
+              "Library/Developer"
+              "Library/Metadata/CoreSpotlight"
+              # iCloud Drive; iCloud keeps it, and files not downloaded fail to read.
+              "Library/Mobile Documents"
+              "Library/Application Support/discord/Cache"
+              "Library/Application Support/discord/Code Cache"
+              "Library/Application Support/discord/GPUCache"
+            ]
+            ++ [
+              "sh:${home}/Library/Containers/*/Data/Library/Caches"
+              "sh:${home}/Library/Group Containers/*/Library/Caches"
+              "sh:${home}/Library/Group Containers/*/Caches"
+            ];
+        };
+      # Full Disk Access is granted to this binary. It spawns borgmatic and waits, so
+      # borgmatic and borg inherit the grant; its path and contents stay the same
+      # across borgmatic updates, so the grant survives them.
+      launcher = pkgs.runCommandCC "borgmatic-launcher" { } ''
+        mkdir -p $out/bin
+        $CC -O2 -o $out/bin/borgmatic-launcher ${./_backup/launcher.c}
+      '';
+      launcherPath = "/usr/local/libexec/borgmatic-launcher";
+    in
+    {
+      age.secrets = secrets config.networking.hostName;
+
+      programs.ssh.knownHosts.borgbase = {
+        hostNames = [ "o0dskefv.repo.borgbase.com" ];
+        publicKey = borgbaseHostKey;
+      };
+
+      environment.systemPackages = [ pkgs.borgmatic ];
+      environment.etc."borgmatic/config.yaml".source =
+        (pkgs.formats.yaml { }).generate "borgmatic.yaml"
+          settings;
+
+      # Replaced only when it changes, which would need Full Disk Access again.
+      system.activationScripts.postActivation.text = ''
+        if ! cmp -s ${launcher}/bin/borgmatic-launcher ${launcherPath}; then
+          mkdir -p ${dirOf launcherPath}
+          install -m 0755 ${launcher}/bin/borgmatic-launcher ${launcherPath}
+        fi
+      '';
+
+      launchd.daemons.borgmatic.serviceConfig = {
+        ProgramArguments = [
+          launcherPath
+          "--verbosity"
+          "1"
+        ];
+        # Runs at next wake if the Mac was asleep at 13:00.
+        StartCalendarInterval = [
+          {
+            Hour = 13;
+            Minute = 0;
+          }
+        ];
+        StandardOutPath = "/var/log/borgmatic.log";
+        StandardErrorPath = "/var/log/borgmatic.log";
+        ProcessType = "Background";
+        LowPriorityIO = true;
+      };
+    };
 }

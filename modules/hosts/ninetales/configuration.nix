@@ -15,6 +15,7 @@ in
       secrets
       networking
       nextdns
+      backup
       shell
       omniwm
     ];
