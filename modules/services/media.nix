@@ -1,6 +1,7 @@
 { config, inputs, ... }:
 let
   inherit (config.meta) user;
+  inherit (config.flake.lib) mkScript;
 in
 {
   flake.modules.nixos.media =
@@ -12,16 +13,10 @@ in
     }:
     let
       secret = name: inputs.self + "/secrets/${config.networking.hostName}/${name}.age";
-      listenbrainzRecommendations =
-        pkgs.runCommand "listenbrainz-recommendations"
-          {
-            buildInputs = [ pkgs.python3 ];
-          }
-          ''
-            install -Dm755 ${./_listenbrainz-recommendations/listenbrainz-recommendations.py} \
-              $out/bin/listenbrainz-recommendations
-            patchShebangs $out/bin
-          '';
+      listenbrainzRecommendations = mkScript pkgs {
+        name = "listenbrainz-recommendations";
+        src = ./_listenbrainz-recommendations/listenbrainz-recommendations.py;
+      };
     in
     {
       options.services.listenbrainz-recommendations.enable = lib.mkEnableOption "daily monitoring of ListenBrainz playlist albums in Lidarr";
@@ -108,7 +103,7 @@ in
               environment.PYTHONDONTWRITEBYTECODE = "1";
               serviceConfig = {
                 Type = "oneshot";
-                ExecStart = "${listenbrainzRecommendations}/bin/listenbrainz-recommendations --apply";
+                ExecStart = "${lib.getExe listenbrainzRecommendations} --apply";
                 EnvironmentFile = config.age.secrets.lidarr-env.path;
                 DynamicUser = true;
                 StateDirectory = "listenbrainz-recommendations";
