@@ -4,7 +4,12 @@ let
 in
 {
   flake.modules.homeManager.git =
-    { config, pkgs, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       # Commit signing uses whichever enrolled YubiKey is plugged in: "-f
       # yubikey" becomes the non-resident handle for that key's serial. jj sends
@@ -101,6 +106,7 @@ in
             last = "log -1 HEAD --stat";
             lg = "log --oneline --decorate --graph --all";
             recent = "for-each-ref --sort=-committerdate --count=20 --format='%(refname:short)' refs/heads/";
+            difft = "-c diff.external=${lib.getExe config.programs.difftastic.package} diff";
           };
         };
       };
@@ -109,6 +115,11 @@ in
         enable = true;
         enableGitIntegration = true;
         options.navigate = true;
+      };
+
+      programs.difftastic = {
+        enable = true;
+        jujutsu.enable = true;
       };
 
       programs.jujutsu = {
