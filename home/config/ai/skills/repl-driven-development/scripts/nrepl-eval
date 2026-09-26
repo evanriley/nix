@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""Evaluate Clojure code in a running nREPL and print output, errors and values.
+
+Usage: nrepl-eval [--port PORT] [--ns NS] [--timeout SECONDS] [CODE]
+CODE defaults to standard input. The port defaults to the nearest .nrepl-port
+at or above the current directory.
+"""
+import argparse
+import socket
+import sys
+import uuid
+from pathlib import Path
+
+
+def bencode(value):
+    if isinstance(value, int):
+        return b'i%de' % value
+    if isinstance(value, str):
+        value = value.encode()
+    if isinstance(value, bytes):
+        return b'%d:%s' % (len(value), value)
+    if isinstance(value, list):
+        return b'l' + b''.join(map(bencode, value)) + b'e'
+    if isinstance(value, dict):
+        items = sorted((key.encode(), item) for key, item in value.items())
+        return b'd' + b''.join(bencode(key) + bencode(item) for key, item in items) + b'e'
+    raise TypeError(f'cannot bencode {type(value).__name__}')
+
+
+class Reader:
+    def __init__(self, sock):
+        self.sock = sock
+        self.buffer = b''
+
+    def need(self, count):
+        while len(self.buffer) < count:
+            chunk = self.sock.recv(65536)
+            if not chunk:
+                raise ConnectionError('nREPL closed the connection')
+            self.buffer += chunk
+
+    def take(self, count):
+        self.need(count)
+        data, self.buffer = self.buffer[:count], self.buffer[count:]
+        return data
+
+    def until(self, delimiter):
+        while delimiter not in self.buffer:
+            self.need(len(self.buffer) + 1)
+        data, _, self.buffer = self.buffer.partition(delimiter)
+        return data
+
+    def value(self):
+        head = self.take(1)
+        if head == b'i':
+            return int(self.until(b'e'))
+        if head == b'l':
+            items = []
+            while (item := self.value()) is not None:
+                items.append(item)
+            return items
+        if head == b'd':
+            result = {}
+            while (key := self.value()) is not None:
+                result[key] = self.value()
+            return result
+        if head == b'e':
+            return None
+        length = int(head + self.until(b':'))
+        return self.take(length).decode(errors='replace')
+
+
+def find_port():
+    for directory in [Path.cwd(), *Path.cwd().parents]:
+        port_file = directory / '.nrepl-port'
+        if port_file.is_file():
+            return int(port_file.read_text().strip())
+    sys.exit('No .nrepl-port found at or above the current directory. '
+             'Start a REPL (clojure -M:nrepl, bb nrepl-server) or pass --port.')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument('code', nargs='?')
+    parser.add_argument('--port', type=int)
+    parser.add_argument('--host', default='127.0.0.1')
+    parser.add_argument('--ns')
+    parser.add_argument('--timeout', type=float, default=120.0)
+    args = parser.parse_args()
+
+    code = args.code if args.code is not None else sys.stdin.read()
+    port = args.port or find_port()
+    request_id = str(uuid.uuid4())
+    request = {'op': 'eval', 'code': code, 'id': request_id}
+    if args.ns:
+        request['ns'] = args.ns
+
+    failed = False
+    with socket.create_connection((args.host, port), timeout=args.timeout) as sock:
+        sock.sendall(bencode(request))
+        reader = Reader(sock)
+        while True:
+            message = reader.value()
+            if message.get('id') != request_id:
+                continue
+            if 'out' in message:
+                sys.stdout.write(message['out'])
+            if 'err' in message:
+                sys.stderr.write(message['err'])
+            if 'value' in message:
+                print(f"=> {message['value']}")
+            if 'ex' in message:
+                failed = True
+                print(f"!! {message['ex']}", file=sys.stderr)
+            if 'done' in message.get('status', []):
+                break
+    return 1 if failed else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

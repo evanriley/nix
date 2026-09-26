@@ -28,5 +28,6 @@ in
     kakoune
     neovim
     theme
+    ai
   ];
 }
