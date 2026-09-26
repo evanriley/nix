@@ -86,7 +86,8 @@ Then, by hand:
 
 - Grant Accessibility to OmniWM, skhd and qutebrowser, and Input Monitoring to
   OmniWM.
-- `sudo tailscale up --accept-dns=false`
+- Tailscale app: allow its VPN configuration, log in, and turn off Use
+  Tailscale DNS (NextDNS resolves, forwarding `ts.net` to MagicDNS).
 - In Firefox, `about:profiles` → Create a New Profile → Choose Folder
   `~/Library/Application Support/org.nixos.firefox/Profiles/default` → Set as
   default profile.

@@ -14,6 +14,6 @@ in
   };
 
   flake.modules.darwin.networking = {
-    services.tailscale.enable = true;
+    homebrew.casks = [ "tailscale-app" ];
   };
 }
