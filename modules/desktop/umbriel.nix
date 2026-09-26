@@ -252,6 +252,9 @@ in
             "Mod+O" = "overview-toggle";
             "Mod+Q" = "window-close";
             "Mod+Shift+P" = "window-toggle-pinned";
+            "Mod+Ctrl+Space" = "workspace-set-layout:toggle";
+            "Alt+Tab" = "window-focus-last";
+            "Mod+MouseMiddle" = "layout-scroll-drag";
             "Mod+Home" = "column-focus-first";
             "Mod+End" = "column-focus-last";
             "Mod+Ctrl+Home" = "column-move-to-first";
