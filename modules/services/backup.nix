@@ -137,41 +137,7 @@ in
     }:
     let
       home = config.users.users.${user.name}.home;
-      borgmaticConfig =
-        settings {
-          inherit config lib;
-          ssh = "/usr/bin/ssh";
-        }
-        // {
-          local_path = lib.getExe' pkgs.borgbackup "borg";
-          borg_exit_codes = [
-            {
-              code = 104;
-              treat_as = "warning";
-            }
-          ];
-          exclude_patterns =
-            map (path: "${home}/${path}") [
-              ".cache"
-              ".npm"
-              ".Trash"
-              "Downloads"
-              "Applications/Home Manager Apps"
-              "Library/Caches"
-              "Library/Logs"
-              "Library/Developer"
-              "Library/Metadata/CoreSpotlight"
-              "Library/Mobile Documents"
-              "Library/Application Support/discord/Cache"
-              "Library/Application Support/discord/Code Cache"
-              "Library/Application Support/discord/GPUCache"
-            ]
-            ++ [
-              "sh:${home}/Library/Containers/*/Data/Library/Caches"
-              "sh:${home}/Library/Group Containers/*/Library/Caches"
-              "sh:${home}/Library/Group Containers/*/Caches"
-            ];
-        };
+      settingsFormat = pkgs.formats.yaml { };
       # Holds the Full Disk Access grant: it must spawn borgmatic (not exec) and stay
       # byte-identical, or the grant is lost.
       launcher = pkgs.runCommandCC "borgmatic-launcher" { } ''
@@ -183,34 +149,78 @@ in
     {
       imports = [ secretsAndHostKey ];
 
-      environment.systemPackages = [ pkgs.borgmatic ];
-      environment.etc."borgmatic/config.yaml".source =
-        (pkgs.formats.yaml { }).generate "borgmatic.yaml"
-          borgmaticConfig;
+      # nix-darwin has no borgmatic module; the same option as on NixOS lets hosts
+      # and modules add their own sources and excludes.
+      options.services.borgmatic.configurations.home = lib.mkOption {
+        type = settingsFormat.type;
+        default = { };
+        description = "borgmatic configuration written to /etc/borgmatic/config.yaml.";
+      };
 
-      system.activationScripts.postActivation.text = ''
-        if ! cmp -s ${launcher}/bin/borgmatic-launcher ${launcherPath}; then
-          mkdir -p ${dirOf launcherPath}
-          install -m 0755 ${launcher}/bin/borgmatic-launcher ${launcherPath}
-        fi
-      '';
-
-      launchd.daemons.borgmatic.serviceConfig = {
-        ProgramArguments = [
-          launcherPath
-          "--verbosity"
-          "1"
-        ];
-        StartCalendarInterval = [
-          {
-            Hour = 20;
-            Minute = 0;
+      config = {
+        services.borgmatic.configurations.home =
+          settings {
+            inherit config lib;
+            ssh = "/usr/bin/ssh";
           }
-        ];
-        StandardOutPath = "/var/log/borgmatic.log";
-        StandardErrorPath = "/var/log/borgmatic.log";
-        ProcessType = "Background";
-        LowPriorityIO = true;
+          // {
+            local_path = lib.getExe' pkgs.borgbackup "borg";
+            borg_exit_codes = [
+              {
+                code = 104;
+                treat_as = "warning";
+              }
+            ];
+            exclude_patterns =
+              map (path: "${home}/${path}") [
+                ".cache"
+                ".npm"
+                ".Trash"
+                "Downloads"
+                "Applications/Home Manager Apps"
+                "Library/Caches"
+                "Library/Logs"
+                "Library/Developer"
+                "Library/Metadata/CoreSpotlight"
+                "Library/Application Support/discord/Cache"
+                "Library/Application Support/discord/Code Cache"
+                "Library/Application Support/discord/GPUCache"
+              ]
+              ++ [
+                "sh:${home}/Library/Containers/*/Data/Library/Caches"
+                "sh:${home}/Library/Group Containers/*/Library/Caches"
+                "sh:${home}/Library/Group Containers/*/Caches"
+              ];
+          };
+
+        environment.systemPackages = [ pkgs.borgmatic ];
+        environment.etc."borgmatic/config.yaml".source =
+          settingsFormat.generate "borgmatic.yaml" config.services.borgmatic.configurations.home;
+
+        system.activationScripts.postActivation.text = ''
+          if ! cmp -s ${launcher}/bin/borgmatic-launcher ${launcherPath}; then
+            mkdir -p ${dirOf launcherPath}
+            install -m 0755 ${launcher}/bin/borgmatic-launcher ${launcherPath}
+          fi
+        '';
+
+        launchd.daemons.borgmatic.serviceConfig = {
+          ProgramArguments = [
+            launcherPath
+            "--verbosity"
+            "1"
+          ];
+          StartCalendarInterval = [
+            {
+              Hour = 20;
+              Minute = 0;
+            }
+          ];
+          StandardOutPath = "/var/log/borgmatic.log";
+          StandardErrorPath = "/var/log/borgmatic.log";
+          ProcessType = "Background";
+          LowPriorityIO = true;
+        };
       };
     };
 }
