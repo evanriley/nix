@@ -90,6 +90,28 @@ in
         };
         systemd.tmpfiles.rules = [ "d /var/lib/soularr 0750 root root -" ];
 
+        services.borgmatic.configurations.home = {
+          source_directories = [
+            "/var/lib/lidarr"
+            "/var/lib/slskd"
+            "/var/lib/soularr"
+            "/var/lib/private/listenbrainz-recommendations"
+          ];
+          # Lidarr writes its database continuously; back up a consistent dump
+          # instead of the live file.
+          sqlite_databases = [
+            {
+              name = "lidarr";
+              path = "/var/lib/lidarr/lidarr.db";
+            }
+          ];
+          exclude_patterns = [
+            "sh:/var/lib/lidarr/lidarr.db*"
+            "sh:/var/lib/lidarr/logs*"
+            "/var/lib/lidarr/MediaCover"
+          ];
+        };
+
         systemd.services.listenbrainz-recommendations =
           lib.mkIf config.services.listenbrainz-recommendations.enable
             {

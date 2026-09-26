@@ -8,6 +8,8 @@ in
 
     services.tailscale.enable = true;
     services.tailscale.extraSetFlags = [ "--operator=${user.name}" ];
+
+    services.borgmatic.configurations.home.source_directories = [ "/var/lib/tailscale" ];
   };
 
   flake.modules.darwin.networking = {

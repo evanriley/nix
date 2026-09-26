@@ -1,26 +1,45 @@
 { config, inputs, ... }:
 let
   inherit (config.meta) user;
-  home = "/home/${user.name}";
   borgbaseHostKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGU0mISTyHBw9tBs6SuhSq8tvNM8m9eifQxM+88TowPO";
-
-  secrets = hostName: {
-    borg-passphrase.file = inputs.self + "/secrets/${hostName}/borg-passphrase.age";
-    borg-ssh-key.file = inputs.self + "/secrets/${hostName}/borg-ssh-key.age";
+  repos = {
+    cinderace = "asfr5z3s";
+    ninetales = "o0dskefv";
   };
 
-  borgmaticSettings =
+  repo = hostName: repos.${hostName};
+
+  secretsAndHostKey =
+    { config, ... }:
+    let
+      inherit (config.networking) hostName;
+    in
     {
+      age.secrets = {
+        borg-passphrase.file = inputs.self + "/secrets/${hostName}/borg-passphrase.age";
+        borg-ssh-key.file = inputs.self + "/secrets/${hostName}/borg-ssh-key.age";
+      };
+
+      programs.ssh.knownHosts.borgbase = {
+        hostNames = [ "${repo hostName}.repo.borgbase.com" ];
+        publicKey = borgbaseHostKey;
+      };
+    };
+
+  settings =
+    {
+      config,
       lib,
-      hostName,
-      repo,
       ssh,
-      secrets,
     }:
+    let
+      inherit (config.networking) hostName;
+      secrets = config.age.secrets;
+    in
     {
       repositories = [
         {
-          path = "ssh://${repo}@${repo}.repo.borgbase.com/./repo";
+          path = "ssh://${repo hostName}@${repo hostName}.repo.borgbase.com/./repo";
           label = "borgbase";
         }
       ];
@@ -57,93 +76,42 @@ let
           frequency = "1 month";
         }
       ];
+
+      source_directories = [
+        config.users.users.${user.name}.home
+        "/etc/ssh/ssh_host_ed25519_key"
+        "/etc/ssh/ssh_host_ed25519_key.pub"
+      ];
     };
 in
 {
   flake.modules.nixos.backup =
     { config, lib, ... }:
+    let
+      home = config.users.users.${user.name}.home;
+    in
     {
-      age.secrets = secrets config.networking.hostName;
-
-      programs.ssh.knownHosts.borgbase = {
-        hostNames = [ "asfr5z3s.repo.borgbase.com" ];
-        publicKey = borgbaseHostKey;
-      };
+      imports = [ secretsAndHostKey ];
 
       services.borgmatic = {
         enable = true;
         configurations.home =
-          borgmaticSettings {
-            inherit lib;
-            inherit (config.networking) hostName;
-            repo = "asfr5z3s";
+          settings {
+            inherit config lib;
             ssh = "ssh";
-            secrets = config.age.secrets;
           }
           // {
-            source_directories = [
-              home
-              "/var/lib/lidarr"
-              "/var/lib/slskd"
-              "/var/lib/soularr"
-              "/var/lib/private/listenbrainz-recommendations"
-              "/var/lib/sbctl"
-              "/etc/ssh/ssh_host_ed25519_key"
-              "/etc/ssh/ssh_host_ed25519_key.pub"
-              "/var/lib/tailscale"
-              "/var/lib/bluetooth"
-            ];
-            # Lidarr writes its database continuously; back up a consistent dump
-            # instead of the live file.
-            sqlite_databases = [
-              {
-                name = "lidarr";
-                path = "/var/lib/lidarr/lidarr.db";
-              }
-            ];
             exclude_patterns =
               map (path: "${home}/${path}") [
                 ".cache"
-                ".unsloth"
                 ".npm"
-                ".xlcore"
                 "Downloads"
                 ".local/share/Trash"
-                ".local/share/containers/storage"
-                ".local/share/Steam/appcache"
-                ".local/share/Steam/clientui"
-                ".local/share/Steam/depotcache"
-                ".local/share/Steam/logs"
-                ".local/share/Steam/package"
-                ".local/share/Steam/steamrt32"
-                ".local/share/Steam/steamrt64"
-                ".local/share/Steam/steamui"
-                ".local/share/Steam/ubuntu12_32"
-                ".local/share/Steam/ubuntu12_64"
-                ".local/share/Steam/config/htmlcache"
-                ".local/share/Steam/steamapps/common"
-                ".local/share/Steam/steamapps/downloading"
-                ".local/share/Steam/steamapps/shadercache"
-                ".local/share/Steam/steamapps/temp"
-                ".local/share/Steam/steamapps/workshop"
-                "Faugus/battlenet/drive_c/Program Files (x86)/World of Warcraft/Data"
-                ".var/app/ai.lmstudio.lm-studio"
                 ".config/discord/Cache"
                 ".config/discord/Code Cache"
                 ".config/discord/GPUCache"
-                "Developer/cports/bldroot"
-                "Developer/cports/packages"
-                "Developer/cports/sources"
-                "Developer/orca/.zig-cache"
-                "Developer/orca/zig-out"
-                "Developer/qbz/crates/target"
               ]
-              ++ [
-                "sh:${home}/.var/app/*/cache"
-                "sh:/var/lib/lidarr/lidarr.db*"
-                "sh:/var/lib/lidarr/logs*"
-                "/var/lib/lidarr/MediaCover"
-              ];
+              ++ [ "sh:${home}/.var/app/*/cache" ];
           };
       };
 
@@ -158,13 +126,6 @@ in
         RandomizedDelaySec = lib.mkForce "15m";
         Persistent = true;
       };
-
-      services.snapper.configs.home = {
-        SUBVOLUME = "/home";
-        ALLOW_USERS = [ user.name ];
-        TIMELINE_CREATE = true;
-        TIMELINE_CLEANUP = true;
-      };
     };
 
   flake.modules.darwin.backup =
@@ -175,14 +136,11 @@ in
       ...
     }:
     let
-      home = "/Users/${user.name}";
-      settings =
-        borgmaticSettings {
-          inherit lib;
-          inherit (config.networking) hostName;
-          repo = "o0dskefv";
+      home = config.users.users.${user.name}.home;
+      borgmaticConfig =
+        settings {
+          inherit config lib;
           ssh = "/usr/bin/ssh";
-          secrets = config.age.secrets;
         }
         // {
           local_path = lib.getExe' pkgs.borgbackup "borg";
@@ -191,11 +149,6 @@ in
               code = 104;
               treat_as = "warning";
             }
-          ];
-          source_directories = [
-            home
-            "/etc/ssh/ssh_host_ed25519_key"
-            "/etc/ssh/ssh_host_ed25519_key.pub"
           ];
           exclude_patterns =
             map (path: "${home}/${path}") [
@@ -228,17 +181,12 @@ in
       launcherPath = "/usr/local/libexec/borgmatic-launcher";
     in
     {
-      age.secrets = secrets config.networking.hostName;
-
-      programs.ssh.knownHosts.borgbase = {
-        hostNames = [ "o0dskefv.repo.borgbase.com" ];
-        publicKey = borgbaseHostKey;
-      };
+      imports = [ secretsAndHostKey ];
 
       environment.systemPackages = [ pkgs.borgmatic ];
       environment.etc."borgmatic/config.yaml".source =
         (pkgs.formats.yaml { }).generate "borgmatic.yaml"
-          settings;
+          borgmaticConfig;
 
       system.activationScripts.postActivation.text = ''
         if ! cmp -s ${launcher}/bin/borgmatic-launcher ${launcherPath}; then

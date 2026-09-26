@@ -5,7 +5,10 @@ let
 in
 {
   flake.modules.nixos.gaming =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
+    let
+      home = config.users.users.${user.name}.home;
+    in
     {
       programs.steam.enable = true;
       # No capSysNice: Steam's sandbox then refuses to start gamescope (nixpkgs#351516).
@@ -22,6 +25,26 @@ in
       '';
 
       boot.kernel.sysctl."kernel.split_lock_mitigate" = 0;
+
+      services.borgmatic.configurations.home.exclude_patterns = map (path: "${home}/${path}") [
+        ".local/share/Steam/appcache"
+        ".local/share/Steam/clientui"
+        ".local/share/Steam/depotcache"
+        ".local/share/Steam/logs"
+        ".local/share/Steam/package"
+        ".local/share/Steam/steamrt32"
+        ".local/share/Steam/steamrt64"
+        ".local/share/Steam/steamui"
+        ".local/share/Steam/ubuntu12_32"
+        ".local/share/Steam/ubuntu12_64"
+        ".local/share/Steam/config/htmlcache"
+        ".local/share/Steam/steamapps/common"
+        ".local/share/Steam/steamapps/downloading"
+        ".local/share/Steam/steamapps/shadercache"
+        ".local/share/Steam/steamapps/temp"
+        ".local/share/Steam/steamapps/workshop"
+        "Faugus/battlenet/drive_c/Program Files (x86)/World of Warcraft/Data"
+      ];
     };
 
   flake.modules.homeManager.gaming =

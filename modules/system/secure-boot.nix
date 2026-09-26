@@ -12,5 +12,7 @@
       };
 
       environment.systemPackages = [ pkgs.sbctl ];
+
+      services.borgmatic.configurations.home.source_directories = [ "/var/lib/sbctl" ];
     };
 }
