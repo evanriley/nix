@@ -24,6 +24,7 @@ in
       gaming
       media
       music
+      navidrome
       backup
       syncthing
     ];
