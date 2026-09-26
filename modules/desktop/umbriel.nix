@@ -187,12 +187,14 @@ in
               title = "^(Steam|Friends List)$";
             } { default_workspace = "game"; })
             (rule { app_id = "^steam_app_[0-9]+$"; } { default_workspace = "game"; })
+            # Unity's native Linux builds.
+            (rule { app_id = "\\.x86_64$"; } { default_workspace = "game"; })
             (rule {
               app_id = "^steam_app_default$";
               title = "^[Bb]attle\\.net";
             } { default_workspace = "game"; })
             (rule { app_id = "([Ff]augus|[Bb]attle\\.net)"; } { default_workspace = "game"; })
-            (rule { app_id = "^(steam_app_[0-9]+|steam_app_default|gamescope)$"; } {
+            (rule { app_id = "(^(steam_app_[0-9]+|steam_app_default|gamescope)$|\\.x86_64$)"; } {
               vrr = "always";
               tearing = true;
             })
