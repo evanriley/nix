@@ -1,7 +1,6 @@
-{ config, ... }:
+{ config, inputs, ... }:
 let
   inherit (config.flake.lib) sessionService mkScript uaccessRules;
-  top = config;
 in
 {
   flake.modules.nixos.cinderace =
@@ -41,7 +40,7 @@ in
   flake.modules.homeManager.cinderace =
     { lib, pkgs, ... }:
     let
-      scapectl = top.flake.packages.${pkgs.stdenv.hostPlatform.system}.scapectl;
+      scapectl = inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.scapectl;
     in
     {
       home.packages = [ scapectl ];
