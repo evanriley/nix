@@ -12,9 +12,13 @@
         buildInputs = [ pkgs.python3 ];
         meta.mainProgram = name;
       }
-      ''
-        install -Dm755 ${src} $out/bin/${name}
-        patchShebangs $out/bin
-        wrapProgram $out/bin/${name} --prefix PATH : ${pkgs.lib.makeBinPath runtimeInputs}
-      '';
+      (
+        ''
+          install -Dm755 ${src} $out/bin/${name}
+          patchShebangs $out/bin
+        ''
+        + pkgs.lib.optionalString (runtimeInputs != [ ]) ''
+          wrapProgram $out/bin/${name} --prefix PATH : ${pkgs.lib.makeBinPath runtimeInputs}
+        ''
+      );
 }
