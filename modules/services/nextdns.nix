@@ -1,3 +1,4 @@
+{ inputs, ... }:
 let
   arguments = config: [
     "-config-file"
@@ -11,7 +12,7 @@ let
     "ts.net=100.100.100.100"
   ];
   tailnet = "tailfe05b.ts.net";
-  secret.file = ../../secrets/nextdns.conf.age;
+  secret.file = inputs.self + "/secrets/nextdns.conf.age";
 in
 {
   flake.modules.nixos.nextdns =
