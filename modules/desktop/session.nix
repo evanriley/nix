@@ -38,28 +38,9 @@ in
       ...
     }:
     let
-      niri = "${pkgs.niri}/bin/niri";
       lock = "${pkgs.swaylock}/bin/swaylock -f";
-      # display-mode pauses while this marker exists: the monitor drops its
-      # mode list when powered off.
-      monitorsOff = pkgs.writeShellScript "monitors-off" ''
-        touch "$XDG_RUNTIME_DIR/monitors-off"
-        exec ${niri} msg action power-off-monitors
-      '';
-      monitorsOn = pkgs.writeShellScript "monitors-on" ''
-        ${niri} msg action power-on-monitors
-        rm -f "$XDG_RUNTIME_DIR/monitors-off"
-      '';
-    in
-    {
-      dotfiles.config = [
-        "foot"
-        "fuzzel"
-        "swaync/style.css"
-        "swayosd/style.css"
-        "waybar"
-      ];
-      home.file.".local/bin/desktopctl".source = lib.getExe (
+      # umbriel comes from the system PATH (programs.umbriel).
+      desktopctl = lib.getExe (
         mkScript pkgs {
           name = "desktopctl";
           src = ./_scripts/desktopctl;
@@ -71,12 +52,25 @@ in
             niri
             foot
             fuzzel
+            grim
+            slurp
+            wl-clipboard
             swaylock
             systemd
             procps
           ]);
         }
       );
+    in
+    {
+      dotfiles.config = [
+        "foot"
+        "fuzzel"
+        "swaync/style.css"
+        "swayosd/style.css"
+        "waybar"
+      ];
+      home.file.".local/bin/desktopctl".source = desktopctl;
 
       home.packages = with pkgs; [
         waybar
@@ -101,8 +95,8 @@ in
           }
           {
             timeout = 600;
-            command = "${monitorsOff}";
-            resumeCommand = "${monitorsOn}";
+            command = "${desktopctl} monitors off";
+            resumeCommand = "${desktopctl} monitors on";
           }
           {
             timeout = 1800;

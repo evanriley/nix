@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""niri helpers: scratchpad terminals, power menu, suspend inhibitor."""
+"""Desktop helpers for niri and umbriel: scratchpad terminals, power menu,
+monitor power, screenshots, suspend inhibitor."""
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -12,6 +14,35 @@ SCRATCH_APPS = {
     "rmpc": ("scratch_rmpc", ["foot", "--app-id=scratch_rmpc", "rmpc"]),
 }
 SLEEP_INHIBIT_UNIT = "sleep-inhibit.service"
+SCREENSHOT_DIR = os.path.expanduser("~/Pictures/Screenshots")
+
+
+class CompositorError(Exception):
+    pass
+
+
+def compositor():
+    """The running compositor, from the IPC socket its session exports."""
+    if os.environ.get("NIRI_SOCKET"):
+        return "niri"
+    if os.environ.get("UMBRIEL_SOCKET"):
+        return "umbriel"
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR")
+    display = os.environ.get("WAYLAND_DISPLAY")
+    if runtime_dir and display and os.path.exists(f"{runtime_dir}/umbriel-{display}.sock"):
+        return "umbriel"
+    raise CompositorError("no niri or umbriel socket found; expected NIRI_SOCKET, "
+                          "UMBRIEL_SOCKET or WAYLAND_DISPLAY from a running session")
+
+
+def umbriel_json(command):
+    result = subprocess.run(["umbriel", command, "--json"],
+                            capture_output=True, check=True, text=True, timeout=5)
+    return json.loads(result.stdout)
+
+
+def umbriel_action(action):
+    return subprocess.run(["umbriel", "msg", action], check=False).returncode
 
 
 def niri_json(command):
@@ -24,7 +55,25 @@ def niri_action(*args):
     return subprocess.run(["niri", "msg", "action", *args], check=False).returncode
 
 
+def launch_and_wait(command, find):
+    """Start command and return the window find() reports, or None after 3 seconds."""
+    subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True)
+    deadline = time.monotonic() + 3
+    window = None
+    while window is None and time.monotonic() < deadline:
+        time.sleep(0.1)
+        window = find()
+    return window
+
+
 def scratch(name):
+    if compositor() == "niri":
+        return scratch_niri(name)
+    return scratch_umbriel(name)
+
+
+def scratch_niri(name):
     """Show the app on the focused workspace, or park it on "scratch" if focused."""
     app_id, command = SCRATCH_APPS[name]
     focused = next((w for w in niri_json("workspaces") if w["is_focused"]), None)
@@ -40,12 +89,7 @@ def scratch(name):
         return niri_action("move-window-to-workspace", "--window-id", str(window["id"]),
                            "--focus", "false", "scratch")
     if window is None:
-        subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL, start_new_session=True)
-        deadline = time.monotonic() + 3
-        while window is None and time.monotonic() < deadline:
-            time.sleep(0.1)
-            window = find()
+        window = launch_and_wait(command, find)
         if window is None:
             print(f"desktopctl: {app_id} did not appear within 3 seconds", file=sys.stderr)
             return 1
@@ -54,6 +98,48 @@ def scratch(name):
     result = niri_action("move-window-to-workspace", "--window-id", window_id,
                          "--focus", "false", target)
     return result or niri_action("focus-window", "--id", window_id)
+
+
+def scratch_umbriel(name):
+    """Toggle the app's scratchpad, starting the app first if needed.
+
+    A window rule stores the app in the scratchpad named after it, hidden.
+    """
+    app_id, command = SCRATCH_APPS[name]
+
+    def find():
+        return next((w for w in umbriel_json("windows") if w.get("app_id") == app_id), None)
+
+    if find() is None and launch_and_wait(command, find) is None:
+        print(f"desktopctl: {app_id} did not appear within 3 seconds", file=sys.stderr)
+        return 1
+    return umbriel_action(f"scratchpad-toggle:{name}")
+
+
+def screenshot(target):
+    """Save a PNG under SCREENSHOT_DIR and copy it to the clipboard."""
+    geometry = None
+    if target == "region":
+        selection = subprocess.run(["slurp"], capture_output=True, text=True, check=False)
+        if selection.returncode != 0:
+            return 1
+        geometry = selection.stdout.strip()
+    elif target == "window":
+        if compositor() != "umbriel":
+            print("desktopctl: screenshot window needs umbriel; use niri's screenshot-window",
+                  file=sys.stderr)
+            return 1
+        window = next((w for w in umbriel_json("windows") if w.get("focused")), None)
+        if window is None:
+            print("desktopctl: no focused window", file=sys.stderr)
+            return 1
+        geometry = f"{window['x']},{window['y']} {window['w']}x{window['h']}"
+    os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+    path = os.path.join(SCREENSHOT_DIR, time.strftime("%Y-%m-%d_%H-%M-%S.png"))
+    subprocess.run(["grim", *(["-g", geometry] if geometry else []), path], check=True)
+    with open(path, "rb") as image:
+        subprocess.run(["wl-copy", "--type", "image/png"], stdin=image, check=True)
+    return 0
 
 
 def menu(prompt, choices):
@@ -72,10 +158,31 @@ def power():
         return subprocess.run(["systemctl", "suspend"], check=False).returncode
     if choice and menu(f"Confirm {choice}: ", ["Yes", "No"]) == "Yes":
         if choice == "Logout":
-            return niri_action("quit", "--skip-confirmation")
+            if compositor() == "niri":
+                return niri_action("quit", "--skip-confirmation")
+            return umbriel_action("session-quit:skip-confirmation")
         command = {"Reboot": "reboot", "Power Off": "poweroff"}[choice]
         return subprocess.run(["systemctl", command], check=False).returncode
     return 0
+
+
+def monitors(state):
+    """Power every monitor off or on.
+
+    display-mode pauses while the marker exists: the monitor drops its mode list
+    when powered off.
+    """
+    running = compositor()
+    marker = os.path.join(os.environ["XDG_RUNTIME_DIR"], "monitors-off")
+    if state == "off":
+        open(marker, "a").close()
+    if running == "niri":
+        result = niri_action(f"power-{state}-monitors")
+    else:
+        result = umbriel_action(f"dpms-{state}")
+    if state == "on" and os.path.exists(marker):
+        os.remove(marker)
+    return result
 
 
 def sleep_inhibit_active():
@@ -107,6 +214,8 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("scratch").add_argument("app", choices=SCRATCH_APPS)
     commands.add_parser("power")
+    commands.add_parser("monitors").add_argument("state", choices=("off", "on"))
+    commands.add_parser("screenshot").add_argument("target", choices=("region", "screen", "window"))
     commands.add_parser("sleep-inhibit").add_argument("action", choices=("status", "toggle"))
     args = parser.parse_args()
     try:
@@ -114,8 +223,12 @@ def main():
             return scratch(args.app)
         if args.command == "power":
             return power()
+        if args.command == "monitors":
+            return monitors(args.state)
+        if args.command == "screenshot":
+            return screenshot(args.target)
         return sleep_inhibit(args.action)
-    except (OSError, subprocess.SubprocessError, ValueError) as error:
+    except (CompositorError, OSError, subprocess.SubprocessError, ValueError) as error:
         print(f"desktopctl: {error}", file=sys.stderr)
         return 2
 
