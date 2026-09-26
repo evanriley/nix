@@ -10,14 +10,10 @@ in
 
   flake.modules.nixos.cinderace = {
     imports = with nixos; [
-      nix
+      base
       boot
       secure-boot
       zram
-      secrets
-      users
-      locale
-      networking
       nextdns
       yubikey
       desktop
@@ -25,7 +21,6 @@ in
       audio
       bluetooth
       fonts
-      shell
       gaming
       media
       music
@@ -48,21 +43,9 @@ in
     { pkgs, ... }:
     {
       imports = with homeManager; [
-        base
-        dotfiles
-        shell
-        git
-        kakoune
-        neovim
+        workstation
         session
-        theme
         apps
-        discord
-        firefox
-        mpv
-        bitwarden
-        yubikey
-        qutebrowser
         music
         gaming
       ];

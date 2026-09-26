@@ -16,13 +16,9 @@ in
     in
     {
       imports = with darwin; [
-        nix
-        secrets
-        users
-        networking
+        base
         nextdns
         backup
-        shell
         omniwm
       ];
 
@@ -165,19 +161,7 @@ in
     { lib, ... }:
     {
       imports = with homeManager; [
-        base
-        dotfiles
-        shell
-        git
-        kakoune
-        neovim
-        theme
-        firefox
-        qutebrowser
-        discord
-        mpv
-        bitwarden
-        yubikey
+        workstation
         ghostty
         syncthing
         omniwm
