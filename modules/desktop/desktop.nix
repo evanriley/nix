@@ -1,9 +1,17 @@
+{ config, ... }:
+let
+  inherit (config.meta) user;
+in
 {
   flake.modules.nixos.desktop =
     { pkgs, ... }:
     {
       services.displayManager.gdm.enable = true;
       programs.niri.enable = true;
+
+      networking.networkmanager.enable = true;
+      programs.nm-applet.enable = true;
+      users.users.${user.name}.extraGroups = [ "networkmanager" ];
 
       environment.systemPackages = [
         # niri's X11 support; Steam and Battle.net need it.
