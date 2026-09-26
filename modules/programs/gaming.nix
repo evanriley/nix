@@ -61,8 +61,9 @@ in
       # Shift+Print in niri saves the buffer; the system module installs the KMS capture wrapper.
       systemd.user.services.gpu-screen-recorder-replay = sessionService {
         description = "GPU Screen Recorder replay buffer";
-        # AV1: H.264 encoders stop at 4096 pixels wide.
-        exec = "/run/current-system/sw/bin/gpu-screen-recorder -w screen -f 60 -k av1 -bm cbr -q 40000 -r 60 -c mkv -a default_output -sc ${notifySaved} -o ${replayDir}";
+        # Full-size capture of the 6K mode makes niri's animations stutter.
+        # AV1 plays in Firefox and Discord, unlike HEVC.
+        exec = "/run/current-system/sw/bin/gpu-screen-recorder -w screen -s 3072x1728 -f 60 -k av1 -bm cbr -q 40000 -r 60 -c mkv -a default_output -sc ${notifySaved} -o ${replayDir}";
         service.ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${replayDir}";
       };
 
