@@ -1,7 +1,3 @@
-{ config, ... }:
-let
-  inherit (config.flake.lib) sessionService;
-in
 {
   flake.modules.homeManager.apps =
     {
@@ -11,7 +7,6 @@ in
       ...
     }:
     {
-
       programs.zathura = {
         enable = true;
         options = {
@@ -58,14 +53,6 @@ in
             "application/pdf" = "org.pwmt.zathura-pdf-poppler.desktop";
             "inode/directory" = "org.gnome.Nautilus.desktop";
           };
-      };
-
-      # Not niri spawn-at-startup: it dies in a race at login and niri discards its output.
-      systemd.user.services = {
-        steam = sessionService {
-          description = "Steam";
-          exec = "/run/current-system/sw/bin/steam -silent";
-        };
       };
 
       home.packages = with pkgs; [

@@ -1,6 +1,7 @@
 { config, ... }:
 let
   inherit (config.meta) user;
+  inherit (config.flake.lib) sessionService;
 in
 {
   flake.modules.nixos.gaming =
@@ -30,6 +31,12 @@ in
       # treats that name as "download the latest GE-Proton".
       home.file.".local/share/Steam/compatibilitytools.d/GE-Proton-Nix".source =
         pkgs.proton-ge-bin.steamcompattool;
+
+      # Not niri spawn-at-startup: it dies in a race at login and niri discards its output.
+      systemd.user.services.steam = sessionService {
+        description = "Steam";
+        exec = "/run/current-system/sw/bin/steam -silent";
+      };
 
       programs.mangohud = {
         enable = true;
