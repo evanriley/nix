@@ -2,6 +2,7 @@
 let
   inherit (config.meta) user;
   inherit (config.flake.lib) sessionService;
+  replaysDir = "Videos/Replays";
 in
 {
   flake.modules.nixos.gaming =
@@ -46,13 +47,14 @@ in
         ".local/share/Steam/steamapps/temp"
         ".local/share/Steam/steamapps/workshop"
         "Faugus/battlenet/drive_c/Program Files (x86)/World of Warcraft/Data"
+        replaysDir
       ];
     };
 
   flake.modules.homeManager.gaming =
     { config, pkgs, ... }:
     let
-      replayDir = "${config.home.homeDirectory}/Videos/Replays";
+      replayDir = "${config.home.homeDirectory}/${replaysDir}";
       notifySaved = pkgs.writeShellScript "replay-saved" ''
         exec ${pkgs.libnotify}/bin/notify-send --app-name=Replay "Replay saved" "$1"
       '';
