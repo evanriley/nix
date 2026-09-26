@@ -54,7 +54,19 @@ in
       services.mpd.musicDirectory = "/mnt/Media/Music";
 
       programs.btop = {
-        package = pkgs.btop.override { rocmSupport = true; };
+        package = pkgs.btop.override {
+          rocmSupport = true;
+          rocmPackages = pkgs.rocmPackages // {
+            # GPU names come from pci.ids at FHS paths only; without it btop shows 0x1002.
+            # Drop once nixpkgs' rocm-smi points at hwdata.
+            rocm-smi = pkgs.rocmPackages.rocm-smi.overrideAttrs (old: {
+              postPatch = (old.postPatch or "") + ''
+                substituteInPlace src/rocm_smi.cc \
+                  --replace-fail '"/usr/share/hwdata/pci.ids"' '"${pkgs.hwdata}/share/hwdata/pci.ids"'
+              '';
+            });
+          };
+        };
         settings.shown_boxes = "cpu mem net proc gpu0";
       };
 
