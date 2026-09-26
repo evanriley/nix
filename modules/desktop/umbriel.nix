@@ -192,7 +192,10 @@ in
               title = "^[Bb]attle\\.net";
             } { default_workspace = "game"; })
             (rule { app_id = "([Ff]augus|[Bb]attle\\.net)"; } { default_workspace = "game"; })
-            (rule { app_id = "^(steam_app_[0-9]+|steam_app_default|gamescope)$"; } { vrr = "always"; })
+            (rule { app_id = "^(steam_app_[0-9]+|steam_app_default|gamescope)$"; } {
+              vrr = "always";
+              tearing = true;
+            })
             (rule { title = "^Picture-in-Picture$"; } {
               default_floating = true;
               default_pinned = true;

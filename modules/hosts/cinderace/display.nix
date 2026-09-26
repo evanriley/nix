@@ -49,7 +49,11 @@ in
       programs.umbriel.settings = {
         # No mode: umbriel reapplies this on every hotplug, and display-mode
         # picks the mode. The scale matches the 6K mode used at login.
-        output.DP-2.scale = 2.0;
+        output.DP-2 = {
+          scale = 2.0;
+          # Fullscreen windows that request it, or match a tearing rule.
+          tearing = true;
+        };
         keybinds."Mod+Ctrl+M" = {
           action = "spawn:${config.home.homeDirectory}/.local/bin/display-mode";
           repeat = false;
