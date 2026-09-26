@@ -33,8 +33,15 @@ jobs:
       - name: Flake check
         run: nix flake check -L
 
-      - name: Evaluate the cinderace system
-        run: nix build --dry-run .#nixosConfigurations.cinderace.config.system.build.toplevel
-
-      - name: Evaluate the ninetales system
-        run: nix eval --raw .#darwinConfigurations.ninetales.system.drvPath
+      - name: Evaluate every system
+        run: |
+          for kind in nixosConfigurations darwinConfigurations; do
+            attr=config.system.build.toplevel
+            [ "$kind" = darwinConfigurations ] && attr=system
+            for host in $(nix eval --raw ".#$kind" --apply 'c: toString (builtins.attrNames c)'); do
+              echo "::group::$kind.$host"
+              nix eval --raw ".#$kind.$host.$attr.drvPath"
+              echo
+              echo "::endgroup::"
+            done
+          done
