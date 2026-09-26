@@ -40,8 +40,8 @@ in
         desktop = null;
         publicShare = null;
         templates = null;
-        # niri's screenshot-path writes here.
         projects = "${config.home.homeDirectory}/Developer";
+        # niri's screenshot-path writes here.
         extraConfig.SCREENSHOTS = "${config.home.homeDirectory}/Pictures/Screenshots";
       };
     };
