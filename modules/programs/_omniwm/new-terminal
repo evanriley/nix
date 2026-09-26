@@ -1,0 +1,6 @@
+#!/bin/sh
+exec /usr/bin/osascript \
+    -e 'if application "Ghostty" is running then' \
+    -e 'tell application "Ghostty" to new window' \
+    -e 'end if' \
+    -e 'tell application "Ghostty" to activate'
