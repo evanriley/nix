@@ -24,4 +24,15 @@ in
 
       age.secrets.user-password.file = inputs.self + "/secrets/${user.name}-password.age";
     };
+
+  flake.modules.darwin.users = {
+    system.primaryUser = user.name;
+
+    # nix-darwin only changes the login shell of users it manages.
+    users.knownUsers = [ user.name ];
+    users.users.${user.name} = {
+      uid = 501;
+      home = "/Users/${user.name}";
+    };
+  };
 }

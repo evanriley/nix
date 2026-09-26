@@ -25,13 +25,7 @@ in
     { pkgs, ... }:
     {
       programs.fish.enable = true;
-      # nix-darwin only changes the login shell of users it manages.
-      users.knownUsers = [ user.name ];
-      users.users.${user.name} = {
-        uid = 501;
-        home = "/Users/${user.name}";
-        shell = pkgs.fish;
-      };
+      users.users.${user.name}.shell = pkgs.fish;
     };
 
   flake.modules.homeManager.shell =
