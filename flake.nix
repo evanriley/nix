@@ -94,11 +94,6 @@
       url = "github:rafamadriz/friendly-snippets";
       flake = false;
     };
-
-    anthropic-skills = {
-      url = "github:anthropics/skills";
-      flake = false;
-    };
   };
 
   outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);

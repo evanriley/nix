@@ -25,22 +25,6 @@
         "type": "github"
       }
     },
-    "anthropic-skills": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1790266835,
-        "narHash": "sha256-xUs7UX8pOcZwR0okaSbI/f8EE5F4Zi/BUd+nIZNafPc=",
-        "owner": "anthropics",
-        "repo": "skills",
-        "rev": "33375500bcea98d610eb30ce10ac4e59b89c390d",
-        "type": "github"
-      },
-      "original": {
-        "owner": "anthropics",
-        "repo": "skills",
-        "type": "github"
-      }
-    },
     "base16": {
       "inputs": {
         "fromYaml": "fromYaml"
@@ -569,7 +553,6 @@
     "root": {
       "inputs": {
         "agenix": "agenix",
-        "anthropic-skills": "anthropic-skills",
         "berkeley-mono": "berkeley-mono",
         "crane": "crane",
         "disko": "disko",
