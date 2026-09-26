@@ -88,12 +88,20 @@ in
           systemctl --user kill --kill-whom=main --signal=USR2 waybar.service 2>/dev/null || true
           swaync-client --reload-css >/dev/null 2>&1 || true
           systemctl --user try-restart swayosd.service 2>/dev/null || true
-          # darkman starts before niri, so its environment has no NIRI_SOCKET.
+          # darkman starts before the compositor, so its environment has no
+          # NIRI_SOCKET or UMBRIEL_SOCKET.
           if [ -z "''${NIRI_SOCKET:-}" ] && command -v systemctl >/dev/null; then
             NIRI_SOCKET=$(systemctl --user show-environment 2>/dev/null | sed -n 's/^NIRI_SOCKET=//p' || true)
             export NIRI_SOCKET
           fi
           if [ -n "''${NIRI_SOCKET:-}" ]; then niri msg action load-config-file >/dev/null 2>&1 || true; fi
+          if [ -z "''${UMBRIEL_SOCKET:-}" ] && command -v systemctl >/dev/null; then
+            UMBRIEL_SOCKET=$(systemctl --user show-environment 2>/dev/null | sed -n 's/^UMBRIEL_SOCKET=//p' || true)
+            export UMBRIEL_SOCKET
+          fi
+          if [ -n "''${UMBRIEL_SOCKET:-}" ] && command -v umbriel >/dev/null; then
+            umbriel msg config-reload >/dev/null 2>&1 || true
+          fi
           if pgrep -f '(/bin/\.?qutebrowser(-wrapped)?|/MacOS/qutebrowser)( |$)' >/dev/null; then qutebrowser ':config-source' >/dev/null 2>&1 || true; fi
           if tmux list-sessions >/dev/null 2>&1; then tmux source-file "${themeDir}/tmux.conf" || true; fi
           for session in $(kak -l 2>/dev/null || true); do
@@ -272,6 +280,21 @@ in
                 match is-window-cast-target=true
                 focus-ring { on; width 3; active-color "#${p.red}"; inactive-color "#${p.red}"; }
             }
+          '';
+
+          "theme/umbriel.toml".text = ''
+            [colors]
+            background = "#${p.bg}"
+            backdrop = "#${p.bg}"
+            accent_primary = "#${p.blue}"
+            error = "#${p.red}"
+
+            [colors.border]
+            focused = "#${p.blue}"
+            unfocused = "#${p.border}"
+
+            [colors.overview]
+            background_tint = "#${p.bg_alt}"
           '';
 
           "theme/tmux.conf".text = ''
