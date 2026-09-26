@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Match the Odyssey G80HS to its current hardware mode under niri.
+"""Match the Odyssey G80HS to its current hardware mode under niri or umbriel.
 
 The monitor exposes either its 6K or its 3K mode list depending on a physical
 switch. This picks 6144x3456@165 (scale 2) or 3072x1728@330 (scale 1, with a
-240 Hz fallback) from whatever is advertised.
+240 Hz fallback) from whatever is advertised, and restarts Xwayland clients
+whenever the output settles on a different mode or scale.
 """
 
 import argparse
@@ -38,7 +39,7 @@ def wait_for_exit(executable, timeout):
         time.sleep(0.2)
     return not process_ids(executable)
 
-def repair_niri_xwayland(dry_run=False):
+def repair_xwayland(dry_run=False):
     steam_running = bool(process_ids("steam"))
     satellites = process_ids("xwayland-satellite")
     if dry_run:
@@ -83,6 +84,13 @@ def choose_mode(output):
             return max(modes, key=lambda m: m["refresh"]), scale
     return None
 
+def needs_power_cycle(mode):
+    """The G80HS needs to be off before a modeset into 330 Hz."""
+    return mode["width"] == 3072 and mode["refresh"] > 329000
+
+def timing(mode):
+    return f'{mode["width"]}x{mode["height"]}@{mode["refresh"] / 1000:.3f}'
+
 # niri blocks IPC for ~6 s during the 330 Hz modeset.
 NIRI_TIMEOUT = 30
 
@@ -109,82 +117,144 @@ def niri_outputs(outputs):
                                scale=logical.get("scale")))
     return normalized
 
-def apply_niri_outputs(outputs, dry_run=False):
-    for output in niri_outputs(outputs):
+def set_niri_output(output, mode, scale, dry_run):
+    current = output["current_mode"]
+    changes = [("mode", timing(mode))]
+    if scale != output["scale"]:
+        changes.append(("scale", scale))
+    # Use DPMS rather than output off/on, which would remove its workspaces.
+    power_cycle = needs_power_cycle(mode)
+    if dry_run:
+        if power_cycle:
+            print("niri msg action power-off-monitors")
+            print("# wait 2 seconds")
+        for action, value in changes:
+            print(f'niri msg output {output["name"]} {action} {value}')
+        if power_cycle:
+            print("niri msg action power-on-monitors")
+        return
+    try:
+        if power_cycle:
+            niri_power("off")
+            time.sleep(2)
+        for action, value in changes:
+            niri_command(output["name"], action, value)
+    except BaseException:
+        if power_cycle and current:
+            try:
+                niri_command(output["name"], "mode", timing(current))
+                niri_command(output["name"], "scale", output["scale"])
+            except Exception as error:
+                print(f"display-mode: recovery failed: {error}", file=sys.stderr, flush=True)
+        raise
+    finally:
+        if power_cycle:
+            niri_power("on")
+
+def wlr_randr(*args, dry_run=False):
+    if dry_run:
+        print("wlr-randr " + " ".join(args))
+        return None
+    return subprocess.run(["wlr-randr", *args], check=True, capture_output=True, text=True,
+                          timeout=30).stdout
+
+def umbriel_outputs():
+    normalized = []
+    for output in json.loads(wlr_randr("--json")):
+        modes = [dict(width=m["width"], height=m["height"], refresh=round(m["refresh"] * 1000))
+                 for m in output["modes"]]
+        current = next((mode for mode, raw in zip(modes, output["modes"]) if raw.get("current")),
+                       None)
+        normalized.append(dict(name=output["name"], model=output["model"],
+                               active=output["enabled"] and current is not None, modes=modes,
+                               current_mode=current, scale=output["scale"]))
+    return normalized
+
+def set_umbriel_output(output, mode, scale, dry_run):
+    name = output["name"]
+    settings = ["--mode", timing(mode), "--scale", str(scale)]
+    if not needs_power_cycle(mode):
+        wlr_randr("--output", name, *settings, dry_run=dry_run)
+        return
+    # umbriel rejects output changes while DPMS is off, but restores the
+    # output's workspaces after a disable and enable.
+    wlr_randr("--output", name, "--off", dry_run=dry_run)
+    if dry_run:
+        print("# wait 2 seconds")
+    else:
+        time.sleep(2)
+    try:
+        wlr_randr("--output", name, "--on", *settings, dry_run=dry_run)
+    except BaseException:
+        try:
+            wlr_randr("--output", name, "--on", "--mode", timing(output["current_mode"]),
+                      "--scale", str(output["scale"]))
+        except Exception as error:
+            print(f"display-mode: recovery failed: {error}", file=sys.stderr, flush=True)
+        raise
+
+def apply_outputs(outputs, set_output, settled, dry_run):
+    """Move outputs to their chosen mode, and repair Xwayland once they settle
+    on a mode or scale that differs from where they last settled.
+
+    Returns whether any output was changed.
+    """
+    changed = False
+    for output in outputs:
         selected = choose_mode(output)
         if selected is None:
             continue
-        mode, scale = selected
         current = output["current_mode"]
-        timing = f'{mode["width"]}x{mode["height"]}@{mode["refresh"] / 1000:.3f}'
-        changes = []
+        geometry = (current["width"], current["height"], current["refresh"], output["scale"])
+        # The first sighting is the baseline, so a fix at login still repairs.
+        previous = settled.setdefault(output["name"], geometry)
+        mode, scale = selected
         if mode != current or scale != output["scale"]:
-            changes.append(("mode", timing))
-        if scale != output["scale"]:
-            changes.append(("scale", scale))
-        # The G80HS needs the same off-before-modeset sequence under Niri.
-        # Use DPMS rather than output off/on, which would remove its workspaces.
-        power_cycle = bool(changes) and mode["width"] == 3072 and mode["refresh"] > 329000
-        if dry_run:
-            if power_cycle:
-                print("niri msg action power-off-monitors")
-                print("# wait 2 seconds")
-            for action, value in changes:
-                print(f'niri msg output {output["name"]} {action} {value}')
-            if power_cycle:
-                print("niri msg action power-on-monitors")
+            set_output(output, mode, scale, dry_run)
+            print(f"display-mode: {timing(mode)}Hz, scale {scale}", flush=True)
+            changed = True
             continue
-        try:
-            if power_cycle:
-                niri_power("off")
-                time.sleep(2)
-            for action, value in changes:
-                niri_command(output["name"], action, value)
-        except BaseException:
-            if power_cycle and current:
-                try:
-                    old_timing = (f'{current["width"]}x{current["height"]}'
-                                  f'@{current["refresh"] / 1000:.3f}')
-                    niri_command(output["name"], "mode", old_timing)
-                    niri_command(output["name"], "scale", output["scale"])
-                except Exception as error:
-                    print(f"display-mode: recovery failed: {error}", file=sys.stderr, flush=True)
-            raise
-        finally:
-            if power_cycle:
-                niri_power("on")
-        if changes:
-            print(f"display-mode: {timing}Hz, scale {scale}", flush=True)
-        if power_cycle:
-            time.sleep(1)
-            repair_niri_xwayland()
+        settled[output["name"]] = geometry
+        if previous != geometry:
+            repair_xwayland(dry_run)
+    return changed
 
+def niri_reader(path):
+    sock = socket.socket(socket.AF_UNIX)
+    sock.settimeout(5)
+    sock.connect(path)
+    stream = sock.makefile("rb")
 
-def watch_niri(path, watch, dry_run):
+    def read():
+        sock.sendall(b'"Outputs"\n')
+        line = stream.readline()
+        if not line:
+            raise EOFError
+        reply = json.loads(line)
+        if "Err" in reply:
+            raise RuntimeError(reply["Err"])
+        return niri_outputs(reply["Ok"]["Outputs"])
+    return read
+
+def watch_outputs(read_outputs, set_output, watch, dry_run):
     # Written by swayidle while the monitors are powered off.
     paused = Path(os.environ["XDG_RUNTIME_DIR"]) / "monitors-off"
-    with socket.socket(socket.AF_UNIX) as sock:
-        sock.settimeout(5)
-        sock.connect(path)
-        with sock.makefile("rb") as stream:
-            while True:
-                sock.sendall(b'"Outputs"\n')
-                line = stream.readline()
-                if not line:
-                    return 0 if watch else 1
-                reply = json.loads(line)
-                if "Err" in reply:
-                    raise RuntimeError(reply["Err"])
-                if not paused.exists():
-                    try:
-                        apply_niri_outputs(reply["Ok"]["Outputs"], dry_run)
-                    except (subprocess.SubprocessError, RuntimeError, ValueError) as error:
-                        if not watch:
-                            raise
-                        print(f"display-mode: {error}", file=sys.stderr, flush=True)
-                if not watch:
-                    return 0
-                time.sleep(3)
+    settled = {}
+    while True:
+        try:
+            outputs = read_outputs()
+            if not paused.exists():
+                changed = apply_outputs(outputs, set_output, settled, dry_run)
+                if changed and not watch:
+                    time.sleep(1)
+                    repair_xwayland(dry_run)
+        except (subprocess.SubprocessError, RuntimeError, ValueError) as error:
+            if not watch:
+                raise
+            print(f"display-mode: {error}", file=sys.stderr, flush=True)
+        if not watch:
+            return 0
+        time.sleep(3)
 
 
 def main():
@@ -194,10 +264,15 @@ def main():
     parser.add_argument("--repair-xwayland", action="store_true")
     args = parser.parse_args()
     if args.repair_xwayland:
-        repair_niri_xwayland(args.dry_run)
+        repair_xwayland(args.dry_run)
         return 0
     try:
-        return watch_niri(os.environ["NIRI_SOCKET"], args.watch, args.dry_run)
+        if os.environ.get("NIRI_SOCKET"):
+            return watch_outputs(niri_reader(os.environ["NIRI_SOCKET"]), set_niri_output,
+                                 args.watch, args.dry_run)
+        if os.environ.get("UMBRIEL_SOCKET"):
+            return watch_outputs(umbriel_outputs, set_umbriel_output, args.watch, args.dry_run)
+        raise RuntimeError("no niri or umbriel session; expected NIRI_SOCKET or UMBRIEL_SOCKET")
     except (EOFError, BrokenPipeError, ConnectionResetError):
         return 0 if args.watch else 1
 
