@@ -46,10 +46,25 @@ in
 
       home.file = {
         ".claude/CLAUDE.md".source = link "config/ai/AGENTS.md";
-        ".claude/settings.json".source = link "config/ai/claude/settings.json";
         ".codex/AGENTS.md".source = link "config/ai/AGENTS.md";
       }
       // linkSkills ".claude/skills"
       // linkSkills ".agents/skills";
+
+      # Claude Code refuses to save settings through a symlink, so settings.json is
+      # a real file: the keys from the repository win, the rest is Claude Code's.
+      home.activation.claudeSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+        settings="$HOME/.claude/settings.json"
+        managed=${../../home/config/ai/claude/settings.json}
+        [ -L "$settings" ] && run rm "$settings"
+        current='{}'
+        [ -f "$settings" ] && current=$(cat "$settings")
+        merged=$(${lib.getExe pkgs.jq} -s '.[0] * .[1]' <(printf '%s' "$current") "$managed") || {
+          errorEcho "Failed to merge $managed into $settings; expected valid JSON in both. Fix or remove $settings, then switch again."
+          exit 1
+        }
+        run mkdir -p "$HOME/.claude"
+        run install -m 600 /dev/stdin "$settings" <<<"$merged"
+      '';
     };
 }
