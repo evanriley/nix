@@ -31,7 +31,7 @@ in
 shared [ "cinderace" ] "evan-password.age"
 // shared [ "cinderace" ] "listenbrainz-token.age"
 // shared [ "cinderace" "ninetales" ] "nextdns.conf.age"
-// shared [ "cinderace" "ninetales" ] "atuin-key.age"
+// shared (builtins.attrNames hosts) "atuin-key.age"
 // hostSecrets "cinderace" [
   "u2f-mappings.age"
   "borg-passphrase.age"

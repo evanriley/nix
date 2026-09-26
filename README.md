@@ -64,6 +64,16 @@ cd ~/nix/secrets
 nix develop ~/nix -c agenix -r -i ~/.config/age/yubikeys.txt
 ```
 
+### Shell history
+
+[Atuin](https://atuin.sh) syncs shell history between hosts, encrypted with
+`secrets/atuin-key.age`, which every host in `hosts` in `secrets/secrets.nix`
+decrypts. Log in once per host:
+
+```sh
+atuin login -u <username>
+```
+
 ## Adding a host
 
 Profiles in `modules/profiles/`:
@@ -81,8 +91,9 @@ Profiles in `modules/profiles/`:
    `flake.modules.homeManager.<host>` module that imports `cli` or
    `workstation` adds `homeConfigurations."evan@<host>"`.
 2. Add the host's `/etc/ssh/ssh_host_ed25519_key.pub` to `hosts` in
-   `secrets/secrets.nix`, add the host to `evan-password.age` and any other
-   shared secret it uses, then rekey.
+   `secrets/secrets.nix`, which makes it a recipient of `atuin-key.age`. On
+   NixOS, add it to `evan-password.age`. Add it to any other shared secret it
+   uses, then rekey.
 3. For `backup`: create a BorgBase repository, add its ID to `repos` in
    `modules/services/backup.nix`, and create `<host>/borg-passphrase.age` and
    `<host>/borg-ssh-key.age`. Modules add their own state to
@@ -122,6 +133,7 @@ Then, by hand:
   default profile.
 - System Settings → Spotlight: exclude `~/nix`.
 - If a Dock icon shows `?`, run `killall Dock`.
+- Log in to Atuin (see [Shell history](#shell-history)).
 
 ### cinderace
 
@@ -137,6 +149,8 @@ Then, by hand:
    ```
 
 3. `nixos-install --flake ~/nix#cinderace`
+4. After the first login, log in to Atuin (see
+   [Shell history](#shell-history)).
 
 ## Restoring from Borg
 
