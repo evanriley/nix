@@ -48,7 +48,8 @@ nix develop ~/nix -c agenix -e <path>.age -i ~/.config/age/yubikeys.txt
 
 Add a secret:
 
-1. Add it to `secrets/secrets.nix` (`hostSecrets "<host>" [ … ]` or `shared [ … ]`).
+1. Add it to `secrets/secrets.nix`: `hostSecrets "<host>" [ "<name>.age" ]` for one
+   host, or `shared [ "<host>" … ] "<name>.age"` for several.
 2. Create it with the edit command above.
 3. Declare it: `age.secrets.<name>.file = inputs.self + "/secrets/<path>.age";`
 4. `git add` the `.age` file and switch.
@@ -85,3 +86,62 @@ Tools:
 - [Stylix](https://github.com/nix-community/stylix)
 - [nvf](https://github.com/notashelf/nvf)
 - [Monobiome](https://github.com/endofunctorio/monobiome)
+
+## First-time setup
+
+### ninetales
+
+1. Install [Lix](https://lix.systems/install/) and [Homebrew](https://brew.sh).
+2. Clone with Nix's OpenSSH (Apple's lacks FIDO2 for the YubiKey):
+
+   ```sh
+   nix shell nixpkgs#openssh -c git clone git@github.com:evanriley/nix.git ~/nix
+   ```
+
+3. Apply the system, then home:
+
+   ```sh
+   sudo nix run --inputs-from ~/nix nix-darwin -- switch --flake ~/nix#ninetales
+   nix run --inputs-from ~/nix home-manager -- switch --flake ~/nix#evan@ninetales
+   ```
+
+Then, by hand:
+
+- Grant Accessibility to OmniWM, skhd and qutebrowser, and Input Monitoring to
+  OmniWM.
+- `sudo tailscale up --accept-dns=false`
+- In Firefox, `about:profiles` → Create a New Profile → Choose Folder
+  `~/Library/Application Support/org.nixos.firefox/Profiles/default` → Set as
+  default profile.
+- System Settings → Spotlight: exclude `~/nix`.
+- If a Dock icon shows `?`, run `killall Dock`.
+
+### cinderace
+
+Installed from the NixOS installer with disko and `nixos-install --flake
+~/nix#cinderace`. Restore `/etc/ssh/ssh_host_ed25519_key` and `/var/lib/sbctl`
+from Borg first: the agenix secrets, including the login password, only
+decrypt with that host key.
+
+## Restoring from Borg
+
+cinderace backs up daily to BorgBase repository `asfr5z3s`
+(`modules/services/backup.nix`).
+
+```sh
+sudo borgmatic repo-list --last 5
+sudo borgmatic extract --archive latest --path home/evan/<path> --destination /tmp/restore
+```
+
+On a new machine, borgmatic has no credentials yet. The passphrase and the key
+export `borg-key-cinderace` are in Bitwarden; the SSH key decrypts with a
+YubiKey:
+
+```sh
+cd ~/nix/secrets
+nix develop ~/nix -c agenix -d cinderace/borg-ssh-key.age -i ~/.config/age/yubikeys.txt > /tmp/borg-ssh-key
+chmod 600 /tmp/borg-ssh-key
+export BORG_RSH="ssh -i /tmp/borg-ssh-key" BORG_REPO="ssh://asfr5z3s@asfr5z3s.repo.borgbase.com/./repo"
+nix shell nixpkgs#borgbackup -c borg list
+nix shell nixpkgs#borgbackup -c borg extract ::<archive> <path>
+```
