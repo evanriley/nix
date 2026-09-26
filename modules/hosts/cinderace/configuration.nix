@@ -20,6 +20,7 @@ in
       nextdns
       yubikey
       desktop
+      plymouth
       audio
       bluetooth
       fonts
