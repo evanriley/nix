@@ -64,6 +64,35 @@ cd ~/nix/secrets
 nix develop ~/nix -c agenix -r -i ~/.config/age/yubikeys.txt
 ```
 
+## Adding a host
+
+Profiles in `modules/profiles/`:
+
+| Module | Contents |
+| --- | --- |
+| `nixos.base`, `darwin.base` | Nix, agenix, user, locale, networking, fish |
+| `homeManager.cli` | Home basics, dotfiles, shell, git, Kakoune, Neovim, theme |
+| `homeManager.workstation` | `cli` plus browsers, Discord, mpv, Bitwarden, YubiKey tools |
+
+1. Create `modules/hosts/<host>/configuration.nix` with
+   `flake.nixosConfigurations.<host>` (or `darwinConfigurations`) and a
+   `flake.modules.nixos.<host>` module that imports `base` and the features it
+   needs, and sets `networking.hostName` and `system.stateVersion`. A
+   `flake.modules.homeManager.<host>` module that imports `cli` or
+   `workstation` adds `homeConfigurations."evan@<host>"`.
+2. Add the host's `/etc/ssh/ssh_host_ed25519_key.pub` to `hosts` in
+   `secrets/secrets.nix`, add the host to `evan-password.age` and any other
+   shared secret it uses, then rekey.
+3. For `backup`: create a BorgBase repository, add its ID to `repos` in
+   `modules/services/backup.nix`, and create `<host>/borg-passphrase.age` and
+   `<host>/borg-ssh-key.age`. Modules add their own state to
+   `services.borgmatic.configurations.home`.
+4. For `syncthing`: add the device ID to `devices` in
+   `modules/services/syncthing.nix`. On NixOS, also create
+   `<host>/syncthing-cert.age` and `<host>/syncthing-key.age`.
+
+CI evaluates every host in `nixosConfigurations` and `darwinConfigurations`.
+
 ## First-time setup
 
 ### ninetales
@@ -111,8 +140,8 @@ Then, by hand:
 
 ## Restoring from Borg
 
-Both hosts back up daily to BorgBase (`modules/services/backup.nix`): cinderace
-to `asfr5z3s`, ninetales to `o0dskefv`.
+Both hosts back up daily to BorgBase; `repos` in `modules/services/backup.nix`
+maps each host to its repository.
 
 ```sh
 sudo borgmatic repo-list --last 5
