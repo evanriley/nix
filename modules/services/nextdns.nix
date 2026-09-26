@@ -11,7 +11,6 @@ let
     "ts.net=100.100.100.100"
   ];
   tailnet = "tailfe05b.ts.net";
-  # Holds only the profile ID: "profile <id>".
   secret.file = ../../secrets/nextdns.conf.age;
 in
 {
@@ -42,11 +41,9 @@ in
 
       services.nextdns = {
         enable = true;
-        # Falls back to the network's DNS while a Wi-Fi login page is up.
         arguments = arguments config ++ [ "-detect-captive-portals" ];
       };
-      # agenix decrypts at boot in its own daemon; without the profile nextdns would
-      # start unfiltered, so wait for the secret.
+      # Without this, nextdns can start before agenix at boot and run unfiltered.
       launchd.daemons.nextdns.serviceConfig = {
         RunAtLoad = lib.mkForce false;
         KeepAlive = lib.mkForce {

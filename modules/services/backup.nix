@@ -9,7 +9,6 @@ let
     borg-ssh-key.file = inputs.self + "/secrets/${hostName}/borg-ssh-key.age";
   };
 
-  # Settings both hosts share; each adds its sources and excludes.
   borgmaticSettings =
     {
       lib,
@@ -187,8 +186,6 @@ in
         }
         // {
           local_path = lib.getExe' pkgs.borgbackup "borg";
-          # Some Apple app data stays unreadable even with Full Disk Access; skip it
-          # with a warning in the log instead of failing the whole backup.
           borg_exit_codes = [
             {
               code = 104;
@@ -211,7 +208,6 @@ in
               "Library/Logs"
               "Library/Developer"
               "Library/Metadata/CoreSpotlight"
-              # iCloud Drive; iCloud keeps it, and files not downloaded fail to read.
               "Library/Mobile Documents"
               "Library/Application Support/discord/Cache"
               "Library/Application Support/discord/Code Cache"
@@ -223,9 +219,8 @@ in
               "sh:${home}/Library/Group Containers/*/Caches"
             ];
         };
-      # Full Disk Access is granted to this binary. It spawns borgmatic and waits, so
-      # borgmatic and borg inherit the grant; its path and contents stay the same
-      # across borgmatic updates, so the grant survives them.
+      # Holds the Full Disk Access grant: it must spawn borgmatic (not exec) and stay
+      # byte-identical, or the grant is lost.
       launcher = pkgs.runCommandCC "borgmatic-launcher" { } ''
         mkdir -p $out/bin
         $CC -O2 -o $out/bin/borgmatic-launcher ${./_backup/launcher.c}
@@ -245,7 +240,6 @@ in
         (pkgs.formats.yaml { }).generate "borgmatic.yaml"
           settings;
 
-      # Replaced only when it changes, which would need Full Disk Access again.
       system.activationScripts.postActivation.text = ''
         if ! cmp -s ${launcher}/bin/borgmatic-launcher ${launcherPath}; then
           mkdir -p ${dirOf launcherPath}
@@ -259,7 +253,6 @@ in
           "--verbosity"
           "1"
         ];
-        # Runs at next wake if the Mac was asleep at 13:00.
         StartCalendarInterval = [
           {
             Hour = 13;

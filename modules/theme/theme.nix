@@ -572,7 +572,6 @@ in
                 ''
               ))
             ];
-            # apply-theme reloads qutebrowser, tmux and kak from the profile; launchd's PATH lacks it.
             EnvironmentVariables.PATH = "${config.home.profileDirectory}/bin:/usr/bin:/bin:/usr/sbin:/sbin";
             KeepAlive = true;
             RunAtLoad = true;

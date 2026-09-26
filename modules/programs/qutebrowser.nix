@@ -9,9 +9,6 @@
     let
       inherit (pkgs.stdenv.hostPlatform) isDarwin;
 
-      # nixpkgs' Darwin app starts Python from the store, so macOS never registers the
-      # process as the app and window managers cannot place its windows. Homebrew
-      # disabled the cask, so use the upstream PyInstaller bundle directly.
       qutebrowser =
         if isDarwin then
           pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
@@ -90,7 +87,6 @@
         dotfiles.config = [ "qutebrowser" ];
         xdg.dataFile = dataFiles;
       })
-      # qutebrowser reads config.py from ~/.qutebrowser and data from Application Support on macOS.
       (lib.mkIf isDarwin {
         home.file = {
           ".qutebrowser".source = config.dotfiles.link "config/qutebrowser";

@@ -48,14 +48,12 @@ in
 
     system.defaults = {
       NSGlobalDomain = {
-        # 15 ms steps; 1 is the fastest repeat rate.
         InitialKeyRepeat = 10;
         KeyRepeat = 1;
         AppleInterfaceStyleSwitchesAutomatically = true;
         "com.apple.swipescrolldirection" = false;
         "com.apple.mouse.tapBehavior" = 1;
         AppleShowScrollBars = "Always";
-        # Finder options only cover Finder; these also apply to Open/Save dialogs.
         AppleShowAllExtensions = true;
         AppleShowAllFiles = true;
         NSAutomaticSpellingCorrectionEnabled = false;
@@ -83,7 +81,6 @@ in
         magnification = false;
         show-recents = false;
         mru-spaces = false;
-        # Home Manager copies apps here; a Nix store path would break the pins on every rebuild.
         persistent-apps = [
           "/Applications/Firefox.app"
           "/Users/${user.name}/Applications/Home Manager Apps/Ghostty.app"
@@ -124,7 +121,6 @@ in
       controlcenter.BatteryShowPercentage = true;
       trackpad.Clicking = true;
 
-      # Each rule hides a Spotlight category; everything except applications.
       CustomUserPreferences."com.apple.Spotlight".EnabledPreferenceRules = [
         "Custom.relatedContents"
         "com.apple.AppStore"
@@ -183,7 +179,6 @@ in
         omniwm
       ];
 
-      # screencapture.location must already exist.
       home.activation.screenshotsDir = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         run mkdir -p "$HOME/Pictures/Screenshots"
       '';

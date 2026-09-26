@@ -186,9 +186,7 @@ def dmenu(items, invocation, encoding):
     return process.stdout.decode(encoding).strip()
 
 
-# Reads the credential from stdin; System Events needs qutebrowser to have
-# the Accessibility permission. qutebrowser drops keys from a single
-# keystroke call partway through, so characters go one at a time.
+# A single keystroke call loses characters in qutebrowser; type one at a time.
 MACOS_TYPE_SCRIPT = """
 ObjC.import('Foundation');
 const data = $.NSFileHandle.fileHandleWithStandardInput.readDataToEndOfFile;
