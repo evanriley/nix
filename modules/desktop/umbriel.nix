@@ -120,6 +120,30 @@ in
           colors.overview.background_tint = "#00000000";
           overview.background_blur = false;
 
+          # Springs settle faster with higher stiffness; umbriel's defaults
+          # are 800-1400.
+          animation = {
+            duration_ms = 180;
+            windows_in = {
+              curve = "spring:1,1400";
+              style = "popin";
+              scale = 0.9;
+            };
+            windows_out = {
+              curve = "spring:1,2200";
+              style = "popin";
+              scale = 0.9;
+            };
+            windows_move.curve = "spring:1,1400";
+            workspaces.curve = "spring:1,1300";
+            overview = {
+              curve = "spring:1,1300";
+              workspace_curve = "spring:1,1600";
+            };
+            scratchpad.curve = "spring:1,1300";
+            border.curve = "spring:1,1400";
+          };
+
           layout = {
             gap = 6;
             extent_presets = [
