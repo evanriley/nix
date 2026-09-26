@@ -60,7 +60,11 @@ in
         };
 
         systemd.services.lidarr.unitConfig.RequiresMountsFor = [ "/data" ];
-        systemd.services.slskd.unitConfig.RequiresMountsFor = [ "/data" ];
+        systemd.services.slskd = {
+          unitConfig.RequiresMountsFor = [ "/data" ];
+          # Lidarr (group media) must delete downloaded files when it imports them.
+          serviceConfig.UMask = "0002";
+        };
 
         virtualisation.oci-containers = {
           backend = "podman";
@@ -77,8 +81,13 @@ in
               "${config.age.secrets.soularr-config.path}:/data/config.ini:ro"
               "/data/Downloads/slskd/complete:/downloads"
             ];
-            # soularr-config points at Lidarr and slskd on 127.0.0.1.
-            extraOptions = [ "--network=host" ];
+            extraOptions = [
+              # soularr-config points at Lidarr and slskd on 127.0.0.1.
+              "--network=host"
+              # Import folders it creates must be group-writable so Lidarr can
+              # move files out of them.
+              "--umask=0002"
+            ];
           };
         };
         systemd.services.podman-soularr = {
