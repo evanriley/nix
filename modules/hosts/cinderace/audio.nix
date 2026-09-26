@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.flake.lib) sessionService mkScript;
+  inherit (config.flake.lib) sessionService mkScript uaccessRules;
   top = config;
 in
 {
@@ -31,9 +31,8 @@ in
         }
       ];
 
-      # uaccess only takes effect in rules sorted before 73-seat-late.rules.
       services.udev.packages = [
-        (pkgs.writeTextDir "lib/udev/rules.d/70-scape.rules" ''
+        (uaccessRules pkgs "scape" ''
           SUBSYSTEM=="hidraw", ATTRS{idVendor}=="36bc", ATTRS{idProduct}=="0001", TAG+="uaccess"
         '')
       ];
