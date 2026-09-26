@@ -39,6 +39,8 @@
       ];
       boot.kernelModules = [ "kvm-amd" ];
 
+      services.btrfs.autoScrub.enable = true;
+
       fileSystems = {
         "/mnt/Media" = ext4 "79cdba09-88c5-4f14-901b-11731d773abe";
         "/mnt/Games" = ext4 "eaf05b17-caee-4b76-8754-9ffe20d4e0fb";
