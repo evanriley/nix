@@ -167,6 +167,8 @@ in
         omniwm
       ];
 
+      home.stateVersion = "26.05";
+
       home.activation.screenshotsDir = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         run mkdir -p "$HOME/Pictures/Screenshots"
       '';

@@ -22,6 +22,7 @@ in
                 dotfiles
                 theme
               ];
+              home.stateVersion = "26.05";
               dotfiles.mutable = false;
               # Keeps the test independent of the private berkeley-mono input (CI has no access).
               stylix.fonts.monospace = pkgs.lib.mkForce {

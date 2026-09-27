@@ -55,6 +55,8 @@ in
         gaming
       ];
 
+      home.stateVersion = "26.05";
+
       services.mpd.musicDirectory = "/mnt/Media/Music";
 
       programs.btop = {
