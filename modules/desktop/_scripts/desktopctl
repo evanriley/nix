@@ -176,12 +176,16 @@ def monitors(state):
     marker = os.path.join(os.environ["XDG_RUNTIME_DIR"], "monitors-off")
     if state == "off":
         open(marker, "a").close()
-    if running == "niri":
-        result = niri_action(f"power-{state}-monitors")
-    else:
-        result = umbriel_action(f"dpms-{state}")
-    if state == "on" and os.path.exists(marker):
-        os.remove(marker)
+    # A marker left behind after a failure keeps display-mode paused.
+    result = 1
+    try:
+        if running == "niri":
+            result = niri_action(f"power-{state}-monitors")
+        else:
+            result = umbriel_action(f"dpms-{state}")
+    finally:
+        if (state == "on" or result != 0) and os.path.exists(marker):
+            os.remove(marker)
     return result
 
 
