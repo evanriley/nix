@@ -10,19 +10,8 @@ in
 
   flake.modules.nixos.cinderace = {
     imports = with nixos; [
-      base
-      boot
+      workstation
       secure-boot
-      zram
-      nextdns
-      yubikey
-      desktop
-      niri
-      umbriel
-      plymouth
-      audio
-      bluetooth
-      fonts
       gaming
       media
       music
@@ -46,11 +35,7 @@ in
     { pkgs, ... }:
     {
       imports = with homeManager; [
-        workstation
-        session
-        niri
-        umbriel
-        apps
+        desktop
         music
         gaming
       ];
