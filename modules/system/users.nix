@@ -4,7 +4,7 @@ let
 in
 {
   flake.modules.nixos.users =
-    { config, ... }:
+    { config, pkgs, ... }:
     {
       users.mutableUsers = false;
 
@@ -22,6 +22,39 @@ in
       };
 
       age.secrets.user-password.file = inputs.self + "/secrets/${user.name}-password.age";
+
+      # AccountsService has no declarative config, and its users file also holds
+      # the last GDM session, so only the Icon= line is managed.
+      system.activationScripts.avatar = ''
+        icon=/var/lib/AccountsService/icons/${user.name}
+        usersFile=/var/lib/AccountsService/users/${user.name}
+        changed=
+
+        install -d -m 0775 /var/lib/AccountsService/icons
+        install -d -m 0700 /var/lib/AccountsService/users
+        if ! cmp -s ${./avatar.jpg} "$icon"; then
+          install -m 0644 ${./avatar.jpg} "$icon"
+          changed=1
+        fi
+
+        if [ ! -e "$usersFile" ] || ! grep -qx '\[User\]' "$usersFile"; then
+          printf '[User]\nIcon=%s\n' "$icon" >> "$usersFile"
+          chmod 0600 "$usersFile"
+          changed=1
+        elif ! grep -qx "Icon=$icon" "$usersFile"; then
+          if grep -q '^Icon=' "$usersFile"; then
+            ${pkgs.gnused}/bin/sed -i "s|^Icon=.*|Icon=$icon|" "$usersFile"
+          else
+            ${pkgs.gnused}/bin/sed -i "/^\[User\]$/a Icon=$icon" "$usersFile"
+          fi
+          changed=1
+        fi
+
+        # accounts-daemon caches users; skip at boot, where systemd is not up yet.
+        if [ -n "$changed" ] && [ -d /run/systemd/system ]; then
+          ${config.systemd.package}/bin/systemctl try-restart --no-block accounts-daemon.service
+        fi
+      '';
     };
 
   flake.modules.darwin.users = {
@@ -33,5 +66,15 @@ in
       uid = 501;
       home = "/Users/${user.name}";
     };
+
+    # JPEGPhoto takes precedence over Picture, so drop it.
+    system.activationScripts.postActivation.text = ''
+      if dscl . -read /Users/${user.name} JPEGPhoto >/dev/null 2>&1; then
+        dscl . -delete /Users/${user.name} JPEGPhoto
+      fi
+      if [ "$(dscl . -read /Users/${user.name} Picture 2>/dev/null)" != "Picture: ${./avatar.jpg}" ]; then
+        dscl . -create /Users/${user.name} Picture ${./avatar.jpg}
+      fi
+    '';
   };
 }
