@@ -75,6 +75,43 @@ overrides any skill, template or surrounding code that suggests otherwise.
 - Search with `rg` and `fd`.
 - `sudo` needs a YubiKey touch on a real terminal, so agents cannot run it.
   Hand me the exact command to run instead.
-- Machines are managed with Nix. Load the `nix-environment` skill before
-  installing or running a missing tool, adding dependencies, changing config
-  files under `~`, or managing services.
+- Machines are managed with Nix; see [Nix configuration](#nix-configuration).
+
+## Nix configuration
+
+- The `~/nix` flake configures every machine: `cinderace` (NixOS,
+  x86_64-linux) and `ninetales` (nix-darwin, aarch64-darwin). Home Manager is
+  standalone, as `homeConfigurations."evan@<host>"`.
+- Load the `nix-environment` skill before installing or running a missing tool,
+  adding dependencies, changing config files under `~`, or managing services.
+- Never install globally (`nix profile install`, `nix-env -i`, `pip install
+  --user`, `npm -g`, `cargo install`, `brew install`). One-off tools run with
+  `, <cmd>` or `nix shell nixpkgs#<pkg> -c <cmd>`; permanent tools go in
+  `~/nix`; project tools go in the project's `flake.nix` dev shell.
+- Layout: flake-parts with import-tree. Every `.nix` file under `modules/` is a
+  flake-parts module; paths containing `/_` are not imported. Modules define
+  `flake.modules.{nixos,darwin,homeManager}.<name>`, and hosts in
+  `modules/hosts/<host>/` import them through the profiles in
+  `modules/profiles/`.
+- Hand-edited app configs live in `~/nix/home/config/<app>` and are live
+  symlinks: edit them in place, no rebuild. Files under `~` that resolve into
+  `/nix/store` are generated; change the module that produces them.
+- Flakes only see git-tracked files: `git add` new files before building.
+- Check changes with `nix fmt` and `nix flake check`, or by building the
+  affected configuration.
+- Apply changes with `nh`, which finds the flake on its own:
+
+  | Change | Command | Who runs it |
+  | --- | --- | --- |
+  | Home | `nh home switch` | Agent |
+  | Home, build only | `nh home build` | Agent |
+  | System, build only | `nh os build`, `nh darwin build` | Agent |
+  | System | `nh os switch`, `nh darwin switch` | Me (needs `sudo`) |
+
+- Adding a new linked config file needs a home switch; editing an existing one
+  does not.
+- Secrets are agenix files in `~/nix/secrets`; editing them needs a YubiKey.
+  See `~/nix/README.md`.
+- These instructions live in `~/nix/home/config/ai/AGENTS.md`, linked to
+  `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`. Skills live in
+  `~/nix/home/config/ai/skills`.
