@@ -81,15 +81,18 @@ Profiles in `modules/profiles/`:
 | Module | Contents |
 | --- | --- |
 | `nixos.base`, `darwin.base` | Nix, agenix, user, locale, networking, fish |
-| `homeManager.cli` | Home basics, dotfiles, shell, Atuin, git, jj, Kakoune, Neovim, theme |
+| `nixos.workstation` | `base` plus boot, zram, NextDNS, YubiKey, GDM, niri, umbriel, Plymouth, audio, Bluetooth, fonts |
+| `homeManager.cli` | Home basics, dotfiles, shell, Atuin, git, jj, Kakoune, Neovim, theme, agent config |
 | `homeManager.workstation` | `cli` plus browsers, Discord, mpv, Bitwarden, YubiKey tools |
+| `homeManager.desktop` | `workstation` plus the Linux session, niri, umbriel and desktop apps |
 
 1. Create `modules/hosts/<host>/configuration.nix` with
    `flake.nixosConfigurations.<host>` (or `darwinConfigurations`) and a
-   `flake.modules.nixos.<host>` module that imports `base` and the features it
-   needs, and sets `networking.hostName` and `system.stateVersion`. A
-   `flake.modules.homeManager.<host>` module that imports `cli` or
-   `workstation` adds `homeConfigurations."evan@<host>"`.
+   `flake.modules.nixos.<host>` module that imports `base` or `workstation`
+   and the features it needs, and sets `networking.hostName` and
+   `system.stateVersion`. A `flake.modules.homeManager.<host>` module that
+   imports `cli`, `workstation` or `desktop` and sets `home.stateVersion` adds
+   `homeConfigurations."evan@<host>"`.
 2. Add the host's `/etc/ssh/ssh_host_ed25519_key.pub` to `hosts` in
    `secrets/secrets.nix`, which makes it a recipient of `atuin-key.age`. On
    NixOS, add it to `evan-password.age`. Add it to any other shared secret it
@@ -101,6 +104,9 @@ Profiles in `modules/profiles/`:
 4. For `syncthing`: add the device ID to `devices` in
    `modules/services/syncthing.nix`. On NixOS, also create
    `<host>/syncthing-cert.age` and `<host>/syncthing-key.age`.
+
+5. Add the host to the machine list in `home/config/ai/AGENTS.md` and
+   `home/config/ai/skills/nix-environment/SKILL.md`.
 
 CI evaluates every host in `nixosConfigurations` and `darwinConfigurations`.
 
