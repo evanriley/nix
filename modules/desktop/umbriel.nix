@@ -1,8 +1,17 @@
 { config, inputs, ... }:
 let
   inherit (config.flake.lib) portalInterfaces xwaylandSatellite;
+
+  # The package puts its own xwayland-satellite first on PATH.
+  umbrielPackage =
+    pkgs:
+    inputs.umbriel.packages.${pkgs.stdenv.hostPlatform.system}.default.override {
+      xwayland-satellite = xwaylandSatellite pkgs;
+    };
 in
 {
+  flake.lib = { inherit umbrielPackage; };
+
   flake.modules.nixos.umbriel =
     { pkgs, ... }:
     {
@@ -10,10 +19,7 @@ in
 
       programs.umbriel = {
         enable = true;
-        # The package puts its own xwayland-satellite first on PATH.
-        package = inputs.umbriel.packages.${pkgs.stdenv.hostPlatform.system}.default.override {
-          xwayland-satellite = xwaylandSatellite pkgs;
-        };
+        package = umbrielPackage pkgs;
       };
 
       xdg.portal.config.umbriel = {

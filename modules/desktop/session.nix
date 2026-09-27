@@ -25,7 +25,7 @@ let
 in
 { config, ... }:
 let
-  inherit (config.flake.lib) mkScript;
+  inherit (config.flake.lib) mkScript umbrielPackage;
 in
 {
   flake.lib = { inherit sessionService; };
@@ -39,7 +39,6 @@ in
     }:
     let
       lock = "${pkgs.swaylock}/bin/swaylock -f";
-      # umbriel comes from the system PATH (programs.umbriel).
       desktopctl = lib.getExe (
         mkScript pkgs {
           name = "desktopctl";
@@ -50,6 +49,7 @@ in
           ]
           ++ (with pkgs; [
             niri
+            (umbrielPackage pkgs)
             foot
             fuzzel
             grim
