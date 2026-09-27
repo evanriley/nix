@@ -34,6 +34,17 @@ in
       programs.home-manager.enable = true;
       xdg.enable = true;
 
+      programs.nh.clean = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
+        enable = true;
+        dates = "weekly";
+        extraArgs = [
+          "--keep-since"
+          "30d"
+          "--keep"
+          "5"
+        ];
+      };
+
       xdg.userDirs = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
         enable = true;
         createDirectories = true;
