@@ -1,8 +1,16 @@
 { config, inputs, ... }:
 let
   inherit (config.flake.lib) monobiome;
+
+  berkeleyMono =
+    pkgs:
+    pkgs.runCommand "berkeley-mono" { } ''
+      install -Dm644 ${inputs.berkeley-mono}/fonts/*.ttf -t $out/share/fonts/truetype
+    '';
 in
 {
+  flake.lib = { inherit berkeleyMono; };
+
   # Hand-written configs in home/config include the generated files under
   # ~/.config/theme instead of carrying colors themselves.
   flake.modules.homeManager.theme =
@@ -190,9 +198,7 @@ in
           fonts = {
             monospace = {
               name = "Berkeley Mono";
-              package = pkgs.runCommand "berkeley-mono" { } ''
-                install -Dm644 ${inputs.berkeley-mono}/fonts/*.ttf -t $out/share/fonts/truetype
-              '';
+              package = berkeleyMono pkgs;
             };
             sansSerif = {
               name = "Noto Sans";
