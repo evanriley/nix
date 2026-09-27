@@ -13,7 +13,7 @@ let
 in
 {
   flake.modules.homeManager.ghostty =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     {
       programs.ghostty = {
         enable = true;
@@ -25,7 +25,7 @@ in
         };
         settings = {
           theme = "light:monobiome-light,dark:monobiome-dark";
-          font-family = "Berkeley Mono";
+          font-family = config.stylix.fonts.monospace.name;
           font-size = 14;
           window-padding-x = 6;
           window-padding-y = 6;

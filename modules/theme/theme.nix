@@ -16,6 +16,7 @@ in
       inherit (config.theme) mode;
       isLinux = pkgs.stdenv.hostPlatform.isLinux;
       p = monobiome.${mode};
+      monospace = config.stylix.fonts.monospace.name;
       themeDir = "${config.xdg.configHome}/theme";
       baseLink = "${config.xdg.stateHome}/theme/base";
 
@@ -259,6 +260,7 @@ in
           '';
 
           "theme/mpv.conf".text = ''
+            osd-font='${monospace}'
             osd-color='#${p.fg_max}'
             osd-border-color='#${p.bg}'
             osd-shadow-color='#${p.bg}'
@@ -266,6 +268,7 @@ in
 
           "theme/qutebrowser.conf".text = ''
             mode=${mode}
+            font=${monospace}
             bg=#${p.bg}
             bg_alt=#${p.bg_alt}
             bg_soft=#${p.selection}
@@ -484,14 +487,22 @@ in
             @define-color error #${p.red};
           '';
 
+          "theme/fonts.css".text = ''
+            * { font-family: "${monospace}", "Symbols Nerd Font Mono", "Noto Sans", monospace; }
+          '';
+
           "theme/foot.ini".text = ''
             [main]
             initial-color-theme=${mode}
+            font=${monospace}:size=13:fontfeatures=-calt:-liga:-dlig, Symbols Nerd Font Mono:size=13
           ''
           + footColors "dark" monobiome.dark
           + footColors "light" monobiome.light;
 
           "theme/fuzzel.ini".text = ''
+            [main]
+            font=${monospace}:size=14, Symbols Nerd Font:size=14
+
             [colors]
             background=${p.bg}fa
             text=${p.fg_max}ff
@@ -541,7 +552,7 @@ in
             color=${p.bg}
             image=${./lockscreen-${mode}.png}
             scaling=fill
-            font=Berkeley Mono
+            font=${monospace}
             font-size=24
             indicator-radius=72
             indicator-thickness=8

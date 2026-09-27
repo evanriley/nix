@@ -10,7 +10,7 @@
       programs.zathura = {
         enable = true;
         options = {
-          font = "Berkeley Mono 12";
+          font = "${config.stylix.fonts.monospace.name} 12";
           guioptions = "s";
           adjust-open = "best-fit";
           page-mode = "equal_width";

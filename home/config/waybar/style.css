@@ -1,6 +1,7 @@
 @import url("file:///home/evan/.config/theme/palette.css");
+@import url("../theme/fonts.css");
 
-* { border: none; border-radius: 0; font-family: "Berkeley Mono", "Symbols Nerd Font Mono", "Noto Sans", monospace; font-size: 12px; min-height: 0; }
+* { border: none; border-radius: 0; font-size: 12px; min-height: 0; }
 window#waybar { background: @background; color: @foreground; }
 tooltip { background: @background_alt; color: @foreground; border: 1px solid @border; }
 #workspaces button { padding: 0 8px; color: @foreground; background: transparent; }

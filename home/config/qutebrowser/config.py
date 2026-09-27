@@ -183,7 +183,7 @@ if _palette is not None:
     apply_palette(_palette)
 
 c.scrolling.bar = 'never'
-c.fonts.default_family = "Berkeley Mono"
+c.fonts.default_family = _palette.get('font', 'monospace') if _palette is not None else 'monospace'
 c.fonts.default_size = "12pt"
 c.fonts.web.size.default = 16
 
