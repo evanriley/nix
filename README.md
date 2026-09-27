@@ -24,8 +24,8 @@ git clone git@github.com:evanriley/nix.git ~/nix
 
 Update inputs with `nix flake update --flake ~/nix`. The `update-flake-lock`
 workflow opens a pull request every Monday for the public, unpinned inputs;
-`berkeley-mono`, `helix`, `kak-*`, `friendly-snippets`, `monobiome` and
-`lanzaboote` are updated by hand.
+`berkeley-mono`, `manta`, `helix`, `kak-*`, `friendly-snippets`, `monobiome`
+and `lanzaboote` are updated by hand.
 
 After a bad update, restore the previous lock and switch again:
 
@@ -34,7 +34,7 @@ git -C ~/nix checkout HEAD~1 -- flake.lock
 ```
 
 `nh home switch` needs GitHub SSH access to fetch the private
-`evanriley/berkeley-mono` input.
+`evanriley/berkeley-mono` and `evanriley/manta` inputs.
 
 ### Secrets
 

@@ -395,6 +395,26 @@
         "type": "github"
       }
     },
+    "manta": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790520210,
+        "narHash": "sha256-E0mITGQErjMz3GOMdMvoK0l+lcJ9k2bfao31GwwQF8Q=",
+        "ref": "refs/heads/main",
+        "rev": "858c3e622cce149f62c036dbc110b8f072bd83e0",
+        "revCount": 181,
+        "type": "git",
+        "url": "ssh://git@github.com/evanriley/manta"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/evanriley/manta"
+      }
+    },
     "mnw": {
       "locked": {
         "lastModified": 1784154424,
@@ -566,6 +586,7 @@
         "kak-rainbow": "kak-rainbow",
         "kak-surround": "kak-surround",
         "lanzaboote": "lanzaboote",
+        "manta": "manta",
         "monobiome": "monobiome",
         "nix-darwin": "nix-darwin",
         "nix-index-database": "nix-index-database",

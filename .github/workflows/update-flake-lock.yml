@@ -17,9 +17,9 @@ jobs:
       - uses: cachix/install-nix-action@v31
       - uses: DeterminateSystems/update-flake-lock@v29
         with:
-          # Not updated here: berkeley-mono (private, no CI access) and the
-          # deliberately pinned helix, kak-*, friendly-snippets, monobiome and
-          # lanzaboote.
+          # Not updated here: berkeley-mono and manta (private, no CI access)
+          # and the deliberately pinned helix, kak-*, friendly-snippets,
+          # monobiome and lanzaboote.
           inputs: >-
             nixpkgs flake-parts import-tree home-manager agenix disko stylix nvf
             nixos-hardware nix-index-database git-hooks rust-overlay crane umbriel

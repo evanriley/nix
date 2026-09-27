@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, inputs, ... }:
 let
   inherit (config.meta) user;
   inherit (config.flake.lib) sessionService;
@@ -87,7 +87,12 @@ in
         home.file.".local/share/Steam/compatibilitytools.d/GE-Proton-Nix".source =
           pkgs.proton-ge-bin.steamcompattool;
 
-        home.packages = [ pkgs.wowup-cf ];
+        # In home.packages, not manta's NixOS module: CI evaluates the system
+        # configurations and cannot fetch the private repository.
+        home.packages = [
+          pkgs.wowup-cf
+          inputs.manta.packages.${pkgs.stdenv.hostPlatform.system}.default
+        ];
 
         # Not niri spawn-at-startup: it dies in a race at login and niri discards its output.
         systemd.user.services.steam = sessionService {
