@@ -217,76 +217,6 @@ in
         xdg.configFile = {
           "theme/mode".text = "${mode}\n";
 
-          "theme/palette.css".text = ''
-            @define-color background #${p.bg};
-            @define-color background_alt #${p.bg_alt};
-            @define-color background_soft #${p.selection};
-            @define-color surface #${p.border};
-            @define-color selection #${p.selection};
-            @define-color border #${p.border};
-            @define-color muted #${p.muted};
-            @define-color foreground #${p.fg};
-            @define-color foreground_bright #${p.fg_max};
-            @define-color primary #${p.blue};
-            @define-color accent #${p.orange};
-            @define-color success #${p.green};
-            @define-color warning #${p.yellow};
-            @define-color error #${p.red};
-          '';
-
-          "theme/foot.ini".text = ''
-            [main]
-            initial-color-theme=${mode}
-          ''
-          + footColors "dark" monobiome.dark
-          + footColors "light" monobiome.light;
-
-          "theme/fuzzel.ini".text = ''
-            [colors]
-            background=${p.bg}fa
-            text=${p.fg_max}ff
-            prompt=${p.yellow}ff
-            placeholder=${p.muted}ff
-            border=${p.blue}ff
-            selection=${p.selection}ff
-            selection-text=${p.fg_max}ff
-            match=${p.red}ff
-            selection-match=${p.orange}ff
-          '';
-
-          "theme/niri.kdl".text = ''
-            layout {
-                background-color "#${p.bg}"
-                border {
-                    active-color "#${p.blue}"
-                    inactive-color "#${p.border}"
-                    urgent-color "#${p.red}"
-                }
-                tab-indicator {
-                    active-color "#${p.blue}"
-                    inactive-color "#${p.border}"
-                    urgent-color "#${p.red}"
-                }
-            }
-            overview { backdrop-color "#${p.bg_alt}"; }
-            window-rule {
-                match is-window-cast-target=true
-                focus-ring { on; width 3; active-color "#${p.red}"; inactive-color "#${p.red}"; }
-            }
-          '';
-
-          "theme/umbriel.toml".text = ''
-            [colors]
-            background = "#${p.bg}"
-            backdrop = "#${p.bg}"
-            accent_primary = "#${p.blue}"
-            error = "#${p.red}"
-
-            [colors.border]
-            focused = "#${p.blue}"
-            unfocused = "#${p.border}"
-          '';
-
           "theme/tmux.conf".text = ''
             set -g @theme-bg '#${p.bg}'
             set -g @theme-bg-alt '#${p.bg_alt}'
@@ -534,6 +464,77 @@ in
             set-face global InlayHint              rgb:${p.muted}+d
             set-face global InlayCodeLens          rgb:${p.muted}+d
             set-face global Reference              default,rgb:${p.selection}
+          '';
+        }
+        // lib.optionalAttrs isLinux {
+          "theme/palette.css".text = ''
+            @define-color background #${p.bg};
+            @define-color background_alt #${p.bg_alt};
+            @define-color background_soft #${p.selection};
+            @define-color surface #${p.border};
+            @define-color selection #${p.selection};
+            @define-color border #${p.border};
+            @define-color muted #${p.muted};
+            @define-color foreground #${p.fg};
+            @define-color foreground_bright #${p.fg_max};
+            @define-color primary #${p.blue};
+            @define-color accent #${p.orange};
+            @define-color success #${p.green};
+            @define-color warning #${p.yellow};
+            @define-color error #${p.red};
+          '';
+
+          "theme/foot.ini".text = ''
+            [main]
+            initial-color-theme=${mode}
+          ''
+          + footColors "dark" monobiome.dark
+          + footColors "light" monobiome.light;
+
+          "theme/fuzzel.ini".text = ''
+            [colors]
+            background=${p.bg}fa
+            text=${p.fg_max}ff
+            prompt=${p.yellow}ff
+            placeholder=${p.muted}ff
+            border=${p.blue}ff
+            selection=${p.selection}ff
+            selection-text=${p.fg_max}ff
+            match=${p.red}ff
+            selection-match=${p.orange}ff
+          '';
+
+          "theme/niri.kdl".text = ''
+            layout {
+                background-color "#${p.bg}"
+                border {
+                    active-color "#${p.blue}"
+                    inactive-color "#${p.border}"
+                    urgent-color "#${p.red}"
+                }
+                tab-indicator {
+                    active-color "#${p.blue}"
+                    inactive-color "#${p.border}"
+                    urgent-color "#${p.red}"
+                }
+            }
+            overview { backdrop-color "#${p.bg_alt}"; }
+            window-rule {
+                match is-window-cast-target=true
+                focus-ring { on; width 3; active-color "#${p.red}"; inactive-color "#${p.red}"; }
+            }
+          '';
+
+          "theme/umbriel.toml".text = ''
+            [colors]
+            background = "#${p.bg}"
+            backdrop = "#${p.bg}"
+            accent_primary = "#${p.blue}"
+            error = "#${p.red}"
+
+            [colors.border]
+            focused = "#${p.blue}"
+            unfocused = "#${p.border}"
           '';
 
           "swaylock/config".text = ''
