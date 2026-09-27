@@ -75,7 +75,8 @@ in
       if ! cmp -s ${./avatar.jpg} "$picture"; then
         install -m 0644 ${./avatar.jpg} "$picture"
       fi
-      if [ "$(dscl . -read /Users/${user.name} Picture 2>/dev/null)" != "Picture: $picture" ]; then
+      # dscl prints values containing spaces on their own indented line.
+      if [ "$(dscl . -read /Users/${user.name} Picture 2>/dev/null | tail -n +2 | sed 's/^ *//')" != "$picture" ]; then
         dscl . -create /Users/${user.name} Picture "$picture"
       fi
       if [ "$(dscl . -read /Users/${user.name} JPEGPhoto 2>/dev/null | tail -n +2 | tr -d ' \n')" \
