@@ -5,7 +5,7 @@
 - dune projects; the dev shell provides `ocaml-lsp`, `utop` and
   `ocamlformat`. Format with `dune fmt` (uses `.ocamlformat`).
 - Build with warnings as errors in development (dune's default dev profile);
-  never silence a warning without a reason comment.
+  never silence a warning without a reason in the commit message.
 - Add a dependency to `dune-project` and the library `dune` stanza, and to the
   derivation in `flake.nix`.
 - Try code in the toplevel (the `repl-driven-development` skill).

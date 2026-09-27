@@ -16,7 +16,7 @@ Global instructions for coding agents. Repository instructions (`AGENTS.md`,
 
 - Investigate before changing: read the surrounding code, search for existing
   helpers and prior art, check `git log` for why things are the way they are.
-- Match the surrounding code: naming, structure, idiom, comment density.
+- Match the surrounding code: naming, structure, idiom.
 - Keep changes scoped to the request. Mention unrelated problems instead of
   fixing them.
 - Fix the class of bug, not only the reported instance; check sibling cases.
@@ -28,13 +28,22 @@ Global instructions for coding agents. Repository instructions (`AGENTS.md`,
 
 ## Comments
 
-- Comment only what code cannot say: a non-obvious reason, an external
-  constraint, or a warning that changing something breaks something else
-  (e.g. "drop once upstream has X").
-- No comments that restate the code, label a block, or explain where a value
-  came from.
-- Never write comments that narrate the session, the debugging path or its
-  measurements. That context belongs in the commit message, if anywhere.
+**Default to no comment.** Most code and nearly all config get none. This rule
+overrides any skill, template or surrounding code that suggests otherwise.
+
+- Write a comment only when both are true:
+  1. It states something notable the code cannot say: a non-obvious reason,
+     an external constraint or an invariant.
+  2. Changing or removing the code it sits on has severe consequences: data
+     loss, a broken boot or build, a security hole, or a regression that is
+     hard to trace back.
+- If a comment fails either test, leave it out and put the reasoning in the
+  commit message.
+- Never write comments that restate the code, label a block, explain where a
+  value came from, describe the change, or narrate the session, the debugging
+  path or its measurements.
+- Existing comments nearby are not a reason to add more.
+- When unsure, leave it out.
 
 ## Documentation
 

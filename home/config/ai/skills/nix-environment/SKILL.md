@@ -83,8 +83,8 @@ description: >
 ## Writing Nix
 
 - Format with the repository formatter (`nix fmt`).
-- Pin with a reason: overrides and `mkForce` get a short comment saying when to
-  drop them.
+- Pin with a reason: state why an override or `mkForce` exists and when to
+  drop it in the commit message, not in a comment.
 - Look up options before using them: `man home-configuration.nix`,
   `man configuration.nix`, or search the nixpkgs, NixOS and Home Manager
   sources. Do not guess option names.

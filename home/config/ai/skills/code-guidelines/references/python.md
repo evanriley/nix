@@ -22,7 +22,7 @@
 - `X | None` for optional values; handle `None` explicitly.
 - Validate external data (JSON, env, CLI args, files) once at the boundary into
   typed objects.
-- No `cast` or `# type: ignore` without a reason comment on the line.
+- No `cast` or `# type: ignore` without a reason in the commit message.
 
 ## Errors
 

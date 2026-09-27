@@ -66,9 +66,9 @@ description: >
   (`wrapProgram --prefix PATH : ${lib.makeBinPath [ ... ]}`), not by assuming
   they are on the user's PATH.
 - Keep `doCheck = true` when tests work in the sandbox; when disabling them or
-  single tests, say why in a short comment.
-- Patches live next to the derivation as `.patch` files with a comment saying
-  when to drop them (upstream PR or version).
+  single tests, say why in the commit message.
+- Patches live next to the derivation as `.patch` files; the commit message
+  says when to drop them (upstream PR or version).
 
 ## Overrides
 
@@ -76,7 +76,7 @@ description: >
   plus refreshed vendor hashes.
 - Changed dependencies or flags: `override { ... }` for function arguments,
   `overrideAttrs` for derivation attributes.
-- Every override gets a comment saying when to drop it.
+- Every override's commit message says when to drop it.
 
 ## Verify
 

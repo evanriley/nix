@@ -26,7 +26,7 @@ description: >
   for IDs, explicit nullability. Validate at external boundaries, trust
   internally.
 - No casts or escape hatches (`any`, `unsafe`, `Obj.magic`, `mkForce`) without
-  a reason in a short comment.
+  a reason; state it in the commit message.
 - No buried magic values. Parameterize anything that differs between hosts,
   environments or callers.
 - Pass optional arguments explicitly when the default affects behavior
@@ -44,10 +44,11 @@ description: >
 
 ## Comments
 
-- Only for what code cannot express: non-obvious why, external constraints,
-  invariants, and warnings that changing the line breaks something.
-- One short comment on the line it describes, or a doc comment on the
-  definition. No block comments restating code.
+- Default to no comment. Follow the Comments rules in the global
+  `AGENTS.md`: a comment must state something the code cannot say **and** sit
+  on code whose change has severe consequences.
+- When a comment passes both tests: one short comment on the line it
+  describes. No block comments.
 - No comments describing the change ("now handles empty input") or the session
   that produced it.
 
@@ -68,7 +69,8 @@ description: >
 ## Information placement
 
 - Code: what happens.
-- Doc comment: why this shape; invariants and constraints a reader needs.
+- Doc comment: only where the language or project requires one for public
+  API; otherwise nothing.
 - Commit message: why this change; problem, approach, migration.
 - Pull request description: how to review and verify.
 

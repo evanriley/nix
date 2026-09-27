@@ -33,8 +33,8 @@ changed functions. A diff alone hides broken callers.
    no disabled or weakened tests.
 5. Maintainability: rules from the `code-guidelines` skill, consistency with
    surrounding code, needless abstraction or duplication.
-6. Comments and docs: comments follow the comment rules; docs updated where
-   behavior changed.
+6. Comments and docs: flag every new comment that fails the two tests in the
+   global `AGENTS.md` Comments rules; docs updated where behavior changed.
 7. Commits: atomic, messages match the `commit` skill.
 
 ## Verification
