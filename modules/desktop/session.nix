@@ -167,7 +167,14 @@ in
 
         waybar = sessionService {
           description = "Waybar";
-          exec = "${pkgs.waybar}/bin/waybar";
+          exec = toString (
+            pkgs.writeShellScript "waybar-session" ''
+              if [ "''${XDG_CURRENT_DESKTOP:-}" = umbriel ]; then
+                exec ${pkgs.waybar}/bin/waybar -c ${config.xdg.configHome}/waybar/umbriel.jsonc
+              fi
+              exec ${pkgs.waybar}/bin/waybar
+            ''
+          );
           service.ExecReload = "${pkgs.coreutils}/bin/kill -SIGUSR2 $MAINPID";
         };
 

@@ -9,7 +9,7 @@ tooltip { background: @background_alt; color: @foreground; border: 1px solid @bo
 #workspaces button.urgent { background: @error; color: @background; }
 #workspaces button:hover { background: @background_alt; }
 #mode { color: @accent; padding: 0 8px; }
-#window { padding: 0 8px; }
+#window, #custom-window { padding: 0 8px; }
 #cpu, #memory, #network, #pulseaudio, #custom-sleep-inhibit, #tray, #clock, #custom-notifications { padding: 0 6px; }
 #network.disconnected, #pulseaudio.muted { color: @error; }
 #custom-sleep-inhibit { font-size: 14px; }
