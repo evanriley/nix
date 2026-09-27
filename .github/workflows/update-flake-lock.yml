@@ -23,5 +23,6 @@ jobs:
           inputs: >-
             nixpkgs flake-parts import-tree home-manager agenix disko stylix nvf
             nixos-hardware nix-index-database git-hooks rust-overlay crane umbriel
+            noctalia
           pr-title: "Update flake.lock"
           pr-labels: dependencies

@@ -22,13 +22,15 @@ let
       // service;
       Install.WantedBy = [ "graphical-session.target" ];
     };
+
+  outsideUmbriel.ConditionEnvironment = "!XDG_CURRENT_DESKTOP=umbriel";
 in
 { config, ... }:
 let
   inherit (config.flake.lib) mkScript umbrielPackage;
 in
 {
-  flake.lib = { inherit sessionService; };
+  flake.lib = { inherit sessionService outsideUmbriel; };
 
   flake.modules.homeManager.session =
     {
@@ -39,6 +41,7 @@ in
     }:
     let
       lock = "${pkgs.swaylock}/bin/swaylock -f";
+      outsideUmbrielDropIn = lib.generators.toINI { } { Unit = outsideUmbriel; };
       desktopctl = lib.getExe (
         mkScript pkgs {
           name = "desktopctl";
@@ -159,23 +162,23 @@ in
         allowImages = true;
       };
 
+      xdg.configFile."systemd/user/swayidle.service.d/outside-umbriel.conf".text = outsideUmbrielDropIn;
+      xdg.configFile."systemd/user/cliphist.service.d/outside-umbriel.conf".text = outsideUmbrielDropIn;
+      xdg.configFile."systemd/user/cliphist-images.service.d/outside-umbriel.conf".text =
+        outsideUmbrielDropIn;
+
       systemd.user.services = {
         polkit-agent = sessionService {
           description = "PolicyKit authentication agent";
           exec = "${pkgs.mate-polkit}/libexec/polkit-mate-authentication-agent-1";
+          unit = outsideUmbriel;
         };
 
         waybar = sessionService {
           description = "Waybar";
-          exec = toString (
-            pkgs.writeShellScript "waybar-session" ''
-              if [ "''${XDG_CURRENT_DESKTOP:-}" = umbriel ]; then
-                exec ${pkgs.waybar}/bin/waybar -c ${config.xdg.configHome}/waybar/umbriel.jsonc
-              fi
-              exec ${pkgs.waybar}/bin/waybar
-            ''
-          );
+          exec = "${pkgs.waybar}/bin/waybar";
           service.ExecReload = "${pkgs.coreutils}/bin/kill -SIGUSR2 $MAINPID";
+          unit = outsideUmbriel;
         };
 
         swaync = sessionService {
@@ -185,11 +188,13 @@ in
             Type = "dbus";
             BusName = "org.freedesktop.Notifications";
           };
+          unit = outsideUmbriel;
         };
 
         swayosd = sessionService {
           description = "SwayOSD server";
           exec = "${pkgs.swayosd}/bin/swayosd-server";
+          unit = outsideUmbriel;
         };
 
         yubikey-touch-detector = sessionService {

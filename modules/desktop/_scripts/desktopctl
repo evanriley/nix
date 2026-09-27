@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Desktop helpers for niri and umbriel: scratchpad terminals, power menu,
-monitor power, screenshots, suspend inhibitor, window title."""
+monitor power, screenshots and suspend inhibitor."""
 
 import argparse
 import json
@@ -189,22 +189,6 @@ def monitors(state):
     return result
 
 
-def window_title():
-    """Waybar custom module: print the active window's title on every change."""
-    if compositor() != "umbriel":
-        print("desktopctl: window-title needs umbriel; use waybar's niri/window", file=sys.stderr)
-        return 1
-    events = subprocess.Popen(["umbriel", "subscribe", "windows"], stdout=subprocess.PIPE, text=True)
-    last = None
-    for line in events.stdout:
-        windows = json.loads(line).get("data", [])
-        title = next((w.get("title", "") for w in windows if w.get("active")), "")
-        if title != last:
-            print(title, flush=True)
-            last = title
-    return events.wait() or 1
-
-
 def sleep_inhibit_active():
     return subprocess.run(["systemctl", "--user", "is-active", "--quiet", SLEEP_INHIBIT_UNIT],
                           check=False).returncode == 0
@@ -237,7 +221,6 @@ def main():
     commands.add_parser("monitors").add_argument("state", choices=("off", "on"))
     commands.add_parser("screenshot").add_argument("target", choices=("region", "screen", "window"))
     commands.add_parser("sleep-inhibit").add_argument("action", choices=("status", "toggle"))
-    commands.add_parser("window-title")
     args = parser.parse_args()
     try:
         if args.command == "scratch":
@@ -248,8 +231,6 @@ def main():
             return monitors(args.state)
         if args.command == "screenshot":
             return screenshot(args.target)
-        if args.command == "window-title":
-            return window_title()
         return sleep_inhibit(args.action)
     except (CompositorError, OSError, subprocess.SubprocessError, ValueError) as error:
         print(f"desktopctl: {error}", file=sys.stderr)

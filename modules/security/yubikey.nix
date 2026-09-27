@@ -31,7 +31,7 @@
           userverification = 0;
         };
       };
-      # Not on login: GDM's password unlocks the GNOME keyring.
+      # login runs u2f after pam_unix (noctalia.nix): GDM substacks login and needs the password for the keyring.
       security.pam.services = {
         sudo.u2fAuth = true;
         swaylock.u2fAuth = true;

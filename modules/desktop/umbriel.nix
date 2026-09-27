@@ -48,8 +48,9 @@ in
         action = "spawn:${command}";
         repeat = false;
       };
-      swayosd = args: {
-        action = "spawn:swayosd-client ${args}";
+      noctalia = command: spawn "noctalia msg ${command}";
+      noctaliaWhenLocked = command: {
+        action = "spawn:noctalia msg ${command}";
         allow_when_locked = true;
       };
       withCooldown = action: {
@@ -230,6 +231,7 @@ in
             (rule { app_id = "^mpv$"; } (floating 1920 1080))
             (rule { app_id = "^swayimg$"; } (floating 1280 800))
             (rule { app_id = "^(org\\.pulseaudio\\.pavucontrol|pavucontrol)$"; } (floating 800 600))
+            (rule { app_id = "^dev\\.noctalia\\.Noctalia$"; } (floating 1020 900))
             (rule {
               app_id = "^[Ss]team$";
               title = "^Friends List$";
@@ -240,21 +242,20 @@ in
 
           keybinds = {
             "Mod+Return" = spawn "foot";
-            "Mod+Space" = spawn "fuzzel";
+            "Mod+Space" = noctalia "panel-toggle launcher";
             "Mod+E" = spawn "nautilus";
-            "Mod+P" = spawn "${bin}/desktopctl power";
-            "Mod+Shift+E" = spawn "${bin}/desktopctl power";
-            "Ctrl+Alt+Delete" = spawn "${bin}/desktopctl power";
-            "Mod+Alt+L" = spawn "swaylock -f";
+            "Mod+P" = noctalia "panel-toggle session";
+            "Mod+Shift+E" = noctalia "panel-toggle session";
+            "Ctrl+Alt+Delete" = noctalia "panel-toggle session";
+            "Mod+Alt+L" = noctalia "session lock";
             "Mod+Ctrl+T" = spawn "${bin}/desktopctl scratch btop";
             "Mod+Ctrl+R" = spawn "${bin}/desktopctl scratch rmpc";
-            "Mod+Ctrl+N" = spawn "swaync-client -t";
-            "Mod+Ctrl+B" = spawn "systemctl --user kill --kill-whom=main --signal=USR1 waybar.service";
-            "Mod+Alt+V" =
-              spawn "cliphist list | fuzzel --dmenu --prompt 'Clipboard: ' | cliphist decode | wl-copy";
+            "Mod+Ctrl+N" = noctalia "panel-toggle control-center notifications";
+            "Mod+Ctrl+B" = noctalia "bar-toggle";
+            "Mod+Alt+V" = noctalia "panel-toggle clipboard";
             "Mod+Alt+M" = spawn "${bin}/watch-media";
-            "Print" = spawn "${bin}/desktopctl screenshot region";
-            "Ctrl+Print" = spawn "${bin}/desktopctl screenshot screen";
+            "Print" = noctalia "screenshot-region";
+            "Ctrl+Print" = noctalia "screenshot-fullscreen";
             "Alt+Print" = spawn "${bin}/desktopctl screenshot window";
             "Shift+Print" =
               spawn "systemctl --user kill --signal=SIGUSR1 --kill-whom=main gpu-screen-recorder-replay.service";
@@ -327,14 +328,14 @@ in
             "Mod+WheelRight" = "window-focus-right";
             "Mod+Ctrl+WheelRight" = "column-move-right";
 
-            "XF86AudioRaiseVolume" = swayosd "--output-volume raise";
-            "XF86AudioLowerVolume" = swayosd "--output-volume lower";
-            "XF86AudioMute" = swayosd "--output-volume mute-toggle";
-            "XF86AudioMicMute" = swayosd "--input-volume mute-toggle";
-            "XF86AudioPlay" = swayosd "--playerctl play-pause";
-            "XF86AudioStop" = swayosd "--playerctl stop";
-            "XF86AudioPrev" = swayosd "--playerctl prev";
-            "XF86AudioNext" = swayosd "--playerctl next";
+            "XF86AudioRaiseVolume" = noctaliaWhenLocked "volume-up";
+            "XF86AudioLowerVolume" = noctaliaWhenLocked "volume-down";
+            "XF86AudioMute" = noctaliaWhenLocked "volume-mute";
+            "XF86AudioMicMute" = noctaliaWhenLocked "mic-mute";
+            "XF86AudioPlay" = noctaliaWhenLocked "media toggle";
+            "XF86AudioStop" = noctaliaWhenLocked "media stop";
+            "XF86AudioPrev" = noctaliaWhenLocked "media previous";
+            "XF86AudioNext" = noctaliaWhenLocked "media next";
           }
           // workspaceBinds;
         };

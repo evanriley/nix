@@ -12,6 +12,7 @@ in
     desktop
     niri
     umbriel
+    noctalia
     plymouth
     audio
     bluetooth
@@ -33,6 +34,7 @@ in
     session
     niri
     umbriel
+    noctalia
     apps
   ];
 }

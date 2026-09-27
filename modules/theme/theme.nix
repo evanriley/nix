@@ -46,6 +46,55 @@ in
           ${lib.concatStringsSep "\n" slots}
         '';
 
+      noctaliaPalette =
+        q:
+        let
+          ansi = map (color: "#${color}") (monobiome.ansi q);
+          names = [
+            "black"
+            "red"
+            "green"
+            "yellow"
+            "blue"
+            "magenta"
+            "cyan"
+            "white"
+          ];
+          slots =
+            offset:
+            lib.listToAttrs (
+              lib.imap0 (index: name: lib.nameValuePair name (lib.elemAt ansi (index + offset))) names
+            );
+        in
+        {
+          mPrimary = "#${q.blue}";
+          mOnPrimary = "#${q.bg}";
+          mSecondary = "#${q.orange}";
+          mOnSecondary = "#${q.bg}";
+          mTertiary = "#${q.green}";
+          mOnTertiary = "#${q.bg}";
+          mError = "#${q.red}";
+          mOnError = "#${q.bg}";
+          mSurface = "#${q.bg}";
+          mOnSurface = "#${q.fg_max}";
+          mSurfaceVariant = "#${q.bg_alt}";
+          mOnSurfaceVariant = "#${q.fg}";
+          mOutline = "#${q.border}";
+          mShadow = "#${q.bg}";
+          mHover = "#${q.selection}";
+          mOnHover = "#${q.fg_max}";
+          terminal = {
+            background = "#${q.bg}";
+            foreground = "#${q.fg_max}";
+            cursor = "#${q.fg_bright}";
+            cursorText = "#${q.bg_alt}";
+            selectionBg = "#${q.bg_alt}";
+            selectionFg = "#${q.fg_bright}";
+            normal = slots 0;
+            bright = slots 8;
+          };
+        };
+
       applyTheme = pkgs.writeShellApplication {
         name = "apply-theme";
         runtimeInputs =
@@ -80,7 +129,12 @@ in
           pkill -USR1 -x nvim || true
           pkill -USR1 -x '\.nvim-wrapped' || true
           systemctl --user kill --kill-whom=main --signal=USR2 waybar.service 2>/dev/null || true
-          swaync-client --reload-css >/dev/null 2>&1 || true
+          if systemctl --user is-active --quiet swaync.service 2>/dev/null; then
+            swaync-client --reload-css >/dev/null 2>&1 || true
+          fi
+          if systemctl --user is-active --quiet noctalia.service 2>/dev/null && command -v noctalia >/dev/null; then
+            noctalia msg config-reload >/dev/null 2>&1 || true
+          fi
           systemctl --user try-restart swayosd.service 2>/dev/null || true
           # darkman starts before the compositor, so its environment has no
           # NIRI_SOCKET or UMBRIEL_SOCKET.
@@ -535,6 +589,11 @@ in
                 focus-ring { on; width 3; active-color "#${p.red}"; inactive-color "#${p.red}"; }
             }
           '';
+
+          "noctalia/palettes/monobiome.json".text = builtins.toJSON {
+            dark = noctaliaPalette monobiome.dark;
+            light = noctaliaPalette monobiome.light;
+          };
 
           "theme/umbriel.toml".text = ''
             [colors]
