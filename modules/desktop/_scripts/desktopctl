@@ -129,7 +129,7 @@ def screenshot(target):
             print("desktopctl: screenshot window needs umbriel; use niri's screenshot-window",
                   file=sys.stderr)
             return 1
-        window = next((w for w in umbriel_json("windows") if w.get("focused")), None)
+        window = next((w for w in umbriel_json("windows") if w.get("active")), None)
         if window is None:
             print("desktopctl: no focused window", file=sys.stderr)
             return 1
