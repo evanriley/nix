@@ -62,6 +62,8 @@ overrides any skill, template or surrounding code that suggests otherwise.
   one.
 - Commits are signed with a YubiKey and wait for a touch; say so when a commit
   appears to hang.
+- In `~/nix` and other dotfile repositories, commit to `main` and push it
+  directly when asked to push; do not branch or open a pull request.
 
 ## Secrets and public repositories
 
