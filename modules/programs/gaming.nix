@@ -74,7 +74,7 @@ in
       };
 
       config = {
-        # Shift+Print in niri saves the buffer; the system module installs the KMS capture wrapper.
+        # Shift+Print saves the buffer; the system module installs the KMS capture wrapper.
         systemd.user.services.gpu-screen-recorder-replay = sessionService {
           description = "GPU Screen Recorder replay buffer";
           # AV1 plays in Firefox and Discord, unlike HEVC.
