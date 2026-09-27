@@ -26,31 +26,24 @@ in
         '';
       };
 
-      footColors = name: q: ''
-        [colors-${name}]
-        foreground=${q.fg_max}
-        background=${q.bg}
-        selection-foreground=${q.fg_bright}
-        selection-background=${q.bg_alt}
-        urls=${q.blue}
-        cursor=${q.bg_alt} ${q.fg_bright}
-        regular0=${q.bg}
-        regular1=${q.red}
-        regular2=${q.green}
-        regular3=${q.yellow}
-        regular4=${q.blue}
-        regular5=${q.orange}
-        regular6=${q.blue}
-        regular7=${q.fg}
-        bright0=${q.selection}
-        bright1=${q.red_bright}
-        bright2=${q.green_bright}
-        bright3=${q.yellow_bright}
-        bright4=${q.blue_bright}
-        bright5=${q.orange_bright}
-        bright6=${q.blue_bright}
-        bright7=${q.fg_max}
-      '';
+      footColors =
+        name: q:
+        let
+          slots = lib.imap0 (
+            index: color:
+            if index < 8 then "regular${toString index}=${color}" else "bright${toString (index - 8)}=${color}"
+          ) (monobiome.ansi q);
+        in
+        ''
+          [colors-${name}]
+          foreground=${q.fg_max}
+          background=${q.bg}
+          selection-foreground=${q.fg_bright}
+          selection-background=${q.bg_alt}
+          urls=${q.blue}
+          cursor=${q.bg_alt} ${q.fg_bright}
+          ${lib.concatStringsSep "\n" slots}
+        '';
 
       applyTheme = pkgs.writeShellApplication {
         name = "apply-theme";

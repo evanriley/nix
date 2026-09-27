@@ -46,6 +46,25 @@
       blue_bright = "365da9"; # tundra l49
     };
 
+    ansi = p: [
+      p.bg
+      p.red
+      p.green
+      p.yellow
+      p.blue
+      p.orange
+      p.blue
+      p.fg
+      p.selection
+      p.red_bright
+      p.green_bright
+      p.yellow_bright
+      p.blue_bright
+      p.orange_bright
+      p.blue_bright
+      p.fg_max
+    ];
+
     # Monobiome has no cyan or magenta; base0C/base0E reuse the bright
     # variants so no two base16 slots collide.
     base16 = name: p: {
