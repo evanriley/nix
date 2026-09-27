@@ -67,13 +67,25 @@ in
       home = "/Users/${user.name}";
     };
 
-    # JPEGPhoto takes precedence over Picture, so drop it.
     system.activationScripts.postActivation.text = ''
-      if dscl . -read /Users/${user.name} JPEGPhoto >/dev/null 2>&1; then
-        dscl . -delete /Users/${user.name} JPEGPhoto
+      if dscl . -read /Users/${user.name} dsAttrTypeNative:AvatarRepresentation >/dev/null 2>&1; then
+        dscl . -delete /Users/${user.name} dsAttrTypeNative:AvatarRepresentation
       fi
-      if [ "$(dscl . -read /Users/${user.name} Picture 2>/dev/null)" != "Picture: ${./avatar.jpg}" ]; then
-        dscl . -create /Users/${user.name} Picture ${./avatar.jpg}
+      picture="/Library/User Pictures/${user.name}.jpg"
+      if ! cmp -s ${./avatar.jpg} "$picture"; then
+        install -m 0644 ${./avatar.jpg} "$picture"
+      fi
+      if [ "$(dscl . -read /Users/${user.name} Picture 2>/dev/null)" != "Picture: $picture" ]; then
+        dscl . -create /Users/${user.name} Picture "$picture"
+      fi
+      if [ "$(dscl . -read /Users/${user.name} JPEGPhoto 2>/dev/null | tail -n +2 | tr -d ' \n')" \
+        != "$(xxd -p ${./avatar.jpg} | tr -d '\n')" ]; then
+        dscl . -delete /Users/${user.name} JPEGPhoto 2>/dev/null || true
+        records=$(mktemp)
+        printf '0x0A 0x5C 0x3A 0x2C dsRecTypeStandard:Users 2 dsAttrTypeStandard:RecordName externalbinary:dsAttrTypeStandard:JPEGPhoto\n%s:%s\n' \
+          ${user.name} ${./avatar.jpg} > "$records"
+        dsimport "$records" /Local/Default M
+        rm -f "$records"
       fi
     '';
   };
