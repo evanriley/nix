@@ -4,20 +4,22 @@ let
 in
 {
   # Samsung Odyssey G80HS on DP-2. Boot and login are pinned to 6K/165 so
-  # Plymouth, GDM and the compositor share one mode and the screen does not
-  # blank. Switch the monitor to 6K before rebooting; display-mode follows the
-  # monitor's 3K/330 mode inside niri and umbriel.
+  # Plymouth, the greeter and the compositor share one mode and the screen does
+  # not blank. Switch the monitor to 6K before rebooting; display-mode follows
+  # the monitor's 3K/330 mode inside niri and umbriel.
   flake.modules.nixos.cinderace = {
     boot.kernelParams = [
       "video=DP-2:6144x3456@165"
       "plymouth.use-simpledrm=0"
     ];
 
-    environment.etc."xdg/monitors.xml".source = ./monitors.xml;
-    systemd.tmpfiles.rules = [
-      "d /run/gdm/.config 0711 gdm gdm -"
-      "L+ /run/gdm/.config/monitors.xml - - - - ${./monitors.xml}"
-    ];
+    services.displayManager.noctalia-greeter.settings.output = {
+      name = "DP-2";
+      width = 6144;
+      height = 3456;
+      refresh_rate = 165;
+      scales = "DP-2:2";
+    };
   };
 
   flake.modules.homeManager.cinderace =

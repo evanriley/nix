@@ -1,15 +1,52 @@
 { config, inputs, ... }:
 let
   inherit (config.flake.lib) outsideUmbriel;
+  inherit (config.meta) user;
 in
 {
-  flake.modules.nixos.noctalia = {
-    security.pam.services.login = {
-      u2fAuth = true;
-      rules.auth.u2f.order = 13500;
+  flake.modules.nixos.noctalia =
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
+    {
+      imports = [ inputs.noctalia-greeter.nixosModules.default ];
+
+      security.pam.services.login = {
+        u2fAuth = true;
+        rules.auth.u2f.order = 13500;
+      };
+      systemd.user.services.nm-applet.unitConfig = outsideUmbriel;
+
+      services.displayManager.noctalia-greeter = {
+        enable = true;
+        passwordless-sync-users = [ user.name ];
+        cursorTheme.package = pkgs.adwaita-icon-theme;
+        settings = {
+          session.default = "Umbriel";
+          user.default = user.name;
+          appearance = {
+            scheme = "Synced";
+            hide_logo = true;
+            scheme_selector_position = "hidden";
+          };
+          cursor = {
+            theme = "Adwaita";
+            size = 24;
+          };
+          keyboard.numlock = true;
+          auth.allow_empty_password = false;
+        };
+      };
+
+      systemd.services.plymouth-quit.serviceConfig.ExecStart = [
+        ""
+        "-${config.boot.plymouth.package}/bin/plymouth quit --retain-splash"
+      ];
+      systemd.services.greetd.serviceConfig.Type = lib.mkForce "simple";
     };
-    systemd.user.services.nm-applet.unitConfig = outsideUmbriel;
-  };
 
   flake.modules.homeManager.noctalia =
     {
@@ -36,6 +73,7 @@ in
             launch_apps_as_systemd_services = true;
             telemetry_enabled = false;
             setup_wizard_enabled = false;
+            greeter_sync.auto_sync = true;
             panel = {
               shadow = false;
               transparency_mode = "solid";

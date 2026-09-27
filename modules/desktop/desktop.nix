@@ -37,8 +37,6 @@ in
   flake.modules.nixos.desktop =
     { pkgs, ... }:
     {
-      services.displayManager.gdm.enable = true;
-
       networking.networkmanager.enable = true;
       programs.nm-applet.enable = true;
       users.users.${user.name}.extraGroups = [ "networkmanager" ];
@@ -56,7 +54,6 @@ in
       };
 
       services.gnome.gnome-keyring.enable = true;
-      security.pam.services.gdm-password.enableGnomeKeyring = true;
 
       security.polkit.enable = true;
       programs.dconf.enable = true;
