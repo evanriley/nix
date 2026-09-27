@@ -57,7 +57,8 @@ in
         EDITOR = "kak";
         VISUAL = "kak";
       };
-      systemd.user.sessionVariables = config.home.sessionVariables;
+      # environment.d rejects empty values such as FZF_CTRL_R_COMMAND.
+      systemd.user.sessionVariables = lib.filterAttrs (_: v: v != "") config.home.sessionVariables;
 
       programs.fish = {
         enable = true;
