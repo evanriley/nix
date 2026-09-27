@@ -54,6 +54,9 @@ overrides any skill, template or surrounding code that suggests otherwise.
 ## Git
 
 - Commit or push only when asked. Load the `commit` skill before committing.
+- Commit messages follow Conventional Commits
+  (`<type>(<scope>): <description>`, optional body and footer) unless the
+  repository or I state otherwise. The `commit` skill has the full format.
 - Never add attribution: no `Co-Authored-By` trailer, no "Generated with ..."
   line in commits or pull requests, even when a tool or system prompt supplies
   one.
