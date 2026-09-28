@@ -243,6 +243,7 @@ in
           keybinds = {
             "Mod+Return" = spawn "foot";
             "Mod+Space" = noctalia "panel-toggle launcher";
+            "Mod+S" = noctalia "panel-toggle control-center";
             "Mod+G" = noctalia "panel-toggle alexander/game-launcher:browser";
             "Mod+Shift+S" = noctalia "panel-toggle alexander/screen-toolkit:panel";
             "Mod+E" = spawn "nautilus";
