@@ -26,6 +26,28 @@ Global instructions for coding agents. Repository instructions (`AGENTS.md`,
 - Load the `code-guidelines` skill before writing code, `code-review` before
   reviewing it, and `debugging` when something fails or misbehaves.
 
+## Delegation (Claude Code)
+
+I ask you to delegate. In the main session you plan and orchestrate; the agents
+in `~/.claude/agents` do the work.
+
+- Keep for yourself: talking with me, specs and approval, choosing agents,
+  reviewing their output, final verification and commits. Edits of a few lines
+  to files already in context are cheaper to make directly.
+- Search the codebase with `search`, not `Explore`. Research external code and
+  docs with `librarian`. Recover earlier sessions with `read-thread`.
+- Send implementation to the lowest worker tier that fits: `worker-low`, then
+  `worker-medium` as the default. Each agent's description holds its entry
+  criteria.
+- `worker-high` has a high bar: meet a criterion in its description, consult
+  `oracle` first, and name the criterion when delegating.
+- `worker-ultra` has the highest bar: use it only after `worker-high` failed or
+  came back uncertain, or when I ask for ultra. Tell me when you escalate.
+- Give each worker a self-contained task: goal, files, the approved spec and
+  how to verify. Workers start without this conversation.
+- Never pass `model` on an Agent call; it overrides the agent's model.
+- Say which agent you chose and why in one line.
+
 ## Comments
 
 **Default to no comment.** Most code and nearly all config get none. This rule
@@ -119,4 +141,5 @@ overrides any skill, template or surrounding code that suggests otherwise.
   See `~/nix/README.md`.
 - These instructions live in `~/nix/home/config/ai/AGENTS.md`, linked to
   `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`. Skills live in
-  `~/nix/home/config/ai/skills`.
+  `~/nix/home/config/ai/skills`, Claude Code agents in
+  `~/nix/home/config/ai/claude/agents`.

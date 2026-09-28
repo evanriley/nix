@@ -46,6 +46,7 @@ in
 
       home.file = {
         ".claude/CLAUDE.md".source = link "config/ai/AGENTS.md";
+        ".claude/agents".source = link "config/ai/claude/agents";
         ".codex/AGENTS.md".source = link "config/ai/AGENTS.md";
       }
       // linkSkills ".claude/skills"
