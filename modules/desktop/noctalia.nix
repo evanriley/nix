@@ -114,6 +114,11 @@ in
     let
       inherit (config.theme) mode;
       stateDir = "${config.xdg.stateHome}/noctalia";
+      wallpaperDir = "${config.home.homeDirectory}/Pictures/wallpapers";
+      wallpapers = {
+        dark = "dark-snake.jpg";
+        light = "light-building.jpg";
+      };
 
       official = inputs.noctalia-plugins-official;
       community = inputs.noctalia-plugins-community;
@@ -227,7 +232,13 @@ in
             };
           };
 
-          wallpaper.enabled = false;
+          wallpaper = {
+            enabled = true;
+            directory = wallpaperDir;
+            fill_color = "surface";
+            transition = [ "fade" ];
+            default.path = "${wallpaperDir}/${wallpapers.${mode}}";
+          };
           backdrop.enabled = false;
           dock.enabled = false;
           desktop_widgets.enabled = false;
@@ -275,7 +286,7 @@ in
             enabled = true;
             allow_empty_password = true;
             blur_intensity = 0.0;
-            tint_intensity = 1.0;
+            tint_intensity = 0.3;
           };
 
           idle.behavior = {
