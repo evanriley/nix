@@ -352,7 +352,7 @@ in
             active_window = {
               type = "active_window";
               display = "text_only";
-              max_length = 400;
+              max_length = 280;
             };
             cpu = {
               type = "sysmon";
