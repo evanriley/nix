@@ -234,6 +234,17 @@ in
 
           osd.position = "bottom_center";
 
+          notification = {
+            filter_order = [ "syncthing_devices" ];
+            filter.syncthing_devices = {
+              enabled = true;
+              match = "noctalia";
+              match_content = "^.+ (dis)?connected\\.$";
+              show_toast = false;
+              play_sound = false;
+            };
+          };
+
           calendar = {
             enabled = true;
             account.fastmail = {
