@@ -2,21 +2,16 @@
   "nodes": {
     "agenix": {
       "inputs": {
-        "darwin": [],
-        "home-manager": [
-          "home-manager"
-        ],
         "nixpkgs": [
           "nixpkgs"
-        ],
-        "systems": "systems"
+        ]
       },
       "locked": {
-        "lastModified": 1770165109,
-        "narHash": "sha256-9VnK6Oqai65puVJ4WYtCTvlJeXxMzAp/69HhQuTdl/I=",
+        "lastModified": 1790555459,
+        "narHash": "sha256-ftyJcr21FzMLq4hnzg3COo7gITOkJ4j+ey0miWCTU3U=",
         "owner": "ryantm",
         "repo": "agenix",
-        "rev": "b027ee29d959fda4b60b57566d64c98a202e0feb",
+        "rev": "b485690a7c97b3793a41dd57edfb05ac84343813",
         "type": "github"
       },
       "original": {
@@ -683,6 +678,7 @@
         "nvf": "nvf",
         "rust-overlay": "rust-overlay",
         "stylix": "stylix",
+        "systems": "systems",
         "umbriel": "umbriel"
       }
     },
@@ -722,7 +718,6 @@
         ],
         "nur": "nur",
         "systems": [
-          "agenix",
           "systems"
         ],
         "tinted-kitty": "tinted-kitty",

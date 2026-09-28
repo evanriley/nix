@@ -18,11 +18,10 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    systems.url = "github:nix-systems/default";
     agenix = {
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.home-manager.follows = "home-manager";
-      inputs.darwin.follows = "";
     };
     disko = {
       url = "github:nix-community/disko";
@@ -32,7 +31,7 @@
       url = "github:nix-community/stylix";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-parts.follows = "flake-parts";
-      inputs.systems.follows = "agenix/systems";
+      inputs.systems.follows = "systems";
     };
     # Private repository; fetching it needs GitHub SSH access.
     berkeley-mono = {
