@@ -1,7 +1,7 @@
 ---
 name: oracle
 description: "Complex reasoning and planning on code. Designs approaches, makes architecture calls, diagnoses hard failures and reviews worker diffs. Consult before escalating work to worker-high."
-model: opus
+model: fable
 effort: xhigh
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 ---

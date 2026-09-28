@@ -1,8 +1,8 @@
 ---
 name: worker-ultra
 description: "Ultra tier. Use only after worker-high failed or returned an uncertain result, or when the user asks for ultra. Never a first choice."
-model: opus
-effort: max
+model: fable
+effort: xhigh
 disallowedTools: Agent
 skills:
   - code-guidelines
