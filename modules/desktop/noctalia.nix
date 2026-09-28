@@ -234,6 +234,8 @@ in
 
           osd.position = "bottom_center";
 
+          nightlight.enabled = true;
+
           notification = {
             filter_order = [ "syncthing_devices" ];
             filter.syncthing_devices = {
