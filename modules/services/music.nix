@@ -37,10 +37,7 @@ in
         '';
       };
 
-      services.mpd-mpris = {
-        enable = true;
-        mpd.useLocal = true;
-      };
+      services.mpd-mpris.enable = true;
 
       services.listenbrainz-mpd = {
         enable = true;
