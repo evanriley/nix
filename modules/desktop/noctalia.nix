@@ -311,6 +311,7 @@ in
               margin_edge = 0;
               shadow = false;
               capsule = false;
+              widget_spacing = 12;
               start = [
                 "workspaces"
                 "umbriel_layout"
