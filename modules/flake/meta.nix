@@ -13,5 +13,9 @@
     };
     # Checkout location relative to the home directory (/home/evan or /Users/evan).
     repoDir = "nix";
+    location = {
+      latitude = 36;
+      longitude = -79;
+    };
   };
 }

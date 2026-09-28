@@ -1,6 +1,7 @@
 { config, inputs, ... }:
 let
   inherit (config.flake.lib) monobiome;
+  inherit (config.meta) location;
 
   berkeleyMono =
     pkgs:
@@ -229,8 +230,8 @@ in
         services.darkman = lib.mkIf isLinux {
           enable = true;
           settings = {
-            lat = 36;
-            lng = -79;
+            lat = location.latitude;
+            lng = location.longitude;
             usegeoclue = false;
             portal = true;
           };

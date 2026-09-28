@@ -1,7 +1,7 @@
 { config, inputs, ... }:
 let
   inherit (config.flake.lib) outsideUmbriel;
-  inherit (config.meta) user repoDir;
+  inherit (config.meta) user repoDir location;
 in
 {
   flake.modules.nixos.noctalia =
@@ -218,6 +218,16 @@ in
           desktop_widgets.enabled = false;
 
           osd.position = "bottom_center";
+
+          location = {
+            auto_locate = false;
+            address = "";
+            inherit (location) latitude longitude;
+          };
+          weather = {
+            enabled = true;
+            unit = "imperial";
+          };
 
           lockscreen = {
             enabled = true;
