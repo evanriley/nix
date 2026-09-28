@@ -66,6 +66,8 @@ in
       '';
     in
     {
+      options.gaming.replay.enable = lib.mkEnableOption "the GPU Screen Recorder replay buffer";
+
       options.gaming.replay.size = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
@@ -75,12 +77,14 @@ in
 
       config = {
         # Shift+Print saves the buffer; the system module installs the KMS capture wrapper.
-        systemd.user.services.gpu-screen-recorder-replay = sessionService {
-          description = "GPU Screen Recorder replay buffer";
-          # AV1 plays in Firefox and Discord, unlike HEVC.
-          exec = "/run/current-system/sw/bin/gpu-screen-recorder -w screen ${sizeArg} -f 60 -k av1 -bm cbr -q 40000 -r 60 -c mkv -a default_output -sc ${notifySaved} -o ${replayDir}";
-          service.ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${replayDir}";
-        };
+        systemd.user.services.gpu-screen-recorder-replay =
+          lib.mkIf config.gaming.replay.enable
+            (sessionService {
+              description = "GPU Screen Recorder replay buffer";
+              # AV1 plays in Firefox and Discord, unlike HEVC.
+              exec = "/run/current-system/sw/bin/gpu-screen-recorder -w screen ${sizeArg} -f 60 -k av1 -bm cbr -q 40000 -r 60 -c mkv -a default_output -sc ${notifySaved} -o ${replayDir}";
+              service.ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${replayDir}";
+            });
 
         # Steam and Faugus both list compatibilitytools.d. Not named GE-Proton: umu
         # treats that name as "download the latest GE-Proton".
