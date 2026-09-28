@@ -316,6 +316,7 @@ in
               format = "{:%a %H:%M}";
               tooltip_format = "{:%Y-%m-%d}";
             };
+            media.title_scroll = "always";
             umbriel_layout = pluginWidget "noctalia/umbriel-companion:bar" { };
             cat = pluginWidget "dotnetrob/cat:cat" { };
             drive_health = pluginWidget "gustav0ar/drive-health:summary" { };
