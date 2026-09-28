@@ -59,7 +59,6 @@ in
         cooldown_ms = 150;
       };
 
-      # Mod+1-6 select named workspaces, Mod+7-9 positions.
       workspaceBinds = lib.listToAttrs (
         lib.concatLists (
           lib.imap1 (
@@ -71,7 +70,7 @@ in
               (lib.nameValuePair "Mod+${key}" "workspace-switch:${target}")
               (lib.nameValuePair "Mod+Shift+${key}" "column-move-to-workspace:${target}")
             ]
-          ) (workspaces ++ map toString (lib.range 7 9))
+          ) (workspaces ++ map toString (lib.range (lib.length workspaces + 1) 9))
         )
       );
 
