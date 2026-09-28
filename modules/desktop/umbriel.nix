@@ -39,9 +39,10 @@ in
         "web"
         "social"
         "game"
-        "misc"
+        "work"
         "system"
         "extra"
+        "secret"
       ];
 
       spawn = command: {
@@ -167,7 +168,7 @@ in
 
           workspaces.back_and_forth = true;
           workspace = map (
-            name: { inherit name; } // lib.optionalAttrs (name == "web") { layout.mode = "master"; }
+            name: { inherit name; } // lib.optionalAttrs (name == "web") { layout.mode = "dwindle"; }
           ) workspaces;
 
           scratchpad = [
