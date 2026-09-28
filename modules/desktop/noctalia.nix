@@ -200,6 +200,7 @@ in
             telemetry_enabled = false;
             setup_wizard_enabled = false;
             greeter_sync.auto_sync = true;
+            umbriel_overview_type_to_launch_enabled = true;
             panel = {
               shadow = false;
               transparency_mode = "solid";
