@@ -41,6 +41,7 @@ in
         casks = [
           "firefox"
           "helium-browser"
+          "obs"
         ];
         # Nothing is removed until casks are managed here.
         onActivation.cleanup = "none";

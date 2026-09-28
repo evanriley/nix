@@ -17,6 +17,7 @@ in
     audio
     bluetooth
     fonts
+    obs
   ];
 
   flake.modules.homeManager.workstation.imports = with homeManager; [
