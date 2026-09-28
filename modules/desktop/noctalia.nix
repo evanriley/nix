@@ -20,6 +20,12 @@ in
       };
       systemd.user.services.nm-applet.unitConfig = outsideUmbriel;
 
+      age.secrets.fastmail-caldav = {
+        file = inputs.self + "/secrets/${config.networking.hostName}/fastmail-caldav.age";
+        owner = user.name;
+        mode = "0400";
+      };
+
       services.displayManager.noctalia-greeter = {
         enable = true;
         passwordless-sync-users = [ user.name ];
@@ -222,6 +228,20 @@ in
           desktop_widgets.enabled = false;
 
           osd.position = "bottom_center";
+
+          calendar = {
+            enabled = true;
+            account.fastmail = {
+              type = "caldav";
+              name = "Fastmail";
+              provider = "custom";
+              server_url = "https://caldav.fastmail.com/dav/";
+              username = user.email;
+              calendars = [ ];
+              credential_source = "file";
+              password_file = "/run/agenix/fastmail-caldav";
+            };
+          };
 
           location = {
             auto_locate = false;
