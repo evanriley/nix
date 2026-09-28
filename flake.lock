@@ -104,6 +104,29 @@
         "url": "ssh://git@github.com/evanriley/berkeley-mono"
       }
     },
+    "claude-code-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "systems": [
+          "systems"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790622107,
+        "narHash": "sha256-pDJebGqhamp5ANX6vx5oAgwHye6CPTWAIss8aMEH1ds=",
+        "owner": "sadjow",
+        "repo": "claude-code-nix",
+        "rev": "041321f576473e072ebe03d6d9a3e79a2aad9580",
+        "type": "github"
+      },
+      "original": {
+        "owner": "sadjow",
+        "repo": "claude-code-nix",
+        "type": "github"
+      }
+    },
     "crane": {
       "locked": {
         "lastModified": 1789760033,
@@ -653,6 +676,7 @@
       "inputs": {
         "agenix": "agenix",
         "berkeley-mono": "berkeley-mono",
+        "claude-code-nix": "claude-code-nix",
         "crane": "crane",
         "disko": "disko",
         "flake-parts": "flake-parts",

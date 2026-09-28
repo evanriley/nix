@@ -55,6 +55,11 @@
       url = "github:noctalia-dev/umbriel";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    claude-code-nix = {
+      url = "github:sadjow/claude-code-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.systems.follows = "systems";
+    };
     noctalia.url = "github:noctalia-dev/noctalia/cachix";
     noctalia-greeter = {
       url = "github:noctalia-dev/noctalia-greeter";

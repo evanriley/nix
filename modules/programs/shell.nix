@@ -137,7 +137,6 @@ in
         )
         ++ (with pkgs; [
           bat
-          (claude-code.override { manifest = lib.importJSON ./_ai/claude-code-manifest.zst.json; })
           codex
           devenv
           eza
@@ -153,6 +152,7 @@ in
           tree-sitter
           unzip
           uv
-        ]);
+        ])
+        ++ [ inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.claude-code ];
     };
 }
