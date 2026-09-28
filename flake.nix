@@ -61,6 +61,14 @@
       url = "github:noctalia-dev/noctalia-greeter";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    noctalia-plugins-official = {
+      url = "github:noctalia-dev/official-plugins";
+      flake = false;
+    };
+    noctalia-plugins-community = {
+      url = "github:noctalia-dev/community-plugins";
+      flake = false;
+    };
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware";
       inputs.nixpkgs.follows = "nixpkgs";

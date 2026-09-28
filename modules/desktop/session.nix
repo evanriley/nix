@@ -206,6 +206,7 @@ in
         tailscale-systray = sessionService {
           description = "Tailscale tray";
           exec = "${pkgs.tailscale}/bin/tailscale systray";
+          unit = outsideUmbriel;
         };
 
         # No WantedBy: toggled by Waybar's stay-awake button.

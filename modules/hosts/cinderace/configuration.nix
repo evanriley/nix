@@ -44,6 +44,9 @@ in
 
       services.mpd.musicDirectory = "/mnt/Media/Music";
 
+      programs.noctalia.settings.plugin_settings."mindnbytes/nix-status".nixos_configuration =
+        "cinderace";
+
       programs.btop = {
         package = pkgs.btop.override {
           rocmSupport = true;
