@@ -137,7 +137,7 @@ in
         )
         ++ (with pkgs; [
           bat
-          claude-code
+          (claude-code.override { manifest = lib.importJSON ./_ai/claude-code-manifest.zst.json; })
           codex
           devenv
           eza
