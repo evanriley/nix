@@ -48,6 +48,38 @@ in
         exec = "${lib.getExe display-mode} --watch";
       };
 
+      programs.noctalia.settings.lockscreen_widgets = {
+        enabled = true;
+        schema_version = 2;
+        widget_order = [
+          "lockscreen-login-box@DP-2"
+          "lockscreen-clock@DP-2"
+        ];
+        widget = {
+          "lockscreen-login-box@DP-2" = {
+            type = "login_box";
+            output = "DP-2";
+            cx = 1536.0;
+            cy = 1546.0;
+            box_width = 810.0;
+            box_height = 196.0;
+            settings = {
+              background_radius = 0.0;
+              input_radius = 0.0;
+            };
+          };
+          "lockscreen-clock@DP-2" = {
+            type = "clock";
+            output = "DP-2";
+            cx = 1536.0;
+            cy = 520.0;
+            box_width = 720.0;
+            box_height = 260.0;
+            settings.format = "{:%H:%M}\n{:%A, %B %d}";
+          };
+        };
+      };
+
       programs.umbriel.settings = {
         # No mode: umbriel reapplies this on every hotplug, and display-mode
         # picks the mode. The scale matches the 6K mode used at login.
