@@ -75,7 +75,10 @@ in
             cy = 520.0;
             box_width = 720.0;
             box_height = 260.0;
-            settings.format = "{:%H:%M}\n{:%A, %B %d}";
+            settings = {
+              format = "{:%H:%M}\n{:%A, %B %d}";
+              background = false;
+            };
           };
         };
       };

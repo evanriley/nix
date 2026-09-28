@@ -274,9 +274,8 @@ in
           lockscreen = {
             enabled = true;
             allow_empty_password = true;
-            wallpaper = "${../theme/lockscreen-${mode}.png}";
             blur_intensity = 0.0;
-            tint_intensity = 0.0;
+            tint_intensity = 1.0;
           };
 
           idle.behavior = {
