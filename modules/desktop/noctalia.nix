@@ -245,6 +245,8 @@ in
 
           osd.position = "bottom_center";
 
+          audio.enable_sounds = false;
+
           nightlight.enabled = true;
 
           notification = {
