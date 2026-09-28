@@ -210,6 +210,10 @@ in
             inherit mode;
             source = "custom";
             custom_palette = "monobiome";
+            templates = {
+              enable_builtin_templates = false;
+              enable_community_templates = false;
+            };
           };
 
           wallpaper.enabled = false;
