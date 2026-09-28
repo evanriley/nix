@@ -90,7 +90,6 @@ in
           scale = 2.0;
           # Fullscreen windows that request it, or match a tearing rule.
           tearing = true;
-          direct_scanout = false;
         };
         keybinds."Mod+Ctrl+M" = {
           action = "spawn:${config.home.homeDirectory}/.local/bin/display-mode";
