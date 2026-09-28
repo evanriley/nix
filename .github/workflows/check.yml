@@ -28,10 +28,19 @@ jobs:
           extra_nix_config: |
             system-features = nixos-test benchmark big-parallel kvm
 
+      # CI cannot fetch the private berkeley-mono input; a public font stands in.
+      - name: Stand in for berkeley-mono
+        run: |
+          stub="$RUNNER_TEMP/berkeley-mono"
+          mkdir -p "$stub/fonts"
+          fonts=$(nix build --no-link --print-out-paths nixpkgs#dejavu_fonts)
+          cp "$fonts/share/fonts/truetype/DejaVuSansMono.ttf" "$stub/fonts/"
+          echo "OVERRIDE_BERKELEY_MONO=path:$stub" >> "$GITHUB_ENV"
+
       # Evaluates every output and builds the checks. homeConfigurations are not
-      # evaluated: they need the private berkeley-mono and manta inputs.
+      # evaluated: they need the private manta input.
       - name: Flake check
-        run: nix flake check -L
+        run: nix flake check -L --override-input berkeley-mono "$OVERRIDE_BERKELEY_MONO"
 
       - name: Evaluate every system
         run: |
@@ -40,7 +49,8 @@ jobs:
             [ "$kind" = darwinConfigurations ] && attr=system
             for host in $(nix eval --raw ".#$kind" --apply 'c: toString (builtins.attrNames c)'); do
               echo "::group::$kind.$host"
-              nix eval --raw ".#$kind.$host.$attr.drvPath"
+              nix eval --raw --override-input berkeley-mono "$OVERRIDE_BERKELEY_MONO" \
+                ".#$kind.$host.$attr.drvPath"
               echo
               echo "::endgroup::"
             done
