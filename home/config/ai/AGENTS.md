@@ -39,12 +39,24 @@ in `~/.claude/agents` do the work.
 - Send implementation to the lowest worker tier that fits: `worker-low`, then
   `worker-medium` as the default. Each agent's description holds its entry
   criteria.
-- `worker-high` has a high bar: meet a criterion in its description, consult
-  `oracle` first, and name the criterion when delegating.
+- When I name a tier (low, medium, high or ultra), use that worker and skip its
+  entry criteria.
+- `worker-high` has a high bar: meet a criterion in its description and name it
+  when delegating.
 - `worker-ultra` has the highest bar: use it only after `worker-high` failed or
   came back uncertain, or when I ask for ultra. Tell me when you escalate.
+- Use `oracle` when I ask for it, or for a second opinion after a failed attempt
+  or before an irreversible change. It is slow and costly, so not by default.
+- When work splits into independent parts with no shared files, launch the
+  workers in parallel in one message. Keep it in one worker when the parts need
+  coordination or edit the same files.
+- Delegate reproducing and narrowing a failure to a worker with the `debugging`
+  skill; keep the diagnosis for yourself.
 - Give each worker a self-contained task: goal, files, the approved spec and
   how to verify. Workers start without this conversation.
+- Review worker output from its diff and verification report. Load
+  `code-review` yourself only for `worker-high` and `worker-ultra` results or
+  when I ask.
 - Never pass `model` on an Agent call; it overrides the agent's model.
 - Say which agent you chose and why in one line.
 
