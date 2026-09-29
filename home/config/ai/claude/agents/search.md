@@ -2,6 +2,7 @@
 name: search
 description: "Fast codebase retrieval. Finds where code, config or behavior lives and returns file:line answers. Use instead of Explore."
 model: haiku
+omitClaudeMd: true
 tools: Read, Grep, Glob, Bash
 ---
 

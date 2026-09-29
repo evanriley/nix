@@ -3,6 +3,7 @@ name: librarian
 description: "Research on external code and documentation, such as nixpkgs, upstream repositories, library source and API docs. Use when the answer lives outside the working tree."
 model: sonnet
 effort: medium
+omitClaudeMd: true
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
 ---
 
