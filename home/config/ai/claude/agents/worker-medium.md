@@ -1,8 +1,8 @@
 ---
 name: worker-medium
 description: "Medium tier and the default for implementation. Implements messy, multi-part tasks or fuzzy requirements, a feature from an approved spec, a multi-file change, a bug fix whose cause is known, or tests."
-model: sonnet
-effort: high
+model: opus
+effort: medium
 disallowedTools: Agent
 skills:
   - code-guidelines
