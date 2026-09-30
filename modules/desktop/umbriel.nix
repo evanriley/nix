@@ -1,13 +1,8 @@
 { config, inputs, ... }:
 let
-  inherit (config.flake.lib) portalInterfaces xwaylandSatellite;
+  inherit (config.flake.lib) portalInterfaces;
 
-  # The package puts its own xwayland-satellite first on PATH.
-  umbrielPackage =
-    pkgs:
-    inputs.umbriel.packages.${pkgs.stdenv.hostPlatform.system}.default.override {
-      xwayland-satellite = xwaylandSatellite pkgs;
-    };
+  umbrielPackage = pkgs: inputs.umbriel.packages.${pkgs.stdenv.hostPlatform.system}.default;
 in
 {
   flake.lib = { inherit umbrielPackage; };
