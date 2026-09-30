@@ -45,8 +45,13 @@ in `~/.claude/agents` do the work.
   when delegating.
 - `worker-ultra` has the highest bar: use it only after `worker-high` failed or
   came back uncertain, or when I ask for ultra. Tell me when you escalate.
-- Use `oracle` when I ask for it, or for a second opinion after a failed attempt
-  or before an irreversible change. It is slow and costly, so not by default.
+- Use `oracle` automatically only after a worker failed verification or when
+  the root cause is still unknown after searching. Before writing a spec for a
+  task that meets a `worker-high` criterion, propose consulting it in one line
+  naming the criterion, and wait for my yes. Otherwise only when I ask. It is
+  slow and costly.
+- When `oracle` designed or reviewed the spec, implement it with
+  `worker-medium` unless a `worker-high` criterion still holds.
 - When work splits into independent parts with no shared files, launch the
   workers in parallel in one message. Keep it in one worker when the parts need
   coordination or edit the same files.

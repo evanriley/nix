@@ -1,6 +1,6 @@
 ---
 name: worker-high
-description: "High tier. Use only when one of these holds and the delegation names it: worker-medium failed verification twice; the root cause is still unknown after searching; the change is cross-cutting or involves concurrency, where a subtle miss is expensive; or the change touches boot, data-loss or security paths, or invariants shared across subsystems."
+description: "High tier. Use only when one of these holds and the delegation names it: worker-medium failed verification twice; the root cause is still unknown after searching; the change involves concurrency (thread lifetimes, locking, cross-thread ordering); the change touches data-loss, security or boot paths; or the change alters an invariant other subsystems rely on. Not on their own: the number of files or subsystems touched, or a spec the oracle designed or reviewed."
 model: opus
 effort: xhigh
 disallowedTools: Agent

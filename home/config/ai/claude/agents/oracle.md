@@ -1,6 +1,6 @@
 ---
 name: oracle
-description: "Complex reasoning and planning on code. Designs approaches, makes architecture calls, diagnoses hard failures and reviews worker diffs. Use when the user asks for the oracle, or when stuck after a failed attempt."
+description: "Complex reasoning and planning on code. Designs approaches, makes architecture calls, diagnoses hard failures and reviews worker diffs. Use when the user asks for it or approves a proposal to consult it, or automatically after a worker failed verification or when the root cause is still unknown after searching."
 model: fable
 effort: xhigh
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
