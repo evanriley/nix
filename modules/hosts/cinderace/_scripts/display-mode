@@ -3,8 +3,7 @@
 
 The monitor exposes either its 6K or its 3K mode list depending on a physical
 switch. This picks 6144x3456@165 (scale 2) or 3072x1728@330 (scale 1, with a
-240 Hz fallback) from whatever is advertised, and restarts Xwayland clients
-whenever the output settles on a different mode or scale.
+240 Hz fallback) from whatever is advertised.
 """
 
 import argparse
@@ -15,59 +14,6 @@ import socket
 import subprocess
 import sys
 import time
-
-def process_ids(executable):
-    matches = []
-    for entry in Path("/proc").iterdir():
-        if not entry.name.isdigit():
-            continue
-        try:
-            if entry.stat().st_uid != os.getuid():
-                continue
-            command = (entry / "cmdline").read_bytes().split(b"\0", 1)[0]
-        except (FileNotFoundError, PermissionError, ProcessLookupError):
-            continue
-        if command and Path(os.fsdecode(command)).name == executable:
-            matches.append(int(entry.name))
-    return matches
-
-def wait_for_exit(executable, timeout):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if not process_ids(executable):
-            return True
-        time.sleep(0.2)
-    return not process_ids(executable)
-
-def repair_xwayland(dry_run=False):
-    steam_running = bool(process_ids("steam"))
-    satellites = process_ids("xwayland-satellite")
-    if dry_run:
-        if steam_running:
-            print("steam -shutdown")
-        for pid in satellites:
-            print(f"kill -TERM {pid}")
-        if steam_running:
-            print("systemctl --user start steam.service")
-        return
-    if steam_running:
-        try:
-            subprocess.run(["steam", "-shutdown"], check=False,
-                           stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL, timeout=5)
-        except subprocess.TimeoutExpired:
-            pass
-        wait_for_exit("steam", 10)
-    for pid in satellites:
-        try:
-            os.kill(pid, 15)
-        except ProcessLookupError:
-            pass
-    if satellites and not wait_for_exit("xwayland-satellite", 5):
-        raise RuntimeError("xwayland-satellite did not stop")
-    if steam_running:
-        subprocess.run(["systemctl", "--user", "start", "steam.service"], check=False)
-    print("display-mode: repaired Xwayland output geometry", flush=True)
 
 def choose_mode(output):
     if output.get("model") != "Odyssey G80HS" or not output.get("active"):
@@ -193,31 +139,15 @@ def set_umbriel_output(output, mode, scale, dry_run):
             print(f"display-mode: recovery failed: {error}", file=sys.stderr, flush=True)
         raise
 
-def apply_outputs(outputs, set_output, settled, dry_run):
-    """Move outputs to their chosen mode, and repair Xwayland once they settle
-    on a mode or scale that differs from where they last settled.
-
-    Returns whether any output was changed.
-    """
-    changed = False
+def apply_outputs(outputs, set_output, dry_run):
     for output in outputs:
         selected = choose_mode(output)
         if selected is None:
             continue
-        current = output["current_mode"]
-        geometry = (current["width"], current["height"], current["refresh"], output["scale"])
-        # The first sighting is the baseline, so a fix at login still repairs.
-        previous = settled.setdefault(output["name"], geometry)
         mode, scale = selected
-        if mode != current or scale != output["scale"]:
+        if mode != output["current_mode"] or scale != output["scale"]:
             set_output(output, mode, scale, dry_run)
             print(f"display-mode: {timing(mode)}Hz, scale {scale}", flush=True)
-            changed = True
-            continue
-        settled[output["name"]] = geometry
-        if previous != geometry:
-            repair_xwayland(dry_run)
-    return changed
 
 def niri_reader(path):
     sock = socket.socket(socket.AF_UNIX)
@@ -239,15 +169,11 @@ def niri_reader(path):
 def watch_outputs(read_outputs, set_output, watch, dry_run):
     # Written by swayidle while the monitors are powered off.
     paused = Path(os.environ["XDG_RUNTIME_DIR"]) / "monitors-off"
-    settled = {}
     while True:
         try:
             outputs = read_outputs()
             if not paused.exists():
-                changed = apply_outputs(outputs, set_output, settled, dry_run)
-                if changed and not watch:
-                    time.sleep(1)
-                    repair_xwayland(dry_run)
+                apply_outputs(outputs, set_output, dry_run)
         except (subprocess.SubprocessError, RuntimeError, ValueError) as error:
             if not watch:
                 raise
@@ -261,11 +187,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--watch", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--repair-xwayland", action="store_true")
     args = parser.parse_args()
-    if args.repair_xwayland:
-        repair_xwayland(args.dry_run)
-        return 0
     try:
         if os.environ.get("NIRI_SOCKET"):
             return watch_outputs(niri_reader(os.environ["NIRI_SOCKET"]), set_niri_output,

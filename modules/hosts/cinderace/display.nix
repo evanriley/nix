@@ -33,7 +33,6 @@ in
       display-mode = mkScript pkgs {
         name = "display-mode";
         src = ./_scripts/display-mode;
-        # steam comes from the system PATH (programs.steam).
         runtimeInputs = [
           pkgs.niri
           pkgs.wlr-randr
