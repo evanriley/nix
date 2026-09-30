@@ -20,7 +20,6 @@ in
     { pkgs, ... }:
     {
       networking.networkmanager.enable = true;
-      programs.nm-applet.enable = true;
       users.users.${user.name}.extraGroups = [ "networkmanager" ];
 
       xdg.portal = {
@@ -39,8 +38,6 @@ in
       programs.dconf.enable = true;
       services.gvfs.enable = true;
       services.udisks2.enable = true;
-
-      security.pam.services.swaylock = { };
 
       environment.sessionVariables.NIXOS_OZONE_WL = "1";
     };

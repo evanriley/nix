@@ -81,10 +81,10 @@ Profiles in `modules/profiles/`:
 | Module | Contents |
 | --- | --- |
 | `nixos.base`, `darwin.base` | Nix, agenix, user, locale, networking, fish |
-| `nixos.workstation` | `base` plus boot, zram, NextDNS, YubiKey, GDM, niri, umbriel, Plymouth, audio, Bluetooth, fonts |
+| `nixos.workstation` | `base` plus boot, zram, NextDNS, YubiKey, noctalia-greeter, umbriel, Plymouth, audio, Bluetooth, fonts |
 | `homeManager.cli` | Home basics, dotfiles, shell, Atuin, git, jj, Kakoune, Neovim, theme, agent config |
 | `homeManager.workstation` | `cli` plus browsers, Discord, mpv, Bitwarden, YubiKey tools |
-| `homeManager.desktop` | `workstation` plus the Linux session, niri, umbriel and desktop apps |
+| `homeManager.desktop` | `workstation` plus the Linux session, umbriel and desktop apps |
 
 1. Create `modules/hosts/<host>/configuration.nix` with
    `flake.nixosConfigurations.<host>` (or `darwinConfigurations`) and a

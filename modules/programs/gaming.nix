@@ -98,7 +98,6 @@ in
           inputs.manta.packages.${pkgs.stdenv.hostPlatform.system}.default
         ];
 
-        # Not niri spawn-at-startup: it dies in a race at login and niri discards its output.
         systemd.user.services.steam = sessionService {
           description = "Steam";
           exec = "/run/current-system/sw/bin/steam -silent";

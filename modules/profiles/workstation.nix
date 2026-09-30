@@ -10,7 +10,6 @@ in
     nextdns
     yubikey
     desktop
-    niri
     umbriel
     noctalia
     plymouth
@@ -33,7 +32,6 @@ in
   flake.modules.homeManager.desktop.imports = with homeManager; [
     workstation
     session
-    niri
     umbriel
     noctalia
     apps

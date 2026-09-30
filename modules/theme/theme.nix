@@ -115,7 +115,6 @@ in
           # macOS provides pkill and pgrep.
           ++ lib.optionals stdenv.hostPlatform.isLinux [
             procps
-            niri
             systemd
           ];
         text = ''
@@ -133,25 +132,14 @@ in
 
           # foot holds both palettes; the signal selects one.
           if [ "$mode" = dark ]; then pkill -USR1 -x foot || true; else pkill -USR2 -x foot || true; fi
-          # nvim, waybar and qutebrowser run as Nix wrappers named .<name>-wrapped.
+          # nvim and qutebrowser run as Nix wrappers named .<name>-wrapped.
           # pkill matches at most 15 characters of the name without -f.
           pkill -USR1 -x nvim || true
           pkill -USR1 -x '\.nvim-wrapped' || true
-          systemctl --user kill --kill-whom=main --signal=USR2 waybar.service 2>/dev/null || true
-          if systemctl --user is-active --quiet swaync.service 2>/dev/null; then
-            swaync-client --reload-css >/dev/null 2>&1 || true
-          fi
           if systemctl --user is-active --quiet noctalia.service 2>/dev/null && command -v noctalia >/dev/null; then
             noctalia msg config-reload >/dev/null 2>&1 || true
           fi
-          systemctl --user try-restart swayosd.service 2>/dev/null || true
-          # darkman starts before the compositor, so its environment has no
-          # NIRI_SOCKET or UMBRIEL_SOCKET.
-          if [ -z "''${NIRI_SOCKET:-}" ] && command -v systemctl >/dev/null; then
-            NIRI_SOCKET=$(systemctl --user show-environment 2>/dev/null | sed -n 's/^NIRI_SOCKET=//p' || true)
-            export NIRI_SOCKET
-          fi
-          if [ -n "''${NIRI_SOCKET:-}" ]; then niri msg action load-config-file >/dev/null 2>&1 || true; fi
+          # darkman starts before the compositor, so its environment has no UMBRIEL_SOCKET.
           if [ -z "''${UMBRIEL_SOCKET:-}" ] && command -v systemctl >/dev/null; then
             UMBRIEL_SOCKET=$(systemctl --user show-environment 2>/dev/null | sed -n 's/^UMBRIEL_SOCKET=//p' || true)
             export UMBRIEL_SOCKET
@@ -531,27 +519,6 @@ in
           '';
         }
         // lib.optionalAttrs isLinux {
-          "theme/palette.css".text = ''
-            @define-color background #${p.bg};
-            @define-color background_alt #${p.bg_alt};
-            @define-color background_soft #${p.selection};
-            @define-color surface #${p.border};
-            @define-color selection #${p.selection};
-            @define-color border #${p.border};
-            @define-color muted #${p.muted};
-            @define-color foreground #${p.fg};
-            @define-color foreground_bright #${p.fg_max};
-            @define-color primary #${p.blue};
-            @define-color accent #${p.orange};
-            @define-color success #${p.green};
-            @define-color warning #${p.yellow};
-            @define-color error #${p.red};
-          '';
-
-          "theme/fonts.css".text = ''
-            * { font-family: "${monospace}", "Symbols Nerd Font Mono", "Noto Sans", monospace; }
-          '';
-
           "theme/foot.ini".text = ''
             [main]
             initial-color-theme=${mode}
@@ -576,27 +543,6 @@ in
             selection-match=${p.orange}ff
           '';
 
-          "theme/niri.kdl".text = ''
-            layout {
-                background-color "#${p.bg}"
-                border {
-                    active-color "#${p.blue}"
-                    inactive-color "#${p.border}"
-                    urgent-color "#${p.red}"
-                }
-                tab-indicator {
-                    active-color "#${p.blue}"
-                    inactive-color "#${p.border}"
-                    urgent-color "#${p.red}"
-                }
-            }
-            overview { backdrop-color "#${p.bg_alt}"; }
-            window-rule {
-                match is-window-cast-target=true
-                focus-ring { on; width 3; active-color "#${p.red}"; inactive-color "#${p.red}"; }
-            }
-          '';
-
           "noctalia/palettes/monobiome.json".text = builtins.toJSON {
             dark = noctaliaPalette monobiome.dark;
             light = noctaliaPalette monobiome.light;
@@ -612,40 +558,6 @@ in
             [colors.border]
             focused = "#${p.blue}"
             unfocused = "#${p.border}"
-          '';
-
-          "swaylock/config".text = ''
-            color=${p.bg}
-            image=${./lockscreen-${mode}.png}
-            scaling=fill
-            font=${monospace}
-            font-size=24
-            indicator-radius=72
-            indicator-thickness=8
-            indicator-caps-lock
-            show-failed-attempts
-            inside-color=${p.bg}f2
-            inside-clear-color=${p.bg_alt}f2
-            inside-caps-lock-color=${p.bg_alt}f2
-            inside-ver-color=${p.bg_alt}f2
-            inside-wrong-color=${p.bg_alt}f2
-            ring-color=${p.blue}
-            ring-clear-color=${p.green}
-            ring-caps-lock-color=${p.yellow}
-            ring-ver-color=${p.blue_bright}
-            ring-wrong-color=${p.red}
-            key-hl-color=${p.orange}
-            bs-hl-color=${p.red}
-            separator-color=00000000
-            line-color=00000000
-            text-color=${p.fg_max}
-            text-clear-color=${p.fg_max}
-            text-caps-lock-color=${p.yellow}
-            text-ver-color=${p.blue_bright}
-            text-wrong-color=${p.red}
-            layout-bg-color=${p.bg_alt}f2
-            layout-border-color=${p.border}
-            layout-text-color=${p.fg_max}
           '';
         };
 

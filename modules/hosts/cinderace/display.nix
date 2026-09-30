@@ -6,7 +6,7 @@ in
   # Samsung Odyssey G80HS on DP-2. Boot and login are pinned to 6K/165 so
   # Plymouth, the greeter and the compositor share one mode and the screen does
   # not blank. Switch the monitor to 6K before rebooting; display-mode follows
-  # the monitor's 3K/330 mode inside niri and umbriel.
+  # the monitor's 3K/330 mode inside umbriel.
   flake.modules.nixos.cinderace = {
     boot.kernelParams = [
       "video=DP-2:6144x3456@165"
@@ -34,7 +34,6 @@ in
         name = "display-mode";
         src = ./_scripts/display-mode;
         runtimeInputs = [
-          pkgs.niri
           pkgs.wlr-randr
         ];
       };
@@ -96,7 +95,6 @@ in
         };
       };
 
-      # Full-size capture of the 6K mode makes niri's animations stutter.
       gaming.replay.size = "3072x1728";
     };
 }

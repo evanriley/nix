@@ -41,7 +41,7 @@ in
 
           def assert_mode(mode, bg):
               assert as_user("cat ~/.config/theme/mode") == mode
-              assert f"color={bg}" in as_user("cat ~/.config/swaylock/config")
+              assert f'background = "#{bg}"' in as_user("cat ~/.config/theme/umbriel.toml")
               assert as_user("readlink -f ~/.config/theme/foot.ini") != ""
 
           with subtest("base generation is dark and records itself"):

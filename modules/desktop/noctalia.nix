@@ -1,6 +1,5 @@
 { config, inputs, ... }:
 let
-  inherit (config.flake.lib) outsideUmbriel;
   inherit (config.meta) user repoDir location;
 in
 {
@@ -18,7 +17,6 @@ in
         u2fAuth = true;
         rules.auth.u2f.order = 13500;
       };
-      systemd.user.services.nm-applet.unitConfig = outsideUmbriel;
 
       age.secrets.fastmail-caldav = {
         file = inputs.self + "/secrets/${config.networking.hostName}/fastmail-caldav.age";

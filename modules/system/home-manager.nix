@@ -50,7 +50,6 @@ in
         publicShare = null;
         templates = null;
         projects = "${config.home.homeDirectory}/Developer";
-        # niri's screenshot-path writes here.
         extraConfig.SCREENSHOTS = "${config.home.homeDirectory}/Pictures/Screenshots";
       };
     };
