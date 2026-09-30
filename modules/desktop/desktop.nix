@@ -2,24 +2,6 @@
 let
   inherit (config.meta) user;
 
-  # X11 support for niri and umbriel; Steam and Battle.net need it.
-  # 0.8.3 fixes Steam menus closing instantly; drop once nixpkgs has it.
-  xwaylandSatellite =
-    pkgs:
-    pkgs.xwayland-satellite.overrideAttrs (
-      finalAttrs: old: {
-        version = "0.8.3";
-        src = old.src.override {
-          tag = "v${finalAttrs.version}";
-          hash = "sha256-eFEjCCniMCKeWU0PcZNv+tDYe08SLFPjRplyPY8OFt4=";
-        };
-        cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
-          inherit (finalAttrs) pname version src;
-          hash = "sha256-gMGFvnbxM3hD5fmkSimaFd87GEf6BXFe/MGjoS6VNVU=";
-        };
-      }
-    );
-
   # xdg-desktop-portal reads only the current desktop's config, so each
   # compositor module adds these to its own xdg.portal.config entry.
   portalInterfaces = {
@@ -32,7 +14,7 @@ let
   };
 in
 {
-  flake.lib = { inherit xwaylandSatellite portalInterfaces; };
+  flake.lib = { inherit portalInterfaces; };
 
   flake.modules.nixos.desktop =
     { pkgs, ... }:
@@ -40,8 +22,6 @@ in
       networking.networkmanager.enable = true;
       programs.nm-applet.enable = true;
       users.users.${user.name}.extraGroups = [ "networkmanager" ];
-
-      environment.systemPackages = [ (xwaylandSatellite pkgs) ];
 
       xdg.portal = {
         enable = true;
