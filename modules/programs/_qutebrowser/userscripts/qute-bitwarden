@@ -1,8 +1,0 @@
-#!/bin/sh
-
-case "$(uname)" in
-    Darwin) picker='choose -p Bitwarden:' ;;
-    *) picker='fuzzel --dmenu --prompt=Bitwarden: --minimal-lines' ;;
-esac
-
-exec "$(dirname "$0")/qute-bitwarden-local" --dmenu-invocation "$picker" "$@"

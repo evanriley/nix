@@ -16,6 +16,3 @@ __pycache__/
 home/config/fish/fish_variables
 home/config/kak/result
 home/config/mpv/scripts/sponsorblock_shared/sponsorblock.txt
-home/config/qutebrowser/autoconfig.yml
-home/config/qutebrowser/bookmarks/
-home/config/qutebrowser/quickmarks

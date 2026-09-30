@@ -178,7 +178,7 @@ in
             })
             (rule { app_id = "^foot$"; } { default_scrolling_extent = 0.5; })
             (rule {
-              app_id = "^([Ff]irefox|org\\.mozilla\\.firefox|[Ll]ibre[Ww]olf|com\\.brave\\.Browser|brave-browser|org\\.qutebrowser\\.qutebrowser|qutebrowser)$";
+              app_id = "^([Ff]irefox|org\\.mozilla\\.firefox|[Ll]ibre[Ww]olf|com\\.brave\\.Browser|brave-browser)$";
             } { default_workspace = "web"; })
             (rule { app_id = "^([Dd]iscord|com\\.discordapp\\.Discord)$"; } {
               default_workspace = "social";

@@ -269,11 +269,6 @@ minWidth = 660.0
 
 [[appRules]]
 assignToWorkspace = "1"
-bundleId = "org.qutebrowser.qutebrowser"
-id = "D5C477D3-AEA9-4AD2-8BD5-509D18A78A31"
-
-[[appRules]]
-assignToWorkspace = "1"
 bundleId = "net.imput.helium"
 id = "D35C881E-D8C9-44CE-B7C6-2E11E65B7724"
 

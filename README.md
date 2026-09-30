@@ -130,8 +130,7 @@ CI evaluates every host in `nixosConfigurations` and `darwinConfigurations`.
 
 Then, by hand:
 
-- Grant Accessibility to OmniWM, skhd and qutebrowser, and Input Monitoring to
-  OmniWM.
+- Grant Accessibility to OmniWM and skhd, and Input Monitoring to OmniWM.
 - Tailscale app: allow its VPN configuration, log in, and turn off Use
   Tailscale DNS (NextDNS resolves, forwarding `ts.net` to MagicDNS).
 - In Firefox, `about:profiles` → Create a New Profile → Choose Folder

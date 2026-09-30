@@ -132,7 +132,7 @@ in
 
           # foot holds both palettes; the signal selects one.
           if [ "$mode" = dark ]; then pkill -USR1 -x foot || true; else pkill -USR2 -x foot || true; fi
-          # nvim and qutebrowser run as Nix wrappers named .<name>-wrapped.
+          # nvim runs as a Nix wrapper named .nvim-wrapped.
           # pkill matches at most 15 characters of the name without -f.
           pkill -USR1 -x nvim || true
           pkill -USR1 -x '\.nvim-wrapped' || true
@@ -147,7 +147,6 @@ in
           if [ -n "''${UMBRIEL_SOCKET:-}" ] && command -v umbriel >/dev/null; then
             umbriel msg config-reload >/dev/null 2>&1 || true
           fi
-          if pgrep -f '(/bin/\.?qutebrowser(-wrapped)?|/MacOS/qutebrowser)( |$)' >/dev/null; then qutebrowser ':config-source' >/dev/null 2>&1 || true; fi
           if tmux list-sessions >/dev/null 2>&1; then tmux source-file "${themeDir}/tmux.conf" || true; fi
           for session in $(kak -l 2>/dev/null || true); do
             printf 'source %s\n' "${themeDir}/theme.kak" | kak -p "$session" >/dev/null 2>&1 || true
@@ -313,27 +312,6 @@ in
             osd-color='#${p.fg_max}'
             osd-border-color='#${p.bg}'
             osd-shadow-color='#${p.bg}'
-          '';
-
-          "theme/qutebrowser.conf".text = ''
-            mode=${mode}
-            font=${monospace}
-            bg=#${p.bg}
-            bg_alt=#${p.bg_alt}
-            bg_soft=#${p.selection}
-            selection=#${p.selection}
-            border=#${p.border}
-            muted=#${p.muted}
-            fg=#${p.fg_max}
-            fg_alt=#${p.fg_bright}
-            blue=#${p.blue}
-            green=#${p.green}
-            green_alt=#${p.green_bright}
-            magenta=#${p.orange}
-            yellow=#${p.yellow}
-            yellow_bright=#${p.yellow_bright}
-            red=#${p.red}
-            rust=#${p.orange}
           '';
 
           "theme/zathurarc".text = ''
