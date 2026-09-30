@@ -214,22 +214,6 @@
         "type": "github"
       }
     },
-    "friendly-snippets": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1789094887,
-        "narHash": "sha256-Wp10iRKSn6yNUmNbu2o10cKPkytNjs0cdjBUpEYVlow=",
-        "owner": "rafamadriz",
-        "repo": "friendly-snippets",
-        "rev": "b4d01b0fdf3c9a549961c2f9ffe8dc09be166219",
-        "type": "github"
-      },
-      "original": {
-        "owner": "rafamadriz",
-        "repo": "friendly-snippets",
-        "type": "github"
-      }
-    },
     "fromYaml": {
       "flake": false,
       "locked": {
@@ -286,22 +270,6 @@
         "type": "gitlab"
       }
     },
-    "helix": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1790649139,
-        "narHash": "sha256-ZjMduEHRsY0H8OHJ5oiF/AcxOBhIiCBwo7D+g1yYwKc=",
-        "owner": "helix-editor",
-        "repo": "helix",
-        "rev": "ba40e547426b0f9896c8bdc699a4ab11f2b37dbc",
-        "type": "github"
-      },
-      "original": {
-        "owner": "helix-editor",
-        "repo": "helix",
-        "type": "github"
-      }
-    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -334,54 +302,6 @@
       "original": {
         "owner": "vic",
         "repo": "import-tree",
-        "type": "github"
-      }
-    },
-    "kak-auto-pairs": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1733147311,
-        "narHash": "sha256-V8++6qZFsUOQsg0GCC+5PpPgAHsR9mCKB4YDnNBL/QQ=",
-        "owner": "alexherbo2",
-        "repo": "auto-pairs.kak",
-        "rev": "e812ee6006b1c3d8c9afa45a0a90d28714636f81",
-        "type": "github"
-      },
-      "original": {
-        "owner": "alexherbo2",
-        "repo": "auto-pairs.kak",
-        "type": "github"
-      }
-    },
-    "kak-rainbow": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1598911431,
-        "narHash": "sha256-ryYq4A89wVUsxgvt4YqBPXsTFMDrMJM6BDBEHrWHD1c=",
-        "owner": "Bodhizafa",
-        "repo": "kak-rainbow",
-        "rev": "9c3d0aa62514134ee5cb86e80855d9712c4e8c4b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Bodhizafa",
-        "repo": "kak-rainbow",
-        "type": "github"
-      }
-    },
-    "kak-surround": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1537174588,
-        "narHash": "sha256-0PicMTkYRnhtrFAMWVgynE4HfoL9/EHZIu4rTSE+zSU=",
-        "owner": "h-youhei",
-        "repo": "kakoune-surround",
-        "rev": "efe74c6f434d1e30eff70d4b0d737f55bf6c5022",
-        "type": "github"
-      },
-      "original": {
-        "owner": "h-youhei",
-        "repo": "kakoune-surround",
         "type": "github"
       }
     },
@@ -680,14 +600,9 @@
         "crane": "crane",
         "disko": "disko",
         "flake-parts": "flake-parts",
-        "friendly-snippets": "friendly-snippets",
         "git-hooks": "git-hooks",
-        "helix": "helix",
         "home-manager": "home-manager",
         "import-tree": "import-tree",
-        "kak-auto-pairs": "kak-auto-pairs",
-        "kak-rainbow": "kak-rainbow",
-        "kak-surround": "kak-surround",
         "lanzaboote": "lanzaboote",
         "manta": "manta",
         "monobiome": "monobiome",

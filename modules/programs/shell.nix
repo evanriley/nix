@@ -36,7 +36,7 @@ in
     }:
     let
       isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
-      # The hand-edited kak and tmux configs copy through wl-copy/wl-paste.
+      # The hand-edited tmux config copies through wl-copy/wl-paste.
       macClipboard = [
         (pkgs.writeShellScriptBin "wl-copy" "exec /usr/bin/pbcopy")
         (pkgs.writeShellScriptBin "wl-paste" "exec /usr/bin/pbpaste")
@@ -52,8 +52,8 @@ in
       ];
 
       home.sessionVariables = {
-        EDITOR = "kak";
-        VISUAL = "kak";
+        EDITOR = "nvim";
+        VISUAL = "nvim";
       };
       # environment.d rejects empty values such as FZF_CTRL_R_COMMAND.
       systemd.user.sessionVariables = lib.filterAttrs (_: v: v != "") config.home.sessionVariables;

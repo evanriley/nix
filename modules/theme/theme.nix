@@ -148,9 +148,6 @@ in
             umbriel msg config-reload >/dev/null 2>&1 || true
           fi
           if tmux list-sessions >/dev/null 2>&1; then tmux source-file "${themeDir}/tmux.conf" || true; fi
-          for session in $(kak -l 2>/dev/null || true); do
-            printf 'source %s\n' "${themeDir}/theme.kak" | kak -p "$session" >/dev/null 2>&1 || true
-          done
           rmpc_pid=$(pgrep -x rmpc | head -1 || true)
           if [ -n "$rmpc_pid" ]; then
             rmpc remote --pid "$rmpc_pid" set theme "${themeDir}/rmpc.ron" >/dev/null 2>&1 || true
@@ -425,75 +422,6 @@ in
                     thumb_style: (fg: "#${p.blue_bright}"),
                 ),
             )
-          '';
-
-          "theme/theme.kak".text = ''
-            set-face global value          rgb:${p.orange}
-            set-face global type           rgb:${p.yellow}
-            set-face global variable       rgb:${p.fg_max}
-            set-face global module         rgb:${p.blue_bright}
-            set-face global function       rgb:${p.blue}
-            set-face global string         rgb:${p.green}
-            set-face global keyword        rgb:${p.red}+b
-            set-face global operator       rgb:${p.fg}
-            set-face global attribute      rgb:${p.yellow_bright}
-            set-face global comment        rgb:${p.muted}+i
-            set-face global documentation  comment
-            set-face global meta           rgb:${p.orange}
-            set-face global builtin        rgb:${p.blue_bright}
-            set-face global identifier     rgb:${p.fg_max}
-            set-face global bracket        rgb:${p.fg}
-            set-face global delimiter      rgb:${p.fg}
-            set-face global title          rgb:${p.blue}+b
-            set-face global header         rgb:${p.blue_bright}+b
-            set-face global mono           rgb:${p.green_bright}
-            set-face global block          rgb:${p.green_bright}
-            set-face global link           rgb:${p.blue}+u
-            set-face global bullet         rgb:${p.yellow}
-            set-face global list           rgb:${p.fg_max}
-            set-face global Default            rgb:${p.fg_max},rgb:${p.bg}
-            set-face global CursorLine         default,rgb:${p.bg_alt}
-            set-face global PrimarySelection   default,rgb:${p.selection}+g
-            set-face global SecondarySelection default,rgb:${p.bg_alt}+g
-            set-face global PrimaryCursor      rgb:${p.bg},rgb:${p.fg_max}+fg
-            set-face global SecondaryCursor    rgb:${p.bg},rgb:${p.muted}+fg
-            set-face global PrimaryCursorEol   rgb:${p.bg},rgb:${p.fg}+fg
-            set-face global SecondaryCursorEol rgb:${p.bg},rgb:${p.border}+fg
-            set-face global LineNumbers        rgb:${p.muted},rgb:${p.bg}
-            set-face global LineNumberCursor   rgb:${p.yellow},rgb:${p.bg_alt}+b
-            set-face global LineNumbersWrapped rgb:${p.border},rgb:${p.bg}
-            set-face global MenuForeground     rgb:${p.bg},rgb:${p.blue}
-            set-face global MenuBackground     rgb:${p.fg_max},rgb:${p.bg_alt}
-            set-face global MenuInfo           rgb:${p.muted}+i
-            set-face global Information        rgb:${p.fg_max},rgb:${p.bg_alt}
-            set-face global InlineInformation  rgb:${p.fg_max},rgb:${p.bg_alt}
-            set-face global Error              rgb:${p.bg},rgb:${p.red}
-            set-face global StatusLine         rgb:${p.fg_max},rgb:${p.bg_alt}
-            set-face global StatusLineMode     rgb:${p.bg},rgb:${p.yellow}+b
-            set-face global StatusLineInfo     rgb:${p.blue_bright}
-            set-face global StatusLineValue    rgb:${p.orange}
-            set-face global StatusCursor       rgb:${p.bg},rgb:${p.fg_max}
-            set-face global Prompt             rgb:${p.yellow},rgb:${p.bg_alt}
-            set-face global MatchingChar       rgb:${p.yellow_bright},rgb:${p.selection}+b
-            set-face global BufferPadding      rgb:${p.border},rgb:${p.bg}
-            set-face global Whitespace         rgb:${p.border}+f
-            set-face global WhitespaceIndent   rgb:${p.bg_alt}+f
-            set-face global WrapMarker         rgb:${p.border}+f
-            set-face global DiagnosticError        default,default,rgb:${p.red}+c
-            set-face global DiagnosticWarning      default,default,rgb:${p.yellow}+c
-            set-face global DiagnosticInfo         default,default,rgb:${p.blue}+c
-            set-face global DiagnosticHint         default,default,rgb:${p.muted}+c
-            set-face global InlayDiagnosticError   rgb:${p.red}+d
-            set-face global InlayDiagnosticWarning rgb:${p.yellow}+d
-            set-face global InlayDiagnosticInfo    rgb:${p.blue}+d
-            set-face global InlayDiagnosticHint    rgb:${p.muted}+d
-            set-face global LineFlagError          rgb:${p.red}
-            set-face global LineFlagWarning        rgb:${p.yellow}
-            set-face global LineFlagInfo           rgb:${p.blue}
-            set-face global LineFlagHint           rgb:${p.muted}
-            set-face global InlayHint              rgb:${p.muted}+d
-            set-face global InlayCodeLens          rgb:${p.muted}+d
-            set-face global Reference              default,rgb:${p.selection}
           '';
         }
         // lib.optionalAttrs isLinux {

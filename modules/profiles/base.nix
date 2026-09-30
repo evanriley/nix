@@ -25,7 +25,6 @@ in
     dotfiles
     shell
     git
-    kakoune
     neovim
     theme
     ai

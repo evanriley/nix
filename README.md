@@ -24,8 +24,7 @@ git clone git@github.com:evanriley/nix.git ~/nix
 
 Update inputs with `nix flake update --flake ~/nix`. The `update-flake-lock`
 workflow opens a pull request every Monday for the public, unpinned inputs;
-`berkeley-mono`, `manta`, `helix`, `kak-*`, `friendly-snippets`, `monobiome`
-and `lanzaboote` are updated by hand.
+`berkeley-mono`, `manta`, `monobiome` and `lanzaboote` are updated by hand.
 
 After a bad update, restore the previous lock and switch again:
 
@@ -82,7 +81,7 @@ Profiles in `modules/profiles/`:
 | --- | --- |
 | `nixos.base`, `darwin.base` | Nix, agenix, user, locale, networking, fish |
 | `nixos.workstation` | `base` plus boot, zram, NextDNS, YubiKey, noctalia-greeter, umbriel, Plymouth, audio, Bluetooth, fonts |
-| `homeManager.cli` | Home basics, dotfiles, shell, Atuin, git, jj, Kakoune, Neovim, theme, agent config |
+| `homeManager.cli` | Home basics, dotfiles, shell, Atuin, git, jj, Neovim, theme, agent config |
 | `homeManager.workstation` | `cli` plus browsers, Discord, mpv, Bitwarden, YubiKey tools |
 | `homeManager.desktop` | `workstation` plus the Linux session, umbriel and desktop apps |
 

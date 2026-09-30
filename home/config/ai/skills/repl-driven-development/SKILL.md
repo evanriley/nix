@@ -35,7 +35,7 @@ echo '(->> (range 10) (map inc))' | <skill-dir>/scripts/nrepl-eval --ns app.core
 
 - Output prints as-is, values as `=> <value>`, exceptions as `!! <class>`
   with exit status 1.
-- A REPL I started (jack-in from Kakoune) is shared: my state is visible and
+- A REPL I started (jack-in from Neovim) is shared: my state is visible and
   changes affect my session. Do not redefine or reset things I did not ask to
   change, and do not stop my REPL.
 - No `.nrepl-port`: start one in the background from the project root with the

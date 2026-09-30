@@ -99,27 +99,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     crane.url = "github:ipetkov/crane";
-
-    helix = {
-      url = "github:helix-editor/helix";
-      flake = false;
-    };
-    kak-auto-pairs = {
-      url = "github:alexherbo2/auto-pairs.kak";
-      flake = false;
-    };
-    kak-surround = {
-      url = "github:h-youhei/kakoune-surround";
-      flake = false;
-    };
-    kak-rainbow = {
-      url = "github:Bodhizafa/kak-rainbow";
-      flake = false;
-    };
-    friendly-snippets = {
-      url = "github:rafamadriz/friendly-snippets";
-      flake = false;
-    };
   };
 
   outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);

@@ -1,9 +1,0 @@
-#!/bin/sh
-# kak-tmux-popup <pane> <directory> <width> <height> <program> [<arguments>]
-# Opens a tmux popup on the client showing <pane>'s session. Fails when none is attached.
-pane=$1 dir=$2 width=$3 height=$4
-shift 4
-session=$(tmux display-message -p ${pane:+-t "$pane"} '#{session_id}') || exit 1
-client=$(tmux list-clients -t "$session" -F '#{client_activity} #{client_name}' | sort -rn | head -n 1 | cut -d' ' -f2-)
-[ -n "$client" ] || exit 1
-tmux display-popup -E -c "$client" -w "$width" -h "$height" -d "$dir" -- "$@" </dev/null >/dev/null 2>&1 &
