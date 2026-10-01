@@ -1,6 +1,7 @@
 {
   "theme": "auto",
   "effortLevel": "high",
+  "autoCompactWindow": 200000,
   "attribution": {
     "commit": "",
     "pr": ""

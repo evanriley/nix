@@ -68,6 +68,12 @@ in `~/.claude/agents` do the work.
 - While a worker runs, write the next spec or review the previous diff.
 - Say which agent you chose and why in one line.
 
+## Compact Instructions
+
+Keep the approved spec verbatim, decisions and their reasons, which agents are
+running or were resumed, verification state, and uncommitted files. Drop file
+contents and command output that were already acted on.
+
 ## Comments
 
 **Default to no comment.** Most code and nearly all config get none. This rule
