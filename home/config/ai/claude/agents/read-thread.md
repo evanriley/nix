@@ -1,7 +1,8 @@
 ---
 name: read-thread
 description: "Reads and summarizes past Claude Code sessions. Use when the user refers to earlier work, another session or a previous decision."
-model: haiku
+model: sonnet
+effort: medium
 omitClaudeMd: true
 tools: Read, Grep, Glob, Bash
 ---

@@ -32,37 +32,40 @@ I ask you to delegate. In the main session you plan and orchestrate; the agents
 in `~/.claude/agents` do the work.
 
 - Keep for yourself: talking with me, specs and approval, choosing agents,
-  reviewing their output, final verification and commits. Edits of a few lines
-  to files already in context are cheaper to make directly.
-- Search the codebase with `search`, not `Explore`. Research external code and
+  reviewing their output, final verification and commits.
+- Work inline, without spawning, for edits of a few lines to files already in
+  context and for single-command checks.
+- Find and map code with `search`, not `Explore` or `cat`. In the main session
+  read only the line ranges a spec or review needs. Research external code and
   docs with `librarian`. Recover earlier sessions with `read-thread`.
-- Send implementation to the lowest worker tier that fits: `worker-low`, then
-  `worker-medium` as the default. Each agent's description holds its entry
-  criteria.
-- When I name a tier (low, medium, high or ultra), use that worker and skip its
-  entry criteria.
-- `worker-high` has a high bar: meet a criterion in its description and name it
-  when delegating.
-- `worker-ultra` has the highest bar: use it only after `worker-high` failed or
-  came back uncertain, or when I ask for ultra. Tell me when you escalate.
-- Use `oracle` automatically only after a worker failed verification or when
-  the root cause is still unknown after searching. Before writing a spec for a
-  task that meets a `worker-high` criterion, propose consulting it in one line
-  naming the criterion, and wait for my yes. Otherwise only when I ask. It is
-  slow and costly.
-- When `oracle` designed or reviewed the spec, implement it with
-  `worker-medium` unless a `worker-high` criterion still holds.
-- When work splits into independent parts with no shared files, launch the
-  workers in parallel in one message. Keep it in one worker when the parts need
-  coordination or edit the same files.
-- Delegate reproducing and narrowing a failure to a worker with the `debugging`
-  skill; keep the diagnosis for yourself.
-- Give each worker a self-contained task: goal, files, the approved spec and
-  how to verify. Workers start without this conversation.
-- Review worker output from its diff and verification report. Load
-  `code-review` yourself only for `worker-high` and `worker-ultra` results or
-  when I ask.
-- Never pass `model` on an Agent call; it overrides the agent's model.
+- Send all other implementation to `worker`. Pass `model: sonnet` when the spec
+  names every edit, touches at most about three files and leaves no decision;
+  otherwise pass no `model`.
+- Use `worker-high` only when the delegation names one of: concurrency (thread
+  lifetimes, locking, cross-thread ordering); data-loss, security or boot
+  paths; or `worker` failed verification twice on the same task. Task size and
+  an oracle-designed spec do not qualify on their own.
+- When I name `worker-high` or `oracle`, use it and skip its criteria.
+- Size each worker task to one commit. A worker running past about 40 minutes
+  means the task was too big; split the next one.
+- When a hand-back fails review or verification, send the findings to the same
+  agent once. On a second failure, spawn a `worker` with the `debugging` skill
+  to reproduce and narrow it; keep the diagnosis for yourself.
+- Run workers in parallel only for parts with disjoint files, at most three at
+  once. Never run oracles in parallel.
+- Use `oracle` before the spec for `worker-high`-grade work, after proposing it
+  in one line and getting my yes; when the cause is still unknown after a
+  debugging worker narrowed it; or when I ask. Use one oracle per feature and
+  resume it for follow-ups. It reviews a diff only on a `worker-high`-grade
+  path where no runnable check can demonstrate the property.
+- Give each worker a self-contained task: goal, files with the `file:line` map
+  from `search`, the approved spec and how to verify. Workers start without
+  this conversation.
+- Review worker output from its diff and evidence block: each acceptance
+  criterion has a command and output behind it, the files match the spec, no
+  test was weakened. Run runnable criteria yourself instead of reasoning about
+  them.
+- While a worker runs, write the next spec or review the previous diff.
 - Say which agent you chose and why in one line.
 
 ## Comments
