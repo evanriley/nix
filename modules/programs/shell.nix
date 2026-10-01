@@ -135,7 +135,6 @@ in
         )
         ++ (with pkgs; [
           bat
-          codex
           devenv
           eza
           fastfetch
@@ -151,6 +150,9 @@ in
           unzip
           uv
         ])
-        ++ [ inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.claude-code ];
+        ++ [
+          inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
+          inputs.codex-cli-nix.packages.${pkgs.stdenv.hostPlatform.system}.codex
+        ];
     };
 }

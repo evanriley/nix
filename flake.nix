@@ -33,6 +33,11 @@
       inputs.flake-parts.follows = "flake-parts";
       inputs.systems.follows = "systems";
     };
+    codex-cli-nix = {
+      url = "github:sadjow/codex-cli-nix";
+      inputs.flake-utils.inputs.systems.follows = "systems";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     # Private repository; fetching it needs GitHub SSH access.
     berkeley-mono = {
       url = "git+ssh://git@github.com/evanriley/berkeley-mono";
