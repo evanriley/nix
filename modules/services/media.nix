@@ -59,7 +59,10 @@ in
           };
         };
 
-        systemd.services.lidarr.unitConfig.RequiresMountsFor = [ "/data" ];
+        systemd.services.lidarr = {
+          unitConfig.RequiresMountsFor = [ "/data" ];
+          serviceConfig.UMask = "0002";
+        };
         systemd.services.slskd = {
           unitConfig.RequiresMountsFor = [ "/data" ];
           # Lidarr (group media) must delete downloaded files when it imports them.
