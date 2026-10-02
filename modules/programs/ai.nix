@@ -17,6 +17,68 @@ in
           builtins.readDir (inputs.self + "/home/config/ai/skills")
         )
       );
+      codexRoles = {
+        search = {
+          model = "gpt-6-luna";
+          effort = "medium";
+        };
+        librarian = {
+          model = "gpt-6.1-sol";
+          effort = "medium";
+        };
+        oracle = {
+          model = "gpt-6-astra";
+          effort = "xhigh";
+        };
+        worker = {
+          model = "gpt-6.1-sol";
+          effort = "medium";
+        };
+        worker-high = {
+          model = "gpt-6.1-sol";
+          effort = "xhigh";
+        };
+      };
+      readClaudeAgent =
+        role:
+        let
+          lines = lib.splitString "\n" (
+            builtins.readFile (inputs.self + "/home/config/ai/claude/agents/${role}.md")
+          );
+          afterOpening = lib.tail lines;
+          closingIndex = lib.lists.findFirstIndex (
+            line: line == "---"
+          ) (throw "${role}.md has no closing frontmatter line") afterOpening;
+          frontmatter = lib.take closingIndex afterOpening;
+          descriptionLine =
+            lib.findFirst (lib.hasPrefix "description: ") (throw "${role}.md has no description")
+              frontmatter;
+        in
+        {
+          description = lib.removeSuffix "\"" (lib.removePrefix "description: \"" descriptionLine);
+          body = lib.trim (lib.concatStringsSep "\n" (lib.drop (closingIndex + 1) afterOpening));
+        };
+      codexAgentFiles = lib.mapAttrs' (
+        role: settings:
+        let
+          agent = readClaudeAgent role;
+          guidelines = lib.optionalString (lib.elem role [
+            "worker"
+            "worker-high"
+          ]) "Load the `code-guidelines` skill before editing.\n\n";
+        in
+        lib.nameValuePair ".codex/agents/${role}.toml" {
+          source = (pkgs.formats.toml { }).generate "${role}.toml" {
+            name = role;
+            inherit (agent) description;
+            developer_instructions = guidelines + agent.body;
+            inherit (settings) model;
+            model_reasoning_effort = settings.effort;
+          };
+        }
+      ) codexRoles;
+      pythonWithTomlkit = pkgs.python3.withPackages (python: [ python.tomlkit ]);
+      mergeToml = "${lib.getExe pythonWithTomlkit} ${./_ai/merge-toml}";
       # Per skill, because claude.ai keeps its synced skills in ~/.claude/skills.
       linkSkills =
         dir:
@@ -50,7 +112,8 @@ in
         ".codex/AGENTS.md".source = link "config/ai/AGENTS.md";
       }
       // linkSkills ".claude/skills"
-      // linkSkills ".agents/skills";
+      // linkSkills ".agents/skills"
+      // codexAgentFiles;
 
       # Claude Code refuses to save settings through a symlink, so settings.json is
       # a real file: the keys from the repository win, the rest is Claude Code's.
@@ -70,6 +133,11 @@ in
         printf '%s\n' "$merged" >"$tmp"
         run install -m 600 "$tmp" "$settings"
         rm -f "$tmp"
+      '';
+
+      home.activation.codexConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+        run mkdir -p "$HOME/.codex"
+        run ${mergeToml} ${../../home/config/ai/codex/config.toml} "$HOME/.codex/config.toml"
       '';
     };
 }

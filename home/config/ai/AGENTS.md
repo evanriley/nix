@@ -26,7 +26,7 @@ Global instructions for coding agents. Repository instructions (`AGENTS.md`,
 - Load the `code-guidelines` skill before writing code, `code-review` before
   reviewing it, and `debugging` when something fails or misbehaves.
 
-## Delegation (Claude Code)
+## Delegation
 
 I ask you to delegate. In the main session you plan and orchestrate; the agents
 in `~/.claude/agents` do the work.
@@ -66,6 +66,8 @@ in `~/.claude/agents` do the work.
   test was weakened. Run runnable criteria yourself instead of reasoning about
   them.
 - While a worker runs, write the next spec or review the previous diff.
+- In Codex, spawn these agents by name through `agent_type`; `explorer` is not
+  `search`, and the `model: sonnet` rule and `read-thread` are Claude Code only.
 - Say which agent you chose and why in one line.
 
 ## Compact Instructions
