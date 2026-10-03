@@ -24,9 +24,9 @@
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
+          ExecStartPre = "${tailscale} wait --timeout=60s";
           ExecStart = "${tailscale} serve --bg --https=${toString Port} http://${Address}:${toString Port}";
           ExecStop = "${tailscale} serve --https=${toString Port} off";
-          # tailscaled refuses serve until it has logged in.
           Restart = "on-failure";
           RestartSec = 10;
         };
