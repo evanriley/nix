@@ -175,6 +175,10 @@ in
 
         fonts.fontconfig.enable = true;
 
+        gtk.theme.name = lib.mkIf isLinux (
+          lib.mkForce (if mode == "dark" then "adw-gtk3-dark" else "adw-gtk3")
+        );
+
         stylix = {
           enable = true;
           autoEnable = false;
