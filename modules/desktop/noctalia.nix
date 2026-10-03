@@ -143,7 +143,9 @@ in
       pluginDir = pkgs.runCommandCC "noctalia-plugins" { } ''
         mkdir $out
         ${lib.concatMapStrings (path: "cp -r ${path} $out/\n") (lib.attrValues plugins)}
-        chmod -R u+w $out/game-launcher
+        chmod -R u+w $out/game-launcher $out/claudecode
+        substituteInPlace $out/claudecode/service.luau \
+          --replace-fail "  end)" "  end, 60000)"
         cd $out/game-launcher
         $CC -O2 -o gamelauncher gamelauncher.c sqlite_reader.c
         for panel in panel.luau original.luau; do
