@@ -32,7 +32,7 @@ in
 
         install -d -m 0775 /var/lib/AccountsService/icons
         install -d -m 0700 /var/lib/AccountsService/users
-        if ! cmp -s ${./avatar.jpg} "$icon"; then
+        if ! ${pkgs.diffutils}/bin/cmp -s ${./avatar.jpg} "$icon"; then
           install -m 0644 ${./avatar.jpg} "$icon"
           changed=1
         fi
