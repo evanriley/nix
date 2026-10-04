@@ -33,10 +33,9 @@
       inputs.flake-parts.follows = "flake-parts";
       inputs.systems.follows = "systems";
     };
-    codex-cli-nix = {
-      url = "github:sadjow/codex-cli-nix";
-      inputs.flake-utils.inputs.systems.follows = "systems";
-      inputs.nixpkgs.follows = "nixpkgs";
+    llm-agents = {
+      url = "github:numtide/llm-agents.nix";
+      inputs.systems.follows = "systems";
     };
     # Private repository; fetching it needs GitHub SSH access.
     berkeley-mono = {
@@ -59,11 +58,6 @@
     umbriel = {
       url = "github:noctalia-dev/umbriel";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-    claude-code-nix = {
-      url = "github:sadjow/claude-code-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.systems.follows = "systems";
     };
     noctalia = {
       url = "github:noctalia-dev/noctalia/cachix";

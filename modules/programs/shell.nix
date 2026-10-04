@@ -150,9 +150,9 @@ in
           unzip
           uv
         ])
-        ++ [
-          inputs.claude-code-nix.packages.${pkgs.stdenv.hostPlatform.system}.claude-code
-          inputs.codex-cli-nix.packages.${pkgs.stdenv.hostPlatform.system}.codex
-        ];
+        ++ (with inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}; [
+          claude-code
+          codex
+        ]);
     };
 }
