@@ -20,6 +20,7 @@ in
         "Developer/orca/.zig-cache"
         "Developer/orca/zig-out"
         "Developer/qbz/crates/target"
+        "Developer/Strata/Strata-data"
       ];
 
       services.snapper.configs.home = {
