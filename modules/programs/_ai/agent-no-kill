@@ -6,7 +6,13 @@ set -uo pipefail
 
 command=$(jq -r '.tool_input.command // empty')
 
-if printf '%s\n' "$command" | grep -Eq '(^|[^[:alnum:]_./-])(/[^[:space:]]*/)?(kill|pkill|killall)([^[:alnum:]_.-]|$)'; then
+command_start='(^|[;&|({`]|\$\(|-c[[:space:]]+['\''"])[[:space:]]*'
+assignments='([[:alnum:]_]+=[^[:space:]]*[[:space:]]+)*'
+wrapper_args='(-[[:alpha:]][[:space:]]+[^-[:space:];&|][^[:space:]]*[[:space:]]+|-[^[:space:]]*[[:space:]]+|[[:alnum:]_]+=[^[:space:]]*[[:space:]]+|[0-9][^[:space:]]*[[:space:]]+)*'
+wrappers="((sudo|doas|env|exec|nohup|command|builtin|nice|setsid|time|timeout|xargs)[[:space:]]+${wrapper_args})*"
+program='(/[^[:space:]]*/)?(kill|pkill|killall)([[:space:];&|)`]|$)'
+
+if printf '%s\n' "$command" | grep -Eq "${command_start}${assignments}${wrappers}${program}"; then
   echo "Blocked: kill, pkill and killall are not run by agents. Ask the user to run the exact command, or stop processes you started with the session's guarded safe-kill script." >&2
   exit 2
 fi
