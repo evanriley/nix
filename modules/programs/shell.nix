@@ -151,6 +151,7 @@ in
           uv
         ])
         ++ (with inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}; [
+          amp
           claude-code
           codex
         ]);
