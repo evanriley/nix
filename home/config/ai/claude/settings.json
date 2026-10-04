@@ -17,6 +17,12 @@
         "hooks": [{ "type": "command", "command": "agent-notify" }]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "agent-no-kill" }]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|MultiEdit|Write",

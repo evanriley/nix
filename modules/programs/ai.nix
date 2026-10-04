@@ -97,6 +97,11 @@ in
           runtimeInputs = [ pkgs.jq ] ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.libnotify;
         })
         (mkScript pkgs {
+          name = "agent-no-kill";
+          src = ./_ai/agent-no-kill;
+          runtimeInputs = [ pkgs.jq ];
+        })
+        (mkScript pkgs {
           name = "agent-format";
           src = ./_ai/agent-format;
           runtimeInputs = [

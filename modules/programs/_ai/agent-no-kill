@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Claude Code PreToolUse hook for Bash: refuse kill, pkill and killall. An agent
+# once killed its helper's reparented "parent", systemd --user, and took down the
+# desktop session. The user runs these commands when one is needed.
+set -uo pipefail
+
+command=$(jq -r '.tool_input.command // empty')
+
+if printf '%s\n' "$command" | grep -Eq '(^|[^[:alnum:]_./-])(/[^[:space:]]*/)?(kill|pkill|killall)([^[:alnum:]_.-]|$)'; then
+  echo "Blocked: kill, pkill and killall are not run by agents. Ask the user to run the exact command, or stop processes you started with the session's guarded safe-kill script." >&2
+  exit 2
+fi
+
+exit 0
