@@ -13,6 +13,7 @@ in
         ".unsloth"
         ".xlcore"
         ".local/share/containers/storage"
+        ".local/share/orca"
         ".var/app/ai.lmstudio.lm-studio"
         "Developer/cports/bldroot"
         "Developer/cports/packages"
