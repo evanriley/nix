@@ -59,7 +59,6 @@
         brave
         (chromium.override { enableWideVine = true; })
         swayimg
-        iptvnator
         nautilus
         pavucontrol
       ];
