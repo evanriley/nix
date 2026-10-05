@@ -8,16 +8,6 @@ description: >
 
 # Code guidelines
 
-## Order of work
-
-1. Understand: read the code being changed and its callers; explain why the
-   current approach exists before replacing it.
-2. Spec: load the `spec-driven-development` skill; present the spec and wait
-   for approval unless the change is trivial.
-3. Build: smallest change that implements the spec, matching surrounding code.
-4. Verify: build, test or run it. Report what was run and the result.
-5. Self-review the diff with the `code-review` skill before reporting done.
-
 ## Design
 
 - Readability first. Optimize only on request or with a measured reason, and

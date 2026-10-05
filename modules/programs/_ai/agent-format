@@ -18,11 +18,12 @@ nearest() {
   return 1
 }
 
+status=0
 case "$file" in
   *.nix) nixfmt --quiet "$file" ;;
-  *.py | *.pyi) has ruff && ruff format --quiet "$file" ;;
-  *.clj | *.cljs | *.cljc | *.edn | *.bb) has cljfmt && cljfmt fix --quiet "$file" ;;
-  *.ml | *.mli) has ocamlformat && nearest .ocamlformat >/dev/null && ocamlformat --inplace "$file" ;;
+  *.py | *.pyi) if has ruff; then ruff format --quiet "$file"; fi ;;
+  *.clj | *.cljs | *.cljc | *.edn | *.bb) if has cljfmt; then cljfmt fix --quiet "$file"; fi ;;
+  *.ml | *.mli) if has ocamlformat && nearest .ocamlformat >/dev/null; then ocamlformat --inplace "$file"; fi ;;
   *.rs)
     if has rustfmt; then
       edition=2021
@@ -33,8 +34,12 @@ case "$file" in
       rustfmt --edition "$edition" "$file"
     fi
     ;;
-  *.gleam) has gleam && gleam format "$file" ;;
-  *.zig) has zig && zig fmt "$file" ;;
-esac >/dev/null 2>&1
+  *.gleam) if has gleam; then gleam format "$file"; fi ;;
+  *.zig) if has zig; then zig fmt "$file"; fi ;;
+esac >/dev/null 2>&1 || status=$?
+
+if [ "$status" -ne 0 ]; then
+  printf 'Formatter failed for %s (exit %s). The edit was kept; fix formatting before verification.\n' "$file" "$status" >&2
+fi
 
 exit 0

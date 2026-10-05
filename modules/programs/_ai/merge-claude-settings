@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+current=$1
+previous=$2
+managed=$3
+
+jq -s '
+  def strip_owned($current; $owned):
+    if ($current | type) == "object" and ($owned | type) == "object" then
+      reduce ($owned | keys[]) as $key ($current;
+        if has($key) then
+          if (.[$key] | type) == "object" and ($owned[$key] | type) == "object" then
+            .[$key] = strip_owned(.[$key]; $owned[$key])
+            | if .[$key] == {} then del(.[$key]) else . end
+          else
+            del(.[$key])
+          end
+        else
+          .
+        end)
+    else
+      $current
+    end;
+  .[0] as $current
+  | .[1] as $previous
+  | .[2] as $managed
+  | strip_owned($current; $previous) * $managed
+' "$current" "$previous" "$managed"

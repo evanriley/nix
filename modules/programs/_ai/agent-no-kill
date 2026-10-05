@@ -13,7 +13,7 @@ wrappers="((sudo|doas|env|exec|nohup|command|builtin|nice|setsid|time|timeout|xa
 program='(/[^[:space:]]*/)?(kill|pkill|killall)([[:space:];&|)`]|$)'
 
 if printf '%s\n' "$command" | grep -Eq "${command_start}${assignments}${wrappers}${program}"; then
-  echo "Blocked: kill, pkill and killall are not run by agents. Ask the user to run the exact command, or stop processes you started with the session's guarded safe-kill script." >&2
+  echo "Blocked: agents do not run kill, pkill or killall. Use the service manager or the tool's tracked-process stop function; otherwise ask the user to run the exact command." >&2
   exit 2
 fi
 

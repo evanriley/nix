@@ -68,11 +68,11 @@ description: >
   or edit units by hand under `/etc`. User services run under
   `systemctl --user`.
 - macOS: services are launchd agents declared in `~/nix`.
-- Nix-wrapped programs run as `.<name>-wrapped`, so `pkill -x <name>` misses
-  them. Use `systemctl --user stop <unit>` or
-  `systemctl --user kill --kill-whom=main <unit>` for services, and
-  `pkill -f <name>` otherwise. `pkill` without `-f` only matches the first 15
-  characters of the process name.
+- Stop services with their service manager (`systemctl --user stop <unit>` on
+  NixOS or the corresponding launchd command on macOS). Stop background tasks
+  through the tool that started and tracks them. Agents never run `kill`,
+  `pkill` or `killall`; when no tracked stop exists, give the user the exact
+  command to run.
 - `/etc`, `/usr` and most of `/` are read-only or regenerated on switch. Paths
   like `/usr/bin/<tool>` do not exist on NixOS; use `/usr/bin/env` or
   `/run/current-system/sw/bin`.

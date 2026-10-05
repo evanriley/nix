@@ -1,6 +1,32 @@
 { config, inputs, ... }:
 let
   inherit (config.flake.lib) mkScript;
+  codexRoles = {
+    search = {
+      model = "gpt-6-luna";
+      effort = "medium";
+    };
+    librarian = {
+      model = "gpt-6.1-sol";
+      effort = "medium";
+    };
+    oracle = {
+      model = "gpt-6-astra";
+      effort = "xhigh";
+    };
+    worker = {
+      model = "gpt-6.1-sol";
+      effort = "medium";
+    };
+    worker-deep = {
+      model = "gpt-6-astra";
+      effort = "medium";
+    };
+    worker-high = {
+      model = "gpt-6-astra";
+      effort = "xhigh";
+    };
+  };
 in
 {
   flake.modules.homeManager.ai =
@@ -17,35 +43,17 @@ in
           builtins.readDir (inputs.self + "/home/config/ai/skills")
         )
       );
-      codexRoles = {
-        search = {
-          model = "gpt-6-luna";
-          effort = "medium";
-        };
-        librarian = {
-          model = "gpt-6.1-sol";
-          effort = "medium";
-        };
-        oracle = {
-          model = "gpt-6-astra";
-          effort = "xhigh";
-        };
-        worker = {
-          model = "gpt-6.1-sol";
-          effort = "medium";
-        };
-        worker-high = {
-          model = "gpt-6.1-sol";
-          effort = "xhigh";
-        };
-      };
       readClaudeAgent =
         role:
         let
           lines = lib.splitString "\n" (
             builtins.readFile (inputs.self + "/home/config/ai/claude/agents/${role}.md")
           );
-          afterOpening = lib.tail lines;
+          afterOpening =
+            if lib.head lines == "---" then
+              lib.tail lines
+            else
+              throw "${role}.md has no opening frontmatter line";
           closingIndex = lib.lists.findFirstIndex (
             line: line == "---"
           ) (throw "${role}.md has no closing frontmatter line") afterOpening;
@@ -64,6 +72,7 @@ in
           agent = readClaudeAgent role;
           guidelines = lib.optionalString (lib.elem role [
             "worker"
+            "worker-deep"
             "worker-high"
           ]) "Load the `code-guidelines` skill before editing.\n\n";
         in
@@ -79,6 +88,7 @@ in
       ) codexRoles;
       pythonWithTomlkit = pkgs.python3.withPackages (python: [ python.tomlkit ]);
       mergeToml = "${lib.getExe pythonWithTomlkit} ${./_ai/merge-toml}";
+      mergeClaudeSettings = "${./_ai/merge-claude-settings}";
       # Per skill, because claude.ai keeps its synced skills in ~/.claude/skills.
       linkSkills =
         dir:
@@ -126,17 +136,23 @@ in
         settings="$HOME/.claude/settings.json"
         managed=${../../home/config/ai/claude/settings.json}
         [ -L "$settings" ] && run rm "$settings"
-        current='{}'
-        [ -f "$settings" ] && current=$(cat "$settings")
-        merged=$(${lib.getExe pkgs.jq} -s '.[0] * .[1]' <(printf '%s' "$current") "$managed") || {
+        ownership="$HOME/.claude/.managed-settings.json"
+        current=$(mktemp)
+        previous=$(mktemp)
+        [ -f "$settings" ] && cat "$settings" >"$current" || printf '{}\n' >"$current"
+        [ -f "$ownership" ] && cat "$ownership" >"$previous" || cat "$managed" >"$previous"
+        merged=$(${lib.getExe pkgs.bash} ${mergeClaudeSettings} "$current" "$previous" "$managed") || {
           errorEcho "Failed to merge $managed into $settings; expected valid JSON in both. Fix or remove $settings, then switch again."
+          rm -f "$current" "$previous"
           exit 1
         }
+        rm -f "$current" "$previous"
         run mkdir -p "$HOME/.claude"
         # macOS install cannot copy from /dev/stdin.
         tmp=$(mktemp)
         printf '%s\n' "$merged" >"$tmp"
         run install -m 600 "$tmp" "$settings"
+        run install -m 600 "$managed" "$ownership"
         rm -f "$tmp"
       '';
 
@@ -144,5 +160,31 @@ in
         run mkdir -p "$HOME/.codex"
         run ${mergeToml} ${../../home/config/ai/codex/config.toml} "$HOME/.codex/config.toml"
       '';
+    };
+
+  perSystem =
+    { pkgs, ... }:
+    let
+      roles = builtins.concatStringsSep " " (builtins.attrNames codexRoles);
+    in
+    {
+      checks.ai-config =
+        pkgs.runCommand "ai-config-check"
+          {
+            nativeBuildInputs = [
+              pkgs.bash
+              pkgs.jq
+              pkgs.python3
+            ];
+          }
+          ''
+            ${pkgs.bash}/bin/bash ${./_ai/test-ai} \
+              ${../../home/config/ai/claude/agents} \
+              ${./_ai/agent-no-kill} \
+              ${./_ai/agent-format} \
+              ${./_ai/merge-claude-settings} \
+              ${pkgs.lib.escapeShellArg roles}
+            touch $out
+          '';
     };
 }

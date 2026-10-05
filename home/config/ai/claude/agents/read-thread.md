@@ -16,3 +16,6 @@ jq -r 'select(.type == "user" or .type == "assistant") | .message | .role as $ro
 ```
 
 Report the goal, decisions and their reasons, what was changed, and what was left open, with the session file path.
+
+Never report secret or personal-data values. Report only the location and a
+brief description of the sensitive data.

@@ -35,39 +35,40 @@ in `~/.claude/agents` do the work.
   reviewing their output, final verification and commits.
 - Work inline, without spawning, for edits of a few lines to files already in
   context and for single-command checks.
-- Find and map code with `search`, not `Explore` or `cat`. In the main session
-  read only the line ranges a spec or review needs. Research external code and
-  docs with `librarian`. Recover earlier sessions with `read-thread`.
-- Send all other implementation to `worker`. Pass `model: sonnet` when the spec
-  names every edit, touches at most about three files and leaves no decision;
-  otherwise pass no `model`.
-- Use `worker-high` only when the delegation names one of: concurrency (thread
-  lifetimes, locking, cross-thread ordering); data-loss, security or boot
-  paths; or `worker` failed verification twice on the same task. Task size and
-  an oracle-designed spec do not qualify on their own.
-- When I name `worker-high` or `oracle`, use it and skip its criteria.
+- Use direct tools for exact path, symbol or string lookups. Use `search` for
+  multi-step behavioral discovery or findings that must correlate across the
+  codebase. Research external code and docs with `librarian`. Recover earlier
+  sessions with `read-thread`.
+- The main planner owns routing. Use `worker` (Sonnet, medium) when the
+  implementation route is established. Use `worker-deep` (Opus, medium) when
+  requirements are settled but the implementation route must be determined.
+- Use `worker-high` (Opus, xhigh) only for critical, weakly-verifiable
+  invariants or high-consequence paths such as concurrency, data loss,
+  security or boot. Task size alone does not qualify.
+- When I name a worker role or `oracle`, use it and skip its criteria.
 - Size each worker task to one commit. A worker running past about 40 minutes
   means the task was too big; split the next one.
-- When a hand-back fails review or verification, send the findings to the same
-  agent once. On a second failure, spawn a `worker` with the `debugging` skill
-  to reproduce and narrow it; keep the diagnosis for yourself.
+- When a hand-back has an execution mistake, return the findings to the same
+  agent once. When its route was wrong, use `worker-deep`. When the cause is
+  unknown, use `worker-deep` with the `debugging` skill to reproduce and narrow
+  it; keep the diagnosis for yourself.
 - Run workers in parallel only for parts with disjoint files, at most three at
   once. Never run oracles in parallel.
 - Use `oracle` before the spec for `worker-high`-grade work, after proposing it
   in one line and getting my yes; when the cause is still unknown after a
-  debugging worker narrowed it; or when I ask. Use one oracle per feature and
-  resume it for follow-ups. It reviews a diff only on a `worker-high`-grade
-  path where no runnable check can demonstrate the property.
-- Give each worker a self-contained task: goal, files with the `file:line` map
-  from `search`, the approved spec and how to verify. Workers start without
-  this conversation.
+  debugging worker narrowed it; or when I ask. Never consult oracle solely to
+  choose a worker. If already consulted, oracle should recommend the worker.
+  Use one oracle per feature and resume it for follow-ups.
+- Give each worker a self-contained handoff containing the outcome, settled
+  requirements, governing pattern and ownership, residual decisions,
+  constraints and non-goals, acceptance checks, and critical invariants.
 - Review worker output from its diff and evidence block: each acceptance
   criterion has a command and output behind it, the files match the spec, no
   test was weakened. Run runnable criteria yourself instead of reasoning about
   them.
 - While a worker runs, write the next spec or review the previous diff.
 - In Codex, spawn these agents by name through `agent_type`; `explorer` is not
-  `search`, and the `model: sonnet` rule and `read-thread` are Claude Code only.
+  `search`, and `read-thread` is Claude Code only.
 - Say which agent you chose and why in one line.
 
 ## Compact Instructions
@@ -130,44 +131,9 @@ overrides any skill, template or surrounding code that suggests otherwise.
 - Search with `rg` and `fd`.
 - `sudo` needs a YubiKey touch on a real terminal, so agents cannot run it.
   Hand me the exact command to run instead.
-- Machines are managed with Nix; see [Nix configuration](#nix-configuration).
-
-## Nix configuration
-
-- The `~/nix` flake configures every machine: `cinderace` (NixOS,
-  x86_64-linux) and `ninetales` (nix-darwin, aarch64-darwin). Home Manager is
-  standalone, as `homeConfigurations."evan@<host>"`.
 - Load the `nix-environment` skill before installing or running a missing tool,
   adding dependencies, changing config files under `~`, or managing services.
 - Never install globally (`nix profile install`, `nix-env -i`, `pip install
   --user`, `npm -g`, `cargo install`, `brew install`). One-off tools run with
-  `, <cmd>` or `nix shell nixpkgs#<pkg> -c <cmd>`; permanent tools go in
-  `~/nix`; project tools go in the project's `flake.nix` dev shell.
-- Layout: flake-parts with import-tree. Every `.nix` file under `modules/` is a
-  flake-parts module; paths containing `/_` are not imported. Modules define
-  `flake.modules.{nixos,darwin,homeManager}.<name>`, and hosts in
-  `modules/hosts/<host>/` import them through the profiles in
-  `modules/profiles/`.
-- Hand-edited app configs live in `~/nix/home/config/<app>` and are live
-  symlinks: edit them in place, no rebuild. Files under `~` that resolve into
-  `/nix/store` are generated; change the module that produces them.
-- Flakes only see git-tracked files: `git add` new files before building.
-- Check changes with `nix fmt` and `nix flake check`, or by building the
-  affected configuration.
-- Apply changes with `nh`, which finds the flake on its own:
-
-  | Change | Command | Who runs it |
-  | --- | --- | --- |
-  | Home | `nh home switch` | Agent |
-  | Home, build only | `nh home build` | Agent |
-  | System, build only | `nh os build`, `nh darwin build` | Agent |
-  | System | `nh os switch`, `nh darwin switch` | Me (needs `sudo`) |
-
-- Adding a new linked config file needs a home switch; editing an existing one
-  does not.
-- Secrets are agenix files in `~/nix/secrets`; editing them needs a YubiKey.
-  See `~/nix/README.md`.
-- These instructions live in `~/nix/home/config/ai/AGENTS.md`, linked to
-  `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`. Skills live in
-  `~/nix/home/config/ai/skills`, Claude Code agents in
-  `~/nix/home/config/ai/claude/agents`.
+  `, <cmd>` or `nix shell`; permanent tools belong in the machine
+  configuration and project tools in the project's dev shell.

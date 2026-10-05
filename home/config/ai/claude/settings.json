@@ -1,5 +1,17 @@
 {
   "theme": "auto",
+  "autoMode": {
+    "environment": [
+      "Treat every repository as public unless its project settings say otherwise",
+      "Repository trust, sensitive paths and deployment boundaries come from project settings",
+      "No organization, cloud provider, deployment target or internal service is globally configured",
+      "Assume an ordinary developer machine with open internet access"
+    ],
+    "soft_deny": [
+      "$defaults",
+      "Bash(git push --force:*)"
+    ]
+  },
   "modelSettings": {
     "claude-opus-5-5": { "effortLevel": "high" }
   },

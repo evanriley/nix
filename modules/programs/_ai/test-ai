@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source_directory=$1
+no_kill=$2
+formatter=$3
+settings_merger=$4
+expected_roles=$5
+
+assert_allowed() {
+  jq -n --arg command "$1" '{tool_input:{command:$command}}' | bash "$no_kill"
+}
+
+assert_blocked() {
+  if jq -n --arg command "$1" '{tool_input:{command:$command}}' | bash "$no_kill" 2>/dev/null; then
+    echo "expected blocked command: $1" >&2
+    exit 1
+  fi
+}
+
+assert_allowed 'printf "kill is documentation"'
+assert_allowed 'rg "pkill" .'
+assert_allowed 'echo skill'
+assert_blocked 'kill 123'
+assert_blocked 'sudo -n pkill -f server'
+assert_blocked 'echo ok; /bin/killall app'
+assert_blocked 'sh -c "kill 123"'
+
+temporary=$(mktemp -d)
+trap 'rm -rf "$temporary"' EXIT
+printf 'x' >"$temporary/example.py"
+mkdir "$temporary/bin"
+cat >"$temporary/bin/ruff" <<EOF
+#!$(command -v bash)
+printf '%s' "\$*" >"\$FORMATTER_ARGS"
+exit "\${FORMATTER_EXIT:-0}"
+EOF
+chmod +x "$temporary/bin/ruff"
+
+export FORMATTER_ARGS="$temporary/formatter-args"
+PATH="$temporary/bin:$PATH" jq -n --arg file "$temporary/example.py" \
+  '{tool_input:{file_path:$file}}' | PATH="$temporary/bin:$PATH" bash "$formatter"
+grep -Fx 'format --quiet '"$temporary/example.py" "$FORMATTER_ARGS"
+
+export FORMATTER_EXIT=7
+message=$(PATH="$temporary/bin:$PATH" jq -n --arg file "$temporary/example.py" \
+  '{tool_input:{file_path:$file}}' | PATH="$temporary/bin:$PATH" bash "$formatter" 2>&1)
+grep -F 'Formatter failed' <<<"$message"
+
+python - "$source_directory" "$expected_roles" <<'PY'
+import pathlib
+import sys
+
+directory = pathlib.Path(sys.argv[1])
+expected = set(sys.argv[2].split())
+found = {path.stem for path in directory.glob("*.md") if path.stem != "read-thread"}
+if found != expected:
+    raise SystemExit(f"Codex roles differ: expected {sorted(expected)}, found {sorted(found)}")
+for path in directory.glob("*.md"):
+    lines = path.read_text().splitlines()
+    if not lines or lines[0] != "---" or "---" not in lines[1:]:
+        raise SystemExit(f"invalid frontmatter delimiters: {path}")
+    closing = lines[1:].index("---") + 1
+    fields = {line.split(":", 1)[0] for line in lines[1:closing] if ":" in line}
+    missing = {"name", "description", "model"} - fields
+    if missing:
+        raise SystemExit(f"missing frontmatter in {path}: {sorted(missing)}")
+PY
+
+printf '%s\n' '{"theme":"old","owned":{"stale":true},"claudeOwned":42,"modelSettings":{"opus":{"effort":"old"},"sonnet":{"effort":"custom"}},"hooks":{"Stop":["old"],"PreCompact":["custom"]}}' >"$temporary/current.json"
+printf '%s\n' '{"theme":"old","owned":{"stale":true},"modelSettings":{"opus":{"effort":"old"}},"hooks":{"Stop":["old"]}}' >"$temporary/previous.json"
+printf '%s\n' '{"theme":"new","replacement":true,"modelSettings":{"opus":{"effort":"new"}},"hooks":{"Stop":["new"]}}' >"$temporary/managed.json"
+bash "$settings_merger" "$temporary/current.json" "$temporary/previous.json" \
+  "$temporary/managed.json" >"$temporary/merged.json"
+jq -e '.theme == "new" and .replacement == true and .claudeOwned == 42 and has("owned") == false and .modelSettings.opus.effort == "new" and .modelSettings.sonnet.effort == "custom" and .hooks.Stop == ["new"] and .hooks.PreCompact == ["custom"]' \
+  "$temporary/merged.json" >/dev/null

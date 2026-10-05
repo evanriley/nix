@@ -1,0 +1,14 @@
+{
+  "autoMode": {
+    "environment": [
+      "Repository: evanriley/nix (public GitHub repository)",
+      "Purpose: NixOS and nix-darwin configuration for cinderace and ninetales",
+      "Secrets: agenix-encrypted files under secrets/; never expose decrypted values",
+      "System switches require sudo and are user-run"
+    ],
+    "soft_deny": [
+      "$defaults",
+      "Bash(git push --force:*) in this repository"
+    ]
+  }
+}
