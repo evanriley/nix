@@ -533,6 +533,22 @@
         "type": "github"
       }
     },
+    "nixpkgs_3": {
+      "locked": {
+        "lastModified": 1791048980,
+        "narHash": "sha256-KgItSKML8Xvte0B7/uGnBDsYzSnnKHcOaiUbgWBXLXw=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "a7868a727837f3c09cee2ce0ca671c76b1589fed",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "noctalia": {
       "inputs": {
         "nixpkgs": [
@@ -653,6 +669,24 @@
         "type": "github"
       }
     },
+    "orca": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_3"
+      },
+      "locked": {
+        "lastModified": 1791305089,
+        "narHash": "sha256-iylNZZ5tog94mTJx57/rHeFJmQ6bWEGsuwcI4jH/rCg=",
+        "owner": "evanriley",
+        "repo": "orca",
+        "rev": "d829a6530a8533996b8b27930e27635b9233d16a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "evanriley",
+        "repo": "orca",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "agenix": "agenix",
@@ -676,6 +710,7 @@
         "noctalia-plugins-community": "noctalia-plugins-community",
         "noctalia-plugins-official": "noctalia-plugins-official",
         "nvf": "nvf",
+        "orca": "orca",
         "rust-overlay": "rust-overlay",
         "stylix": "stylix",
         "systems": "systems",

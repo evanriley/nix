@@ -13,6 +13,10 @@ in
   flake.modules.homeManager.music =
     { config, pkgs, ... }:
     {
+      imports = [ inputs.orca.homeModules.default ];
+
+      programs.orca.enable = true;
+
       programs.rmpc = {
         enable = true;
         config = ''
