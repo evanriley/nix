@@ -28,6 +28,13 @@ jobs:
           extra_nix_config: |
             system-features = nixos-test benchmark big-parallel kvm
 
+      # Daemon mode (default): pushes paths built in this job, which are all
+      # stub-derived; substituted paths are not pushed.
+      - uses: cachix/cachix-action@v17
+        with:
+          name: evanriley
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
       # CI cannot fetch the private berkeley-mono input; a public font stands in.
       - name: Stand in for berkeley-mono
         run: |
