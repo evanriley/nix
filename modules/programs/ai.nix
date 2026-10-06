@@ -89,6 +89,35 @@ in
       pythonWithTomlkit = pkgs.python3.withPackages (python: [ python.tomlkit ]);
       mergeToml = "${lib.getExe pythonWithTomlkit} ${./_ai/merge-toml}";
       mergeClaudeSettings = "${./_ai/merge-claude-settings}";
+      mergeSettings =
+        {
+          directory,
+          managed,
+          label,
+        }:
+        ''
+          settings="${directory}/settings.json"
+          managed=${managed}
+          [ -L "$settings" ] && run rm "$settings"
+          ownership="${directory}/.managed-settings.json"
+          current=$(mktemp)
+          previous=$(mktemp)
+          [ -f "$settings" ] && cat "$settings" >"$current" || printf '{}\n' >"$current"
+          [ -f "$ownership" ] && cat "$ownership" >"$previous" || cat "$managed" >"$previous"
+          merged=$(${lib.getExe pkgs.bash} ${mergeClaudeSettings} "$current" "$previous" "$managed") || {
+            errorEcho "Failed to merge $managed into $settings for ${label}; expected valid JSON in both. Fix or remove $settings, then switch again."
+            rm -f "$current" "$previous"
+            exit 1
+          }
+          rm -f "$current" "$previous"
+          run mkdir -p "${directory}"
+          # macOS install cannot copy from /dev/stdin.
+          tmp=$(mktemp)
+          printf '%s\n' "$merged" >"$tmp"
+          run install -m 600 "$tmp" "$settings"
+          run install -m 600 "$managed" "$ownership"
+          rm -f "$tmp"
+        '';
       # Per skill, because claude.ai keeps its synced skills in ~/.claude/skills.
       linkSkills =
         dir:
@@ -132,29 +161,11 @@ in
 
       # Claude Code refuses to save settings through a symlink, so settings.json is
       # a real file: the keys from the repository win, the rest is Claude Code's.
-      home.activation.claudeSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-        settings="$HOME/.claude/settings.json"
-        managed=${../../home/config/ai/claude/settings.json}
-        [ -L "$settings" ] && run rm "$settings"
-        ownership="$HOME/.claude/.managed-settings.json"
-        current=$(mktemp)
-        previous=$(mktemp)
-        [ -f "$settings" ] && cat "$settings" >"$current" || printf '{}\n' >"$current"
-        [ -f "$ownership" ] && cat "$ownership" >"$previous" || cat "$managed" >"$previous"
-        merged=$(${lib.getExe pkgs.bash} ${mergeClaudeSettings} "$current" "$previous" "$managed") || {
-          errorEcho "Failed to merge $managed into $settings; expected valid JSON in both. Fix or remove $settings, then switch again."
-          rm -f "$current" "$previous"
-          exit 1
-        }
-        rm -f "$current" "$previous"
-        run mkdir -p "$HOME/.claude"
-        # macOS install cannot copy from /dev/stdin.
-        tmp=$(mktemp)
-        printf '%s\n' "$merged" >"$tmp"
-        run install -m 600 "$tmp" "$settings"
-        run install -m 600 "$managed" "$ownership"
-        rm -f "$tmp"
-      '';
+      home.activation.claudeSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] (mergeSettings {
+        directory = "$HOME/.claude";
+        managed = ../../home/config/ai/claude/settings.json;
+        label = "claude";
+      });
 
       home.activation.codexConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
         run mkdir -p "$HOME/.codex"
