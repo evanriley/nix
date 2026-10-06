@@ -15,6 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The toplevel build substitutes a ~11 GiB closure; the preinstalled
+      # Android, .NET and GHC SDKs would leave the runner too full for it.
+      - name: Free disk space
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+
       # The theme-switch VM test needs /dev/kvm.
       - name: Enable KVM
         run: |
@@ -49,15 +54,21 @@ jobs:
       - name: Flake check
         run: nix flake check -L --override-input berkeley-mono "$OVERRIDE_BERKELEY_MONO"
 
+      # Builds cinderace's closure so local switches can substitute it from
+      # the cache; substituted paths are not pushed. Ninetales cannot build
+      # here (aarch64-darwin on x86_64-linux), so it is only evaluated.
+      - name: Build cinderace toplevel
+        run: nix build --no-link --override-input berkeley-mono "$OVERRIDE_BERKELEY_MONO" \
+          .#nixosConfigurations.cinderace.config.system.build.toplevel
+
       - name: Evaluate every system
         run: |
-          for kind in nixosConfigurations darwinConfigurations; do
-            attr=config.system.build.toplevel
-            [ "$kind" = darwinConfigurations ] && attr=system
+          # Cinderace is built above; only ninetales needs evaluation here.
+          for kind in darwinConfigurations; do
             for host in $(nix eval --raw ".#$kind" --apply 'c: toString (builtins.attrNames c)'); do
               echo "::group::$kind.$host"
               nix eval --raw --override-input berkeley-mono "$OVERRIDE_BERKELEY_MONO" \
-                ".#$kind.$host.$attr.drvPath"
+                ".#$kind.$host.system.drvPath"
               echo
               echo "::endgroup::"
             done
