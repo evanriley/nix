@@ -5,11 +5,12 @@ set -euo pipefail
 input=$(cat)
 event=$(jq -r '.hook_event_name // empty' <<<"$input")
 project=$(basename "$(jq -r '.cwd // empty' <<<"$input")")
+app=$(jq -r '.app // "Claude Code"' <<<"$input")
 message=$(jq -r '.message // empty' <<<"$input")
 [ -n "$message" ] || message="Finished"
 [ "$event" = Stop ] && message="Finished"
 
-title="Claude Code: $project"
+title="$app: $project"
 if [ "$(uname)" = Darwin ]; then
   /usr/bin/osascript - "$title" "$message" <<'APPLESCRIPT' >/dev/null 2>&1 || true
 on run argv
@@ -17,5 +18,5 @@ on run argv
 end run
 APPLESCRIPT
 else
-  notify-send --app-name "Claude Code" "$title" "$message" 2>/dev/null || true
+  notify-send --app-name "$app" "$title" "$message" 2>/dev/null || true
 fi

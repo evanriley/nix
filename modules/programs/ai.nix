@@ -206,6 +206,7 @@ in
         ".codex/AGENTS.md".source = link "config/ai/AGENTS.md";
         ".pi/agent/models.json".source = link "config/ai/pi/models.json";
         ".pi/agent/mcp.json".source = link "config/ai/pi/mcp.json";
+        ".pi/agent/extensions/notify.ts".source = link "config/ai/pi/extensions/notify.ts";
         ".pi/agent/AGENTS.md".text = piInstructions;
         ".pi/agent/extensions/permission-gate.ts".source =
           "${pi}/libexec/pi/examples/extensions/permission-gate.ts";
