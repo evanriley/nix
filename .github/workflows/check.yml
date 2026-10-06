@@ -58,8 +58,7 @@ jobs:
       # the cache; substituted paths are not pushed. Ninetales cannot build
       # here (aarch64-darwin on x86_64-linux), so it is only evaluated.
       - name: Build cinderace toplevel
-        run: nix build --no-link --override-input berkeley-mono "$OVERRIDE_BERKELEY_MONO" \
-          .#nixosConfigurations.cinderace.config.system.build.toplevel
+        run: nix build --no-link --override-input berkeley-mono "$OVERRIDE_BERKELEY_MONO" .#nixosConfigurations.cinderace.config.system.build.toplevel
 
       - name: Evaluate every system
         run: |
