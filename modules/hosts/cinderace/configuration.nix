@@ -16,6 +16,7 @@ in
       media
       music
       navidrome
+      dispatcharr
       backup
       syncthing
     ];
