@@ -1,6 +1,11 @@
 { config, inputs, ... }:
 let
   inherit (config.flake.lib) mkScript;
+  inherit (config.meta) user;
+  openrouterKey = {
+    file = inputs.self + "/secrets/openrouter-key.age";
+    owner = user.name;
+  };
   codexRoles = {
     search = {
       model = "gpt-6-luna";
@@ -29,6 +34,10 @@ let
   };
 in
 {
+  flake.modules.nixos.ai.age.secrets.openrouter-key = openrouterKey;
+
+  flake.modules.darwin.ai.age.secrets.openrouter-key = openrouterKey;
+
   flake.modules.homeManager.ai =
     {
       config,
@@ -89,6 +98,36 @@ in
       pythonWithTomlkit = pkgs.python3.withPackages (python: [ python.tomlkit ]);
       mergeToml = "${lib.getExe pythonWithTomlkit} ${./_ai/merge-toml}";
       mergeClaudeSettings = "${./_ai/merge-claude-settings}";
+      pi = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.pi;
+      withoutSections =
+        headings: text:
+        let
+          step =
+            state: line:
+            let
+              isHeading = lib.hasPrefix "## " line;
+              skipping = if isHeading then lib.elem line headings else state.skipping;
+            in
+            {
+              inherit skipping;
+              found = state.found ++ lib.optional (isHeading && skipping) line;
+              kept = state.kept ++ lib.optional (!skipping) line;
+            };
+          result = lib.foldl' step {
+            skipping = false;
+            found = [ ];
+            kept = [ ];
+          } (lib.splitString "\n" text);
+          missing = lib.subtractLists result.found headings;
+        in
+        if missing == [ ] then
+          lib.concatStringsSep "\n" result.kept
+        else
+          throw "AGENTS.md has no section ${lib.concatStringsSep ", " missing}; expected every heading to exist. Update the headings in modules/programs/ai.nix.";
+      piInstructions = withoutSections [
+        "## Delegation"
+        "## Compact Instructions"
+      ] (builtins.readFile (inputs.self + "/home/config/ai/AGENTS.md"));
       mergeSettings =
         {
           directory,
@@ -148,12 +187,17 @@ in
             pkgs.nixfmt
           ];
         })
+        pi
       ];
 
       home.file = {
         ".claude/CLAUDE.md".source = link "config/ai/AGENTS.md";
         ".claude/agents".source = link "config/ai/claude/agents";
         ".codex/AGENTS.md".source = link "config/ai/AGENTS.md";
+        ".pi/agent/models.json".source = link "config/ai/pi/models.json";
+        ".pi/agent/AGENTS.md".text = piInstructions;
+        ".pi/agent/extensions/permission-gate.ts".source =
+          "${pi}/libexec/pi/examples/extensions/permission-gate.ts";
       }
       // linkSkills ".claude/skills"
       // linkSkills ".agents/skills"
@@ -165,6 +209,12 @@ in
         directory = "$HOME/.claude";
         managed = ../../home/config/ai/claude/settings.json;
         label = "claude";
+      });
+
+      home.activation.piSettings = lib.hm.dag.entryAfter [ "linkGeneration" ] (mergeSettings {
+        directory = "$HOME/.pi/agent";
+        managed = ../../home/config/ai/pi/settings.json;
+        label = "pi";
       });
 
       home.activation.codexConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''

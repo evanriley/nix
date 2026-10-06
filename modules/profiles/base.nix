@@ -10,6 +10,7 @@ in
     locale
     networking
     shell
+    ai
   ];
 
   flake.modules.darwin.base.imports = with darwin; [
@@ -18,6 +19,7 @@ in
     users
     networking
     shell
+    ai
   ];
 
   flake.modules.homeManager.cli.imports = with homeManager; [

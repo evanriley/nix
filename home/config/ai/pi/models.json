@@ -1,0 +1,11 @@
+{
+  "providers": {
+    "openrouter": {
+      "apiKey": "!cat /run/agenix/openrouter-key",
+      "modelOverrides": {
+        "z-ai/glm-5.3-flash": { "compat": { "openRouterRouting": { "order": ["z-ai"], "quantizations": ["fp8"] } } },
+        "z-ai/glm-5.3": { "compat": { "openRouterRouting": { "order": ["z-ai"], "quantizations": ["fp8"] } } }
+      }
+    }
+  }
+}
