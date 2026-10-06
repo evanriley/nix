@@ -109,35 +109,6 @@ in
       mergeToml = "${lib.getExe pythonWithTomlkit} ${./_ai/merge-toml}";
       mergeClaudeSettings = "${./_ai/merge-claude-settings}";
       pi = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.pi;
-      withoutSections =
-        headings: text:
-        let
-          step =
-            state: line:
-            let
-              isHeading = lib.hasPrefix "## " line;
-              skipping = if isHeading then lib.elem line headings else state.skipping;
-            in
-            {
-              inherit skipping;
-              found = state.found ++ lib.optional (isHeading && skipping) line;
-              kept = state.kept ++ lib.optional (!skipping) line;
-            };
-          result = lib.foldl' step {
-            skipping = false;
-            found = [ ];
-            kept = [ ];
-          } (lib.splitString "\n" text);
-          missing = lib.subtractLists result.found headings;
-        in
-        if missing == [ ] then
-          lib.concatStringsSep "\n" result.kept
-        else
-          throw "AGENTS.md has no section ${lib.concatStringsSep ", " missing}; expected every heading to exist. Update the headings in modules/programs/ai.nix.";
-      piInstructions = withoutSections [
-        "## Delegation"
-        "## Compact Instructions"
-      ] (builtins.readFile (inputs.self + "/home/config/ai/AGENTS.md"));
       mergeSettings =
         {
           directory,
@@ -207,7 +178,7 @@ in
         ".pi/agent/models.json".source = link "config/ai/pi/models.json";
         ".pi/agent/mcp.json".source = link "config/ai/pi/mcp.json";
         ".pi/agent/extensions/notify.ts".source = link "config/ai/pi/extensions/notify.ts";
-        ".pi/agent/AGENTS.md".text = piInstructions;
+        ".pi/agent/AGENTS.md".source = link "config/ai/pi/AGENTS.md";
         ".pi/agent/agents".source = link "config/ai/pi/agents";
         ".pi/agent/prompts".source = link "config/ai/pi/prompts";
         ".pi/agent/extensions/subagent/index.ts".source =
