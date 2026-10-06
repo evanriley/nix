@@ -33,6 +33,7 @@ shared [ "cinderace" ] "evan-password.age"
 // shared [ "cinderace" "ninetales" ] "nextdns.conf.age"
 // shared (builtins.attrNames hosts) "atuin-key.age"
 // shared (builtins.attrNames hosts) "openrouter-key.age"
+// shared (builtins.attrNames hosts) "kagi-key.age"
 // hostSecrets "cinderace" [
   "u2f-mappings.age"
   "borg-passphrase.age"

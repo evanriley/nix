@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "kagi": {
+      "url": "https://mcp.kagi.com/mcp",
+      "headers": { "Authorization": "!echo Bearer $(cat /run/agenix/kagi-key)" },
+      "exposure": "direct",
+      "description": "Kagi web search and page extraction"
+    }
+  }
+}

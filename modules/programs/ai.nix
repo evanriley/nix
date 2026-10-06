@@ -6,6 +6,10 @@ let
     file = inputs.self + "/secrets/openrouter-key.age";
     owner = user.name;
   };
+  kagiKey = {
+    file = inputs.self + "/secrets/kagi-key.age";
+    owner = user.name;
+  };
   codexRoles = {
     search = {
       model = "gpt-6-luna";
@@ -34,9 +38,15 @@ let
   };
 in
 {
-  flake.modules.nixos.ai.age.secrets.openrouter-key = openrouterKey;
+  flake.modules.nixos.ai.age.secrets = {
+    openrouter-key = openrouterKey;
+    kagi-key = kagiKey;
+  };
 
-  flake.modules.darwin.ai.age.secrets.openrouter-key = openrouterKey;
+  flake.modules.darwin.ai.age.secrets = {
+    openrouter-key = openrouterKey;
+    kagi-key = kagiKey;
+  };
 
   flake.modules.homeManager.ai =
     {
@@ -195,6 +205,7 @@ in
         ".claude/agents".source = link "config/ai/claude/agents";
         ".codex/AGENTS.md".source = link "config/ai/AGENTS.md";
         ".pi/agent/models.json".source = link "config/ai/pi/models.json";
+        ".pi/agent/mcp.json".source = link "config/ai/pi/mcp.json";
         ".pi/agent/AGENTS.md".text = piInstructions;
         ".pi/agent/extensions/permission-gate.ts".source =
           "${pi}/libexec/pi/examples/extensions/permission-gate.ts";
