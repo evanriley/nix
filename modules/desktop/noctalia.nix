@@ -27,7 +27,6 @@ in
       services.displayManager.noctalia-greeter = {
         enable = true;
         passwordless-sync-users = [ user.name ];
-        cursorTheme.package = pkgs.adwaita-icon-theme;
         settings = {
           session.default = "Umbriel";
           user.default = user.name;
@@ -39,6 +38,7 @@ in
           cursor = {
             theme = "Adwaita";
             size = 24;
+            path = pkgs.adwaita-icon-theme;
           };
           keyboard.numlock = true;
           auth.allow_empty_password = false;
