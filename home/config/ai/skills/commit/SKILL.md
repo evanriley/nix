@@ -17,7 +17,8 @@ description: >
    `git log --format=%s -20` for the scopes in use.
 3. Group changes into atomic commits: one purpose each. A subject that needs
    "and" is two commits. Refactors and fixes go before features that depend on
-   them.
+   them. In a series of commits, such as a pull request, only the final commit
+   has to build and pass tests; do not build or test each intermediate commit.
 4. Draft each message before staging, then stage only what the draft
    describes (`git add <paths>` or `git add -p`). Compare the draft against
    `git diff --cached`; anything outside it goes in another commit.
