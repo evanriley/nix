@@ -8,8 +8,10 @@
           "maxTokens": 131072,
           "compat": {
             "openRouterRouting": {
-              "only": ["atlas-cloud", "baseten", "gmicloud", "inceptron", "morph", "near-ai", "novita", "siliconflow", "z-ai"],
-              "quantizations": ["fp8"]
+              "only": ["baseten", "inceptron", "morph", "near-ai", "novita", "siliconflow", "z-ai"],
+              "quantizations": ["fp8"],
+              "data_collection": "deny",
+              "zdr": true
             }
           }
         },
@@ -18,8 +20,10 @@
           "maxTokens": 131072,
           "compat": {
             "openRouterRouting": {
-              "only": ["akashml", "atlas-cloud", "baidu", "baseten", "gmicloud", "morph", "novita", "parasail", "sail-research", "siliconflow", "z-ai"],
-              "quantizations": ["fp8"]
+              "only": ["akashml", "baseten", "morph", "novita", "parasail", "sail-research", "siliconflow", "z-ai"],
+              "quantizations": ["fp8"],
+              "data_collection": "deny",
+              "zdr": true
             }
           }
         }
