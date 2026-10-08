@@ -58,6 +58,7 @@
       home.packages = with pkgs; [
         brave
         (chromium.override { enableWideVine = true; })
+        iptvnator
         swayimg
         nautilus
         pavucontrol
