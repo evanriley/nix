@@ -3,8 +3,26 @@
     "openrouter": {
       "apiKey": "!cat /run/agenix/openrouter-key",
       "modelOverrides": {
-        "z-ai/glm-5.3-flash": { "compat": { "openRouterRouting": { "order": ["z-ai"], "quantizations": ["fp8"] } } },
-        "z-ai/glm-5.3": { "compat": { "openRouterRouting": { "order": ["z-ai"], "quantizations": ["fp8"] } } }
+        "z-ai/glm-5.3-flash": {
+          "contextWindow": 1048576,
+          "maxTokens": 131072,
+          "compat": {
+            "openRouterRouting": {
+              "only": ["atlas-cloud", "baseten", "gmicloud", "inceptron", "morph", "near-ai", "novita", "siliconflow", "z-ai"],
+              "quantizations": ["fp8"]
+            }
+          }
+        },
+        "z-ai/glm-5.3": {
+          "contextWindow": 1048576,
+          "maxTokens": 131072,
+          "compat": {
+            "openRouterRouting": {
+              "only": ["akashml", "atlas-cloud", "baidu", "baseten", "gmicloud", "morph", "novita", "parasail", "sail-research", "siliconflow", "z-ai"],
+              "quantizations": ["fp8"]
+            }
+          }
+        }
       }
     }
   }
