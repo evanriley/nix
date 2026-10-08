@@ -1,7 +1,7 @@
 {
   "defaultProvider": "openrouter",
   "defaultModel": "z-ai/glm-5.3-flash",
-  "enabledModels": ["openrouter/z-ai/glm-5.3-flash", "openrouter/z-ai/glm-5.3"],
+  "enabledModels": ["openrouter/z-ai/glm-5.3-flash", "openrouter/z-ai/glm-5.3", "openrouter/deepseek/deepseek-v4.1-flash"],
   "defaultThinkingLevel": "high",
   "enableInstallTelemetry": false,
   "npmCommand": ["nix", "shell", "nixpkgs#nodejs", "-c", "npm"]

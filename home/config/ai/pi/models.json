@@ -26,6 +26,18 @@
               "zdr": true
             }
           }
+        },
+        "deepseek/deepseek-v4.1-flash": {
+          "contextWindow": 1048576,
+          "maxTokens": 393216,
+          "compat": {
+            "openRouterRouting": {
+              "only": ["coreweave", "crusoe", "makora", "morph", "novita", "parasail", "siliconflow"],
+              "quantizations": ["fp8"],
+              "data_collection": "deny",
+              "zdr": true
+            }
+          }
         }
       }
     }
