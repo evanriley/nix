@@ -46,6 +46,9 @@ interface ChildConfig {
 	tools: string[];
 	promptFile: string;
 	sessionFile: string;
+	maxTurns: number;
+	maxMinutes: number;
+	maxCost: number;
 }
 
 const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
@@ -55,6 +58,9 @@ const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 		thinking: "high",
 		tools: ["read", "bash", "edit", "write"],
 		promptFile: path.join(EXTENSION_DIR, "worker.md"),
+		maxTurns: 200,
+		maxMinutes: 60,
+		maxCost: 3,
 	},
 	reviewer: {
 		role: "reviewer",
@@ -62,8 +68,16 @@ const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 		thinking: "high",
 		tools: ["read", "grep", "find", "ls", "bash"],
 		promptFile: path.join(EXTENSION_DIR, "reviewer.md"),
+		maxTurns: 200,
+		maxMinutes: 60,
+		maxCost: 3,
 	},
 };
+
+interface LimitHit {
+	kind: "turn" | "time" | "cost";
+	value: string;
+}
 
 interface ChildResult {
 	exitCode: number;
@@ -75,6 +89,7 @@ interface ChildResult {
 	toolCalls: number;
 	usage: Usage;
 	thinkingLine?: string;
+	limit?: LimitHit;
 }
 
 interface TranscriptRef {
@@ -306,9 +321,9 @@ function previousReviewPaths(featureDir: string): string[] {
 	return reviewNumbers(featureDir, /^review-(\d+)\.md$/).map((number) => path.join(featureDir, `review-${number}.md`));
 }
 
-function runGit(cwd: string, args: string[], input?: Buffer): Promise<Buffer> {
+function runGit(cwd: string, args: string[], input?: Buffer, env?: NodeJS.ProcessEnv): Promise<Buffer> {
 	return new Promise((resolve, reject) => {
-		const child = spawn("git", args, { cwd, shell: false, stdio: ["pipe", "pipe", "pipe"] });
+		const child = spawn("git", args, { cwd, env, shell: false, stdio: ["pipe", "pipe", "pipe"] });
 		const stdout: Buffer[] = [];
 		let stderr = "";
 		child.stdout.on("data", (data: Buffer) => stdout.push(data));
@@ -327,6 +342,48 @@ function runGit(cwd: string, args: string[], input?: Buffer): Promise<Buffer> {
 async function gitText(cwd: string, args: string[]): Promise<string | undefined> {
 	const output = await runGit(cwd, args).catch(() => undefined);
 	return output?.toString().trim() || undefined;
+}
+
+async function nextCheckpointNumber(repoRoot: string, feature: string): Promise<number> {
+	const refs = await runGit(repoRoot, ["for-each-ref", "--format=%(refname)", `refs/pi/${feature}/`]);
+	const numbers = refs
+		.toString()
+		.split("\n")
+		.map((ref) => Number(ref.slice(`refs/pi/${feature}/`.length)))
+		.filter((number) => Number.isInteger(number));
+	return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+}
+
+async function createCheckpoint(repoRoot: string, feature: string): Promise<string> {
+	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-checkpoint-"));
+	try {
+		const indexFile = path.join(tempDir, "index");
+		const realIndex = path.resolve(repoRoot, (await runGit(repoRoot, ["rev-parse", "--git-path", "index"])).toString().trim());
+		if (fs.existsSync(realIndex)) fs.copyFileSync(realIndex, indexFile);
+		const env = {
+			...process.env,
+			GIT_INDEX_FILE: indexFile,
+			GIT_AUTHOR_NAME: "pi",
+			GIT_AUTHOR_EMAIL: "pi@localhost",
+			GIT_COMMITTER_NAME: "pi",
+			GIT_COMMITTER_EMAIL: "pi@localhost",
+		};
+		await runGit(repoRoot, ["add", "-A"], undefined, env);
+		const tree = (await runGit(repoRoot, ["write-tree"], undefined, env)).toString().trim();
+		const number = await nextCheckpointNumber(repoRoot, feature);
+		const ref = `refs/pi/${feature}/${number}`;
+		const hasHead = (await gitText(repoRoot, ["rev-parse", "--verify", "--quiet", "HEAD"])) !== undefined;
+		const parent = hasHead ? ["-p", "HEAD"] : [];
+		const commit = (
+			await runGit(repoRoot, ["commit-tree", tree, ...parent, "-m", `pi checkpoint ${feature} ${number}`], undefined, env)
+		)
+			.toString()
+			.trim();
+		await runGit(repoRoot, ["update-ref", ref, commit]);
+		return ref;
+	} finally {
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	}
 }
 
 async function currentBranch(repoRoot: string): Promise<string | undefined> {
@@ -479,6 +536,7 @@ function runChild(
 		let buffer = "";
 		let thinkingText = "";
 		let lastProgressAt = 0;
+		let limitTimer: NodeJS.Timeout | undefined;
 
 		const reportProgress = () => {
 			lastProgressAt = Date.now();
@@ -515,6 +573,11 @@ function runChild(
 			result.turns++;
 			result.toolCalls += assistant.content.filter((part) => part.type === "toolCall").length;
 			if (assistant.usage) addUsage(result.usage, assistant.usage);
+			if (!result.limit && result.turns >= config.maxTurns) {
+				stopAtLimit({ kind: "turn", value: `${config.maxTurns} turns` });
+			} else if (!result.limit && result.usage.cost.total >= config.maxCost) {
+				stopAtLimit({ kind: "cost", value: `$${config.maxCost.toFixed(2)}` });
+			}
 			result.finalText = lastAssistantText(assistant) ?? result.finalText;
 			if (assistant.stopReason) result.stopReason = assistant.stopReason;
 			if (assistant.errorMessage) result.errorMessage = assistant.errorMessage;
@@ -537,13 +600,24 @@ function runChild(
 			}, 5000);
 		};
 
+		const stopAtLimit = (limit: LimitHit) => {
+			result.limit = limit;
+			stop();
+		};
+		limitTimer = setTimeout(
+			() => stopAtLimit({ kind: "time", value: `${config.maxMinutes} min` }),
+			config.maxMinutes * 60_000,
+		);
+
 		child.on("close", (code) => {
+			clearTimeout(limitTimer);
 			signal?.removeEventListener("abort", stop);
 			if (buffer.trim()) processLine(buffer);
 			result.exitCode = code ?? 1;
 			resolve(result);
 		});
 		child.on("error", (error) => {
+			clearTimeout(limitTimer);
 			result.stderr += error.message;
 			result.exitCode = 1;
 			resolve(result);
@@ -555,10 +629,11 @@ function runChild(
 }
 
 function isFailed(result: ChildResult): boolean {
-	return result.exitCode !== 0 || result.stopReason === "error" || result.stopReason === "aborted";
+	return result.limit !== undefined || result.exitCode !== 0 || result.stopReason === "error" || result.stopReason === "aborted";
 }
 
 function failureText(role: Role, result: ChildResult): string {
+	if (result.limit) return `The ${role} stopped at its ${result.limit.kind} limit (${result.limit.value})\n\n${formatUsage(result)}`;
 	const reason = result.errorMessage || result.stderr.trim() || result.finalText || "(no output)";
 	return `The ${role} failed (exit ${result.exitCode}, stop reason ${result.stopReason ?? "none"}): ${reason}\n\n${formatUsage(result)}`;
 }
@@ -767,6 +842,7 @@ export default function (pi: ExtensionAPI) {
 			"Dispatch the implementation worker (DeepSeek V4.1 Flash) for a feature whose spec.md exists.",
 			"Each dispatch needs the user's /approve; one approval allows exactly one call. The worker keeps one session per feature, so later calls are fix passes that see earlier work.",
 			"From the repository's default branch, a dispatch first switches to a branch named after the feature.",
+			"Each dispatch saves the tree before it runs as refs/pi/<feature>/<n>; `git diff <ref>` shows that pass.",
 			"Only one worker or reviewer runs at a time. Returns the worker's report and token usage.",
 		].join(" "),
 		parameters: Type.Object({
@@ -788,6 +864,15 @@ export default function (pi: ExtensionAPI) {
 					checkApproval(params.feature, specPath);
 					const repoRoot = await gitTopLevel(pi, ctx.cwd);
 					const switchedFrom = repoRoot ? await ensureFeatureBranch(repoRoot, params.feature) : undefined;
+					const checkpoint = repoRoot
+						? await createCheckpoint(repoRoot, params.feature).catch((error: unknown) => {
+								ctx.ui.notify(
+									`Checkpoint failed; continuing without it: ${error instanceof Error ? error.message : String(error)}`,
+									"warning",
+								);
+								return undefined;
+							})
+						: undefined;
 					consumeApproval(pi, params.feature);
 					if (switchedFrom) ctx.ui.notify(`Switched to branch ${params.feature}`, "info");
 					const sessionFile = path.join(featureDir, "worker.jsonl");
@@ -812,7 +897,7 @@ export default function (pi: ExtensionAPI) {
 						content: [
 							{
 								type: "text",
-								text: `${result.finalText || "(no output)"}\n\n${formatUsage(result)}\nsession: ${sessionFile}${switchedFrom ? `\nbranch: ${params.feature} (from ${switchedFrom})` : ""}`,
+								text: `${result.finalText || "(no output)"}\n\n${formatUsage(result)}\nsession: ${sessionFile}${checkpoint ? `\ncheckpoint: ${checkpoint}` : ""}${switchedFrom ? `\nbranch: ${params.feature} (from ${switchedFrom})` : ""}`,
 							},
 						],
 						details,
