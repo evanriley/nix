@@ -180,6 +180,13 @@ in
         piWithLongCache
       ];
 
+      programs.git.includes = [
+        {
+          condition = "gitdir:~/nix/";
+          contents.pi.featureBranches = false;
+        }
+      ];
+
       home.file = {
         ".claude/CLAUDE.md".source = link "config/ai/AGENTS.md";
         ".claude/agents".source = link "config/ai/claude/agents";

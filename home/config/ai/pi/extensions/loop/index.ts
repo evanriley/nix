@@ -167,7 +167,7 @@ function recordApproval(pi: ExtensionAPI, feature: string, specHash: string | nu
 	pi.appendEntry(APPROVAL_ENTRY, { feature, specHash });
 }
 
-function consumeApproval(pi: ExtensionAPI, feature: string, specPath: string): void {
+function checkApproval(feature: string, specPath: string): void {
 	const approvedHash = approvals.get(feature);
 	if (!approvedHash) {
 		throw new Error("Not approved: ask the user to run /approve.");
@@ -175,6 +175,9 @@ function consumeApproval(pi: ExtensionAPI, feature: string, specPath: string): v
 	if (approvedHash !== hashFile(specPath)) {
 		throw new Error("spec.md changed after approval: ask the user to run /approve again.");
 	}
+}
+
+function consumeApproval(pi: ExtensionAPI, feature: string): void {
 	recordApproval(pi, feature, null);
 }
 
@@ -315,6 +318,48 @@ function runGit(cwd: string, args: string[], input?: Buffer): Promise<Buffer> {
 		});
 		child.stdin.end(input);
 	});
+}
+
+async function gitText(cwd: string, args: string[]): Promise<string | undefined> {
+	const output = await runGit(cwd, args).catch(() => undefined);
+	return output?.toString().trim() || undefined;
+}
+
+async function currentBranch(repoRoot: string): Promise<string | undefined> {
+	return gitText(repoRoot, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
+}
+
+async function defaultBranch(repoRoot: string): Promise<string> {
+	const remoteHead = await gitText(repoRoot, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]);
+	if (remoteHead) return remoteHead.replace(/^origin\//, "");
+	return (await gitText(repoRoot, ["config", "init.defaultBranch"])) ?? "main";
+}
+
+async function branchExists(repoRoot: string, branch: string): Promise<boolean> {
+	return (await gitText(repoRoot, ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`])) !== undefined;
+}
+
+async function ensureFeatureBranch(repoRoot: string, feature: string): Promise<string | undefined> {
+	const enabled = await gitText(repoRoot, ["config", "--type=bool", "pi.featureBranches"]);
+	if (enabled === "false") return undefined;
+	const current = await currentBranch(repoRoot);
+	if (!current) return undefined;
+	const base = await defaultBranch(repoRoot);
+	if (current !== base) return undefined;
+	const args = (await branchExists(repoRoot, feature)) ? ["switch", feature] : ["switch", "-c", feature];
+	await runGit(repoRoot, args);
+	return base;
+}
+
+async function reviewScope(repoRoot: string | undefined, feature: string): Promise<string> {
+	const uncommitted =
+		"Review the uncommitted changes in this repository against the spec: run `git status`, `git diff` and `git diff --cached`, and read every untracked file.";
+	if (!repoRoot || (await currentBranch(repoRoot)) !== feature) return uncommitted;
+	const base = await defaultBranch(repoRoot);
+	const ref = (await branchExists(repoRoot, base)) ? base : `origin/${base}`;
+	const mergeBase = await gitText(repoRoot, ["merge-base", "HEAD", ref]);
+	if (!mergeBase) return uncommitted;
+	return `Review the changes on this branch against the spec: run \`git status\`, \`git log --oneline ${mergeBase}..HEAD\` and \`git diff ${mergeBase}\`, and read every untracked file.`;
 }
 
 async function removeScratch(repoRoot: string, scratchDir: string): Promise<void> {
@@ -705,6 +750,7 @@ export default function (pi: ExtensionAPI) {
 		description: [
 			"Dispatch the implementation worker (DeepSeek V4.1 Flash) for a feature whose spec.md exists.",
 			"Each dispatch needs the user's /approve; one approval allows exactly one call. The worker keeps one session per feature, so later calls are fix passes that see earlier work.",
+			"From the repository's default branch, a dispatch first switches to a branch named after the feature.",
 			"Only one worker or reviewer runs at a time. Returns the worker's report and token usage.",
 		].join(" "),
 		parameters: Type.Object({
@@ -723,7 +769,11 @@ export default function (pi: ExtensionAPI) {
 				"worker",
 				() => refreshStatus(pi, ctx),
 				async () => {
-					consumeApproval(pi, params.feature, specPath);
+					checkApproval(params.feature, specPath);
+					const repoRoot = await gitTopLevel(pi, ctx.cwd);
+					const switchedFrom = repoRoot ? await ensureFeatureBranch(repoRoot, params.feature) : undefined;
+					consumeApproval(pi, params.feature);
+					if (switchedFrom) ctx.ui.notify(`Switched to branch ${params.feature}`, "info");
 					const sessionFile = path.join(featureDir, "worker.jsonl");
 					const transcript = { file: sessionFile, fromLine: countLines(sessionFile) };
 					const result = await runChild(
@@ -746,7 +796,7 @@ export default function (pi: ExtensionAPI) {
 						content: [
 							{
 								type: "text",
-								text: `${result.finalText || "(no output)"}\n\n${formatUsage(result)}\nsession: ${sessionFile}`,
+								text: `${result.finalText || "(no output)"}\n\n${formatUsage(result)}\nsession: ${sessionFile}${switchedFrom ? `\nbranch: ${params.feature} (from ${switchedFrom})` : ""}`,
 							},
 						],
 						details,
@@ -801,21 +851,22 @@ export default function (pi: ExtensionAPI) {
 							ctx.ui.notify(`Reviewer scratch copy failed; reviewing without it: ${reason}`, "warning");
 						}
 					}
+					const scope = await reviewScope(repoRoot, params.feature);
 					try {
-						return await runReview(reviewNumber, previousReviews, scratchReady ? scratchDir : undefined);
+						return await runReview(reviewNumber, previousReviews, scratchReady ? scratchDir : undefined, scope);
 					} finally {
 						if (repoRoot) await removeScratch(repoRoot, scratchDir);
 					}
 				},
 			);
 
-			async function runReview(reviewNumber: number, previousReviews: string[], scratch: string | undefined) {
+			async function runReview(reviewNumber: number, previousReviews: string[], scratch: string | undefined, scope: string) {
 				const message = [
 					`Spec: ${specPath}`,
 					scratch ? `Scratch: ${scratch}` : undefined,
 					previousReviews.length > 0 ? `Previous reviews:\n${previousReviews.join("\n")}` : undefined,
 					params.focus ? `Focus: ${params.focus}` : undefined,
-					"Review the uncommitted changes in this repository against the spec: run `git status`, `git diff` and `git diff --cached`, and read every untracked file.",
+					scope,
 				]
 					.filter((line) => line !== undefined)
 					.join("\n\n");
