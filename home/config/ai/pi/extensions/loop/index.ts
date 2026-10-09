@@ -6,7 +6,14 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import type { Message, Usage } from "@earendil-works/pi-ai";
-import { type ExtensionAPI, getAgentDir, getMarkdownTheme, keyHint, type Theme } from "@earendil-works/pi-coding-agent";
+import {
+	type ExtensionAPI,
+	type ExtensionContext,
+	getAgentDir,
+	getMarkdownTheme,
+	keyHint,
+	type Theme,
+} from "@earendil-works/pi-coding-agent";
 import {
 	type Component,
 	Container,
@@ -26,6 +33,8 @@ const FEATURE_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 const PROGRESS_INTERVAL_MS = 250;
 const COLLAPSED_REPORT_LINES = 10;
 const TRANSCRIPT_BLOCK_LINES = 20;
+const APPROVAL_ENTRY = "loop-approval";
+const STATUS_KEY = "loop";
 
 type Role = "worker" | "reviewer";
 
@@ -87,6 +96,12 @@ interface TranscriptCache {
 
 let runningRole: Role | undefined;
 let lastTouchedFeature: string | undefined;
+const approvals = new Map<string, string>();
+
+interface ApprovalEntryData {
+	feature: string;
+	specHash: string | null;
+}
 
 function emptyUsage(): Usage {
 	return {
@@ -124,10 +139,13 @@ function sessionSlug(directory: string): string {
 		.replace(/[/\\:]/g, "-")}--`;
 }
 
-async function projectPlansDir(pi: ExtensionAPI, cwd: string): Promise<string> {
+async function gitTopLevel(pi: ExtensionAPI, cwd: string): Promise<string | undefined> {
 	const gitRoot = await pi.exec("git", ["rev-parse", "--show-toplevel"], { cwd }).catch(() => undefined);
-	const projectRoot = gitRoot?.code === 0 && gitRoot.stdout.trim() ? gitRoot.stdout.trim() : cwd;
-	return path.join(PLANS_DIR, sessionSlug(projectRoot));
+	return gitRoot?.code === 0 && gitRoot.stdout.trim() ? gitRoot.stdout.trim() : undefined;
+}
+
+async function projectPlansDir(pi: ExtensionAPI, cwd: string): Promise<string> {
+	return path.join(PLANS_DIR, sessionSlug((await gitTopLevel(pi, cwd)) ?? cwd));
 }
 
 async function resolveFeatureDir(pi: ExtensionAPI, cwd: string, feature: string): Promise<string> {
@@ -143,15 +161,76 @@ function hashFile(filePath: string): string {
 	return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
-function consumeApproval(featureDir: string, specPath: string): void {
-	const approvalPath = path.join(featureDir, "approved");
-	if (!fs.existsSync(approvalPath)) {
+function recordApproval(pi: ExtensionAPI, feature: string, specHash: string | null): void {
+	if (specHash) approvals.set(feature, specHash);
+	else approvals.delete(feature);
+	pi.appendEntry(APPROVAL_ENTRY, { feature, specHash });
+}
+
+function consumeApproval(pi: ExtensionAPI, feature: string, specPath: string): void {
+	const approvedHash = approvals.get(feature);
+	if (!approvedHash) {
 		throw new Error("Not approved: ask the user to run /approve.");
 	}
-	if (fs.readFileSync(approvalPath, "utf-8").trim() !== hashFile(specPath)) {
+	if (approvedHash !== hashFile(specPath)) {
 		throw new Error("spec.md changed after approval: ask the user to run /approve again.");
 	}
-	fs.unlinkSync(approvalPath);
+	recordApproval(pi, feature, null);
+}
+
+function touchFeature(pi: ExtensionAPI, feature: string): void {
+	lastTouchedFeature = feature;
+	if (!pi.getSessionName()) pi.setSessionName(feature);
+}
+
+function isApprovalEntryData(data: unknown): data is ApprovalEntryData {
+	if (typeof data !== "object" || data === null) return false;
+	const { feature, specHash } = data as Partial<ApprovalEntryData>;
+	return (
+		typeof feature === "string" && FEATURE_PATTERN.test(feature) && (typeof specHash === "string" || specHash === null)
+	);
+}
+
+function restoreFromBranch(pi: ExtensionAPI, ctx: ExtensionContext): void {
+	approvals.clear();
+	lastTouchedFeature = undefined;
+	let latestFeature: string | undefined;
+	for (const entry of ctx.sessionManager.getBranch()) {
+		if (entry.type !== "custom" || entry.customType !== APPROVAL_ENTRY || !isApprovalEntryData(entry.data)) continue;
+		if (entry.data.specHash) approvals.set(entry.data.feature, entry.data.specHash);
+		else approvals.delete(entry.data.feature);
+		latestFeature = entry.data.feature;
+	}
+	if (latestFeature) touchFeature(pi, latestFeature);
+}
+
+function latestVerdict(featureDir: string): string | undefined {
+	const latestReview = reviewNumbers(featureDir, /^review-(\d+)\.md$/).at(-1);
+	if (latestReview === undefined) return undefined;
+	const verdictLine = fs
+		.readFileSync(path.join(featureDir, `review-${latestReview}.md`), "utf-8")
+		.split("\n")
+		.filter((line) => line.startsWith("Verdict:"))
+		.at(-1);
+	return verdictLine?.slice("Verdict:".length).trim() || undefined;
+}
+
+function loopState(feature: string, featureDir: string): string {
+	if (runningRole) return `${runningRole} running`;
+	if (approvals.has(feature)) return "approved";
+	const verdict = latestVerdict(featureDir);
+	return verdict ? `review: ${verdict}` : "spec";
+}
+
+async function refreshStatus(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
+	const feature = lastTouchedFeature;
+	if (!feature) {
+		ctx.ui.setStatus(STATUS_KEY, undefined);
+		return;
+	}
+	const featureDir = path.join(await projectPlansDir(pi, ctx.cwd), feature);
+	const theme = ctx.ui.theme;
+	ctx.ui.setStatus(STATUS_KEY, theme.fg("accent", feature) + theme.fg("dim", ` · ${loopState(feature, featureDir)}`));
 }
 
 function expandHome(filePath: string): string {
@@ -196,13 +275,69 @@ function requireSpec(featureDir: string): string {
 	return specPath;
 }
 
-function nextReviewNumber(featureDir: string): number {
-	const numbers = fs
+function reviewNumbers(featureDir: string, pattern: RegExp): number[] {
+	if (!fs.existsSync(featureDir)) return [];
+	return fs
 		.readdirSync(featureDir)
-		.map((name) => /^review-(\d+)\.(md|jsonl)$/.exec(name)?.[1])
+		.map((name) =>
+			pattern
+				.exec(name)
+				?.slice(1)
+				.find((group) => group !== undefined),
+		)
 		.filter((match): match is string => match !== undefined)
-		.map(Number);
+		.map(Number)
+		.sort((left, right) => left - right);
+}
+
+function nextReviewNumber(featureDir: string): number {
+	const numbers = reviewNumbers(featureDir, /^(?:review-(\d+)\.(?:md|jsonl)|scratch-(\d+))$/);
 	return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+}
+
+function previousReviewPaths(featureDir: string): string[] {
+	return reviewNumbers(featureDir, /^review-(\d+)\.md$/).map((number) => path.join(featureDir, `review-${number}.md`));
+}
+
+function runGit(cwd: string, args: string[], input?: Buffer): Promise<Buffer> {
+	return new Promise((resolve, reject) => {
+		const child = spawn("git", args, { cwd, shell: false, stdio: ["pipe", "pipe", "pipe"] });
+		const stdout: Buffer[] = [];
+		let stderr = "";
+		child.stdout.on("data", (data: Buffer) => stdout.push(data));
+		child.stderr.on("data", (data) => {
+			stderr += data.toString();
+		});
+		child.on("error", reject);
+		child.on("close", (code) => {
+			if (code === 0) resolve(Buffer.concat(stdout));
+			else reject(new Error(`git ${args.join(" ")} failed (exit ${code}): ${stderr.trim()}`));
+		});
+		child.stdin.end(input);
+	});
+}
+
+async function removeScratch(repoRoot: string, scratchDir: string): Promise<void> {
+	if (fs.existsSync(scratchDir)) {
+		await runGit(repoRoot, ["worktree", "remove", "--force", scratchDir]).catch(() => undefined);
+		fs.rmSync(scratchDir, { recursive: true, force: true });
+	}
+	await runGit(repoRoot, ["worktree", "prune"]).catch(() => undefined);
+}
+
+async function createScratch(repoRoot: string, scratchDir: string): Promise<void> {
+	await runGit(repoRoot, ["worktree", "add", "--detach", scratchDir, "HEAD"]);
+	const diff = await runGit(repoRoot, ["diff", "HEAD", "--binary"]);
+	if (diff.length > 0) await runGit(scratchDir, ["apply", "--binary"], diff);
+	const untracked = (await runGit(repoRoot, ["ls-files", "--others", "--exclude-standard", "-z"]))
+		.toString("utf-8")
+		.split("\0")
+		.filter((name) => name.length > 0);
+	for (const name of untracked) {
+		const target = path.join(scratchDir, name);
+		fs.mkdirSync(path.dirname(target), { recursive: true });
+		fs.cpSync(path.join(repoRoot, name), target, { recursive: true, verbatimSymlinks: true });
+	}
 }
 
 function countLines(filePath: string): number {
@@ -385,15 +520,17 @@ function makeDetails(
 	};
 }
 
-async function withLock<T>(role: Role, run: () => Promise<T>): Promise<T> {
+async function withLock<T>(role: Role, onChange: () => Promise<void>, run: () => Promise<T>): Promise<T> {
 	if (runningRole) {
 		throw new Error(`The ${runningRole} is already running; wait for it to finish before dispatching the ${role}.`);
 	}
 	runningRole = role;
 	try {
+		await onChange();
 		return await run();
 	} finally {
 		runningRole = undefined;
+		await onChange();
 	}
 }
 
@@ -582,37 +719,41 @@ export default function (pi: ExtensionAPI) {
 			const featureDir = await resolveFeatureDir(pi, ctx.cwd, params.feature);
 			const specPath = requireSpec(featureDir);
 
-			return withLock("worker", async () => {
-				consumeApproval(featureDir, specPath);
-				const sessionFile = path.join(featureDir, "worker.jsonl");
-				const transcript = { file: sessionFile, fromLine: countLines(sessionFile) };
-				const result = await runChild(
-					{ ...ROLE_CONFIG.worker, sessionFile },
-					`Spec: ${specPath}\n\n${params.task}`,
-					ctx.cwd,
-					signal,
-					progressReporter("worker", params.feature, transcript, onUpdate),
-				);
-				const details = makeDetails("worker", params.feature, result, transcript);
-				if (isFailed(result)) {
+			return withLock(
+				"worker",
+				() => refreshStatus(pi, ctx),
+				async () => {
+					consumeApproval(pi, params.feature, specPath);
+					const sessionFile = path.join(featureDir, "worker.jsonl");
+					const transcript = { file: sessionFile, fromLine: countLines(sessionFile) };
+					const result = await runChild(
+						{ ...ROLE_CONFIG.worker, sessionFile },
+						`Spec: ${specPath}\n\n${params.task}`,
+						ctx.cwd,
+						signal,
+						progressReporter("worker", params.feature, transcript, onUpdate),
+					);
+					const details = makeDetails("worker", params.feature, result, transcript);
+					if (isFailed(result)) {
+						return {
+							content: [{ type: "text", text: failureText("worker", result) }],
+							details,
+							usage: result.usage,
+							isError: true,
+						};
+					}
 					return {
-						content: [{ type: "text", text: failureText("worker", result) }],
+						content: [
+							{
+								type: "text",
+								text: `${result.finalText || "(no output)"}\n\n${formatUsage(result)}\nsession: ${sessionFile}`,
+							},
+						],
 						details,
 						usage: result.usage,
-						isError: true,
 					};
-				}
-				return {
-					content: [
-						{
-							type: "text",
-							text: `${result.finalText || "(no output)"}\n\n${formatUsage(result)}\nsession: ${sessionFile}`,
-						},
-					],
-					details,
-					usage: result.usage,
-				};
-			});
+				},
+			);
 		},
 
 		renderCall(args, theme) {
@@ -641,15 +782,43 @@ export default function (pi: ExtensionAPI) {
 			const featureDir = await resolveFeatureDir(pi, ctx.cwd, params.feature);
 			const specPath = requireSpec(featureDir);
 
-			return withLock("reviewer", async () => {
+			return withLock(
+				"reviewer",
+				() => refreshStatus(pi, ctx),
+				async () => {
+					const reviewNumber = nextReviewNumber(featureDir);
+					const previousReviews = previousReviewPaths(featureDir);
+					const repoRoot = await gitTopLevel(pi, ctx.cwd);
+					const scratchDir = path.join(featureDir, `scratch-${reviewNumber}`);
+					let scratchReady = false;
+					if (repoRoot) {
+						try {
+							await createScratch(repoRoot, scratchDir);
+							scratchReady = true;
+						} catch (error) {
+							await removeScratch(repoRoot, scratchDir);
+							const reason = error instanceof Error ? error.message : String(error);
+							ctx.ui.notify(`Reviewer scratch copy failed; reviewing without it: ${reason}`, "warning");
+						}
+					}
+					try {
+						return await runReview(reviewNumber, previousReviews, scratchReady ? scratchDir : undefined);
+					} finally {
+						if (repoRoot) await removeScratch(repoRoot, scratchDir);
+					}
+				},
+			);
+
+			async function runReview(reviewNumber: number, previousReviews: string[], scratch: string | undefined) {
 				const message = [
 					`Spec: ${specPath}`,
+					scratch ? `Scratch: ${scratch}` : undefined,
+					previousReviews.length > 0 ? `Previous reviews:\n${previousReviews.join("\n")}` : undefined,
 					params.focus ? `Focus: ${params.focus}` : undefined,
 					"Review the uncommitted changes in this repository against the spec: run `git status`, `git diff` and `git diff --cached`, and read every untracked file.",
 				]
 					.filter((line) => line !== undefined)
 					.join("\n\n");
-				const reviewNumber = nextReviewNumber(featureDir);
 				const transcript = { file: path.join(featureDir, `review-${reviewNumber}.jsonl`), fromLine: 0 };
 				const result = await runChild(
 					{ ...ROLE_CONFIG.reviewer, sessionFile: transcript.file },
@@ -681,7 +850,7 @@ export default function (pi: ExtensionAPI) {
 					details: makeDetails("reviewer", params.feature, result, transcript, reviewPath),
 					usage: result.usage,
 				};
-			});
+			}
 		},
 
 		renderCall(args, theme) {
@@ -693,19 +862,24 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	pi.on("session_start", (event) => {
-		if (event.reason !== "reload") lastTouchedFeature = undefined;
+	pi.on("session_start", async (_event, ctx) => {
+		restoreFromBranch(pi, ctx);
+		await refreshStatus(pi, ctx);
 	});
 
 	pi.on("tool_call", async (event, ctx) => {
 		if (event.toolName === "worker" || event.toolName === "reviewer") {
 			const feature = event.input.feature;
-			if (typeof feature === "string" && FEATURE_PATTERN.test(feature)) lastTouchedFeature = feature;
+			if (typeof feature !== "string" || !FEATURE_PATTERN.test(feature)) return undefined;
+			touchFeature(pi, feature);
+			await refreshStatus(pi, ctx);
 		} else if (event.toolName === "write" || event.toolName === "edit") {
 			const filePath = event.input.path;
 			if (typeof filePath !== "string") return undefined;
 			const feature = await featureOfSpecPath(pi, ctx.cwd, filePath);
-			if (feature) lastTouchedFeature = feature;
+			if (!feature) return undefined;
+			touchFeature(pi, feature);
+			await refreshStatus(pi, ctx);
 		}
 		return undefined;
 	});
@@ -723,8 +897,9 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 			const featureDir = path.join(await projectPlansDir(pi, ctx.cwd), feature);
-			const specHash = hashFile(path.join(featureDir, "spec.md"));
-			fs.writeFileSync(path.join(featureDir, "approved"), `${specHash}\n`, "utf-8");
+			recordApproval(pi, feature, hashFile(path.join(featureDir, "spec.md")));
+			touchFeature(pi, feature);
+			await refreshStatus(pi, ctx);
 			ctx.ui.notify(`Approved ${feature}`, "info");
 			const notes = args.trim();
 			pi.sendUserMessage(`Approved: dispatch the worker for ${feature}.${notes ? `\n\n${notes}` : ""}`);

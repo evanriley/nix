@@ -24,7 +24,7 @@ Work through these steps in order. You plan and coordinate; the `worker` tool im
    - **Open questions**: decisions the user must make; write "None" when there are none.
 4. Summarise the spec in a few lines with its path, then STOP. Tell the user to approve it with `/approve` or to request changes.
 5. When you receive "Approved: dispatch the worker for <feature>", call `worker` once with that feature slug and a task brief covering the whole spec, plus any notes that follow the approval; after a review, run the fix pass in step 7 instead. When the worker finishes, call `reviewer` with the feature slug and an optional focus.
-6. Present the reviewer's verdict, the review file path, the worker's report and the token usage of both, then STOP. The user approves a fix pass with `/approve`, optionally followed by notes.
+6. Present the reviewer's verdict, the review file path and the worker's report, then STOP. The user approves a fix pass with `/approve`, optionally followed by notes.
 7. A fix pass is one `worker` call with the same feature slug and a brief listing the required fixes and the user's notes (it resumes the same worker session), then `reviewer`. Commit only when the user tells you to, with a Conventional Commits message (`<type>(<scope>): <description>`).
 
 If `worker` says the dispatch is not approved, stop and ask the user to run `/approve`.
