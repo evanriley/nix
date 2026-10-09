@@ -155,11 +155,6 @@ function addUsage(total: Usage, usage: Usage): void {
 	total.cost.total += usage.cost?.total || 0;
 }
 
-function formatUsage(result: ChildResult): string {
-	const { usage } = result;
-	return `usage: input=${usage.input} cacheRead=${usage.cacheRead} cacheWrite=${usage.cacheWrite} output=${usage.output} cost=$${usage.cost.total.toFixed(4)} turns=${result.turns}`;
-}
-
 function sessionSlug(directory: string): string {
 	return `--${path
 		.resolve(directory)
@@ -642,9 +637,9 @@ function isFailed(result: ChildResult): boolean {
 }
 
 function failureText(role: Role, result: ChildResult): string {
-	if (result.limit) return `The ${role} stopped at its ${result.limit.kind} limit (${result.limit.value})\n\n${formatUsage(result)}`;
+	if (result.limit) return `The ${role} stopped at its ${result.limit.kind} limit (${result.limit.value})`;
 	const reason = result.errorMessage || result.stderr.trim() || result.finalText || "(no output)";
-	return `The ${role} failed (exit ${result.exitCode}, stop reason ${result.stopReason ?? "none"}): ${reason}\n\n${formatUsage(result)}`;
+	return `The ${role} failed (exit ${result.exitCode}, stop reason ${result.stopReason ?? "none"}): ${reason}`;
 }
 
 function makeDetails(
@@ -852,7 +847,7 @@ export default function (pi: ExtensionAPI) {
 			"Each dispatch needs the user's /approve; one approval allows exactly one call. The worker keeps one session per feature, so later calls are fix passes that see earlier work.",
 			"From the repository's default branch, a dispatch first switches to a branch named after the feature.",
 			"Each dispatch saves the tree before it runs as refs/pi/<feature>/<n>; `git diff <ref>` shows that pass.",
-			"Only one worker or reviewer runs at a time. Returns the worker's report and token usage.",
+			"Only one worker or reviewer runs at a time. Returns the worker's report.",
 		].join(" "),
 		parameters: Type.Object({
 			feature: FeatureParam,
@@ -906,7 +901,7 @@ export default function (pi: ExtensionAPI) {
 						content: [
 							{
 								type: "text",
-								text: `${result.finalText || "(no output)"}\n\n${formatUsage(result)}\nsession: ${sessionFile}${checkpoint ? `\ncheckpoint: ${checkpoint}` : ""}${switchedFrom ? `\nbranch: ${params.feature} (from ${switchedFrom})` : ""}`,
+								text: `${result.finalText || "(no output)"}\n\nsession: ${sessionFile}${checkpoint ? `\ncheckpoint: ${checkpoint}` : ""}${switchedFrom ? `\nbranch: ${params.feature} (from ${switchedFrom})` : ""}`,
 							},
 						],
 						details,
@@ -930,7 +925,7 @@ export default function (pi: ExtensionAPI) {
 		label: "Reviewer",
 		description: [
 			"Run a fresh read-only reviewer (GLM 5.3) on the uncommitted changes against the feature's spec.md.",
-			"Writes the verdict to review-<n>.md next to the spec and returns it with token usage.",
+			"Writes the verdict to review-<n>.md next to the spec and returns it.",
 			"Only one worker or reviewer runs at a time.",
 		].join(" "),
 		parameters: Type.Object({
@@ -998,7 +993,7 @@ export default function (pi: ExtensionAPI) {
 				}
 				if (!result.finalText.trim()) {
 					return {
-						content: [{ type: "text", text: `The reviewer returned no verdict.\n\n${formatUsage(result)}` }],
+						content: [{ type: "text", text: "The reviewer returned no verdict." }],
 						details: makeDetails("reviewer", params.feature, result, transcript),
 						usage: result.usage,
 						isError: true,
@@ -1007,7 +1002,7 @@ export default function (pi: ExtensionAPI) {
 				const reviewPath = path.join(featureDir, `review-${reviewNumber}.md`);
 				fs.writeFileSync(reviewPath, `${result.finalText.trim()}\n`, { encoding: "utf-8", flag: "wx" });
 				return {
-					content: [{ type: "text", text: `${result.finalText}\n\n${formatUsage(result)}\nreview: ${reviewPath}` }],
+					content: [{ type: "text", text: `${result.finalText}\n\nreview: ${reviewPath}` }],
 					details: makeDetails("reviewer", params.feature, result, transcript, reviewPath),
 					usage: result.usage,
 				};
