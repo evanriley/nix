@@ -2,6 +2,10 @@
 let
   inherit (config.flake.lib) mkScript;
   inherit (config.meta) user;
+  openrouterKey = {
+    file = inputs.self + "/secrets/openrouter-key.age";
+    owner = user.name;
+  };
   kagiKey = {
     file = inputs.self + "/secrets/kagi-key.age";
     owner = user.name;
@@ -39,11 +43,13 @@ let
 in
 {
   flake.modules.nixos.ai.age.secrets = {
+    openrouter-key = openrouterKey;
     kagi-key = kagiKey;
     coralbricks-key = coralbricksKey;
   };
 
   flake.modules.darwin.ai.age.secrets = {
+    openrouter-key = openrouterKey;
     kagi-key = kagiKey;
     coralbricks-key = coralbricksKey;
   };

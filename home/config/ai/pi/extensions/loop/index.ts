@@ -74,6 +74,15 @@ const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 	},
 };
 
+const OPENROUTER_MODELS: Record<Role, string> = {
+	worker: "openrouter/deepseek/deepseek-v4.1-flash",
+	reviewer: "openrouter/z-ai/glm-5.3",
+};
+
+function modelFor(role: Role, ctx: Pick<ExtensionContext, "model">): string {
+	return ctx.model?.provider === "openrouter" ? OPENROUTER_MODELS[role] : ROLE_CONFIG[role].model;
+}
+
 interface LimitHit {
 	kind: "turn" | "time" | "cost";
 	value: string;
@@ -878,7 +887,7 @@ export default function (pi: ExtensionAPI) {
 					const sessionFile = path.join(featureDir, "worker.jsonl");
 					const transcript = { file: sessionFile, fromLine: countLines(sessionFile) };
 					const result = await runChild(
-						{ ...ROLE_CONFIG.worker, sessionFile },
+						{ ...ROLE_CONFIG.worker, model: modelFor("worker", ctx), sessionFile },
 						`Spec: ${specPath}\n\n${params.task}`,
 						ctx.cwd,
 						signal,
@@ -973,7 +982,7 @@ export default function (pi: ExtensionAPI) {
 					.join("\n\n");
 				const transcript = { file: path.join(featureDir, `review-${reviewNumber}.jsonl`), fromLine: 0 };
 				const result = await runChild(
-					{ ...ROLE_CONFIG.reviewer, sessionFile: transcript.file, scratch },
+					{ ...ROLE_CONFIG.reviewer, model: modelFor("reviewer", ctx), sessionFile: transcript.file, scratch },
 					message,
 					ctx.cwd,
 					signal,

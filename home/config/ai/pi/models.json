@@ -1,5 +1,38 @@
 {
   "providers": {
+    "openrouter": {
+      "apiKey": "!cat /run/agenix/openrouter-key",
+      "modelOverrides": {
+        "z-ai/glm-5.3": {
+          "contextWindow": 1048576,
+          "maxTokens": 131072,
+          "compat": {
+            "openRouterRouting": {
+              "order": ["morph", "novita", "sail-research", "akashml", "siliconflow", "parasail", "z-ai", "baseten"],
+              "only": ["akashml", "baseten", "morph", "novita", "parasail", "sail-research", "siliconflow", "z-ai"],
+              "allow_fallbacks": false,
+              "quantizations": ["fp8"],
+              "data_collection": "deny",
+              "zdr": true
+            }
+          }
+        },
+        "deepseek/deepseek-v4.1-flash": {
+          "contextWindow": 1048576,
+          "maxTokens": 393216,
+          "compat": {
+            "openRouterRouting": {
+              "order": ["morph", "novita", "coreweave", "makora", "crusoe", "parasail", "siliconflow"],
+              "only": ["coreweave", "crusoe", "makora", "morph", "novita", "parasail", "siliconflow"],
+              "allow_fallbacks": false,
+              "quantizations": ["fp8"],
+              "data_collection": "deny",
+              "zdr": true
+            }
+          }
+        }
+      }
+    },
     "coralbricks": {
       "name": "CoralBricks",
       "baseUrl": "https://inference.coralbricks.ai/v1",

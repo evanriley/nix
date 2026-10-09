@@ -1,7 +1,7 @@
 {
   "defaultProvider": "coralbricks",
   "defaultModel": "glm-5.3-fast",
-  "enabledModels": ["coralbricks/glm-5.3-fast", "coralbricks/deepseek-v4.1-flash-fast"],
+  "enabledModels": ["coralbricks/glm-5.3-fast", "coralbricks/deepseek-v4.1-flash-fast", "openrouter/z-ai/glm-5.3", "openrouter/deepseek/deepseek-v4.1-flash"],
   "defaultThinkingLevel": "high",
   "compaction": { "enabled": false },
   "cacheWarming": "idle",
