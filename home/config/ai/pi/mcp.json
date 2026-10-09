@@ -5,6 +5,11 @@
       "headers": { "Authorization": "!echo Bearer $(cat /run/agenix/kagi-key)" },
       "exposure": "direct",
       "description": "Kagi web search and page extraction"
+    },
+    "grep_app": {
+      "url": "https://mcp.grep.app",
+      "exposure": "direct",
+      "description": "grep.app literal code search across public GitHub repositories"
     }
   }
 }
