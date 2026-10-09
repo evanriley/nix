@@ -492,6 +492,8 @@ function buildChildArgs(config: ChildConfig, message: string): string[] {
 		"--no-extensions",
 		"--extension",
 		path.join(getAgentDir(), "extensions", "guard", "index.ts"),
+		"--extension",
+		path.join(getAgentDir(), "extensions", "vision", "index.ts"),
 		"--no-prompt-templates",
 		"--append-system-prompt",
 		config.promptFile,
