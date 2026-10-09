@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -58,6 +59,7 @@ interface LoopDetails {
 }
 
 let runningRole: Role | undefined;
+let lastTouchedFeature: string | undefined;
 
 function emptyUsage(): Usage {
 	return {
@@ -95,15 +97,68 @@ function sessionSlug(directory: string): string {
 		.replace(/[/\\:]/g, "-")}--`;
 }
 
+async function projectPlansDir(pi: ExtensionAPI, cwd: string): Promise<string> {
+	const gitRoot = await pi.exec("git", ["rev-parse", "--show-toplevel"], { cwd }).catch(() => undefined);
+	const projectRoot = gitRoot?.code === 0 && gitRoot.stdout.trim() ? gitRoot.stdout.trim() : cwd;
+	return path.join(PLANS_DIR, sessionSlug(projectRoot));
+}
+
 async function resolveFeatureDir(pi: ExtensionAPI, cwd: string, feature: string): Promise<string> {
 	if (!FEATURE_PATTERN.test(feature)) {
 		throw new Error(
 			`Invalid feature "${feature}"; expected a kebab-case slug matching ${FEATURE_PATTERN.source}, such as "add-login-form".`,
 		);
 	}
-	const gitRoot = await pi.exec("git", ["rev-parse", "--show-toplevel"], { cwd }).catch(() => undefined);
-	const projectRoot = gitRoot?.code === 0 && gitRoot.stdout.trim() ? gitRoot.stdout.trim() : cwd;
-	return path.join(PLANS_DIR, sessionSlug(projectRoot), feature);
+	return path.join(await projectPlansDir(pi, cwd), feature);
+}
+
+function hashFile(filePath: string): string {
+	return createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+function consumeApproval(featureDir: string, specPath: string): void {
+	const approvalPath = path.join(featureDir, "approved");
+	if (!fs.existsSync(approvalPath)) {
+		throw new Error("Not approved: ask the user to run /approve.");
+	}
+	if (fs.readFileSync(approvalPath, "utf-8").trim() !== hashFile(specPath)) {
+		throw new Error("spec.md changed after approval: ask the user to run /approve again.");
+	}
+	fs.unlinkSync(approvalPath);
+}
+
+function expandHome(filePath: string): string {
+	return filePath === "~" || filePath.startsWith("~/") ? path.join(os.homedir(), filePath.slice(1)) : filePath;
+}
+
+async function featureOfSpecPath(pi: ExtensionAPI, cwd: string, filePath: string): Promise<string | undefined> {
+	const absolutePath = path.resolve(cwd, expandHome(filePath));
+	if (path.basename(absolutePath) !== "spec.md") return undefined;
+	const featureDir = path.dirname(absolutePath);
+	const feature = path.basename(featureDir);
+	if (!FEATURE_PATTERN.test(feature)) return undefined;
+	return path.dirname(featureDir) === (await projectPlansDir(pi, cwd)) ? feature : undefined;
+}
+
+function newestSpecFeature(plansDir: string): string | undefined {
+	if (!fs.existsSync(plansDir)) return undefined;
+	let newest: { feature: string; modifiedMs: number } | undefined;
+	for (const feature of fs.readdirSync(plansDir)) {
+		if (!FEATURE_PATTERN.test(feature)) continue;
+		const specPath = path.join(plansDir, feature, "spec.md");
+		if (!fs.existsSync(specPath)) continue;
+		const modifiedMs = fs.statSync(specPath).mtimeMs;
+		if (!newest || modifiedMs > newest.modifiedMs) newest = { feature, modifiedMs };
+	}
+	return newest?.feature;
+}
+
+async function featureToApprove(pi: ExtensionAPI, cwd: string): Promise<string | undefined> {
+	const plansDir = await projectPlansDir(pi, cwd);
+	if (lastTouchedFeature && fs.existsSync(path.join(plansDir, lastTouchedFeature, "spec.md"))) {
+		return lastTouchedFeature;
+	}
+	return newestSpecFeature(plansDir);
 }
 
 function requireSpec(featureDir: string): string {
@@ -298,7 +353,7 @@ export default function (pi: ExtensionAPI) {
 		label: "Worker",
 		description: [
 			"Dispatch the implementation worker (DeepSeek V4.1 Flash) for a feature whose spec.md exists.",
-			"The user must approve every dispatch. The worker keeps one session per feature, so later calls are fix passes that see earlier work.",
+			"Each dispatch needs the user's /approve; one approval allows exactly one call. The worker keeps one session per feature, so later calls are fix passes that see earlier work.",
 			"Only one worker or reviewer runs at a time. Returns the worker's report and token usage.",
 		].join(" "),
 		parameters: Type.Object({
@@ -310,31 +365,11 @@ export default function (pi: ExtensionAPI) {
 		}),
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
-			if (!ctx.hasUI) {
-				throw new Error(
-					"The worker needs an interactive UI to confirm each dispatch; run pi interactively to dispatch workers.",
-				);
-			}
 			const featureDir = await resolveFeatureDir(pi, ctx.cwd, params.feature);
 			const specPath = requireSpec(featureDir);
 
 			return withLock("worker", async () => {
-				const approved = await ctx.ui.confirm(
-					"Dispatch worker?",
-					`Feature: ${params.feature}\nSpec: ${specPath}\n\nTask:\n${params.task}`,
-				);
-				if (!approved) {
-					return {
-						content: [
-							{
-								type: "text",
-								text: "Worker dispatch not approved by the user. Stop and ask the user how to proceed.",
-							},
-						],
-						details: undefined,
-					};
-				}
-
+				consumeApproval(featureDir, specPath);
 				const sessionFile = path.join(featureDir, "worker.jsonl");
 				const result = await runChild(
 					{ ...ROLE_CONFIG.worker, session: { kind: "persistent", file: sessionFile } },
@@ -422,6 +457,44 @@ export default function (pi: ExtensionAPI) {
 					usage: result.usage,
 				};
 			});
+		},
+	});
+
+	pi.on("session_start", (event) => {
+		if (event.reason !== "reload") lastTouchedFeature = undefined;
+	});
+
+	pi.on("tool_call", async (event, ctx) => {
+		if (event.toolName === "worker" || event.toolName === "reviewer") {
+			const feature = event.input.feature;
+			if (typeof feature === "string" && FEATURE_PATTERN.test(feature)) lastTouchedFeature = feature;
+		} else if (event.toolName === "write" || event.toolName === "edit") {
+			const filePath = event.input.path;
+			if (typeof filePath !== "string") return undefined;
+			const feature = await featureOfSpecPath(pi, ctx.cwd, filePath);
+			if (feature) lastTouchedFeature = feature;
+		}
+		return undefined;
+	});
+
+	pi.registerCommand("approve", {
+		description: "Approve the current spec or fix pass so the worker can run once; text after it goes to the agent",
+		handler: async (args, ctx) => {
+			if (!ctx.isIdle()) {
+				ctx.ui.notify("The agent is busy; wait for it to stop, then run /approve again.", "warning");
+				return;
+			}
+			const feature = await featureToApprove(pi, ctx.cwd);
+			if (!feature) {
+				ctx.ui.notify("No spec to approve", "warning");
+				return;
+			}
+			const featureDir = path.join(await projectPlansDir(pi, ctx.cwd), feature);
+			const specHash = hashFile(path.join(featureDir, "spec.md"));
+			fs.writeFileSync(path.join(featureDir, "approved"), `${specHash}\n`, "utf-8");
+			ctx.ui.notify(`Approved ${feature}`, "info");
+			const notes = args.trim();
+			pi.sendUserMessage(`Approved: dispatch the worker for ${feature}.${notes ? `\n\n${notes}` : ""}`);
 		},
 	});
 }
