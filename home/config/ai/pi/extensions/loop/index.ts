@@ -6,12 +6,26 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import type { Message, Usage } from "@earendil-works/pi-ai";
-import { type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, getAgentDir, getMarkdownTheme, keyHint, type Theme } from "@earendil-works/pi-coding-agent";
+import {
+	type Component,
+	Container,
+	Markdown,
+	sliceByColumn,
+	Spacer,
+	Text,
+	TruncatedText,
+	truncateToWidth,
+	visibleWidth,
+} from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 
 const EXTENSION_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PLANS_DIR = path.join(os.homedir(), ".pi", "plans");
 const FEATURE_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+const PROGRESS_INTERVAL_MS = 250;
+const COLLAPSED_REPORT_LINES = 10;
+const TRANSCRIPT_BLOCK_LINES = 20;
 
 type Role = "worker" | "reviewer";
 
@@ -20,10 +34,10 @@ interface ChildConfig {
 	thinking: string;
 	tools: string[];
 	promptFile: string;
-	session: { kind: "persistent"; file: string } | { kind: "none" };
+	sessionFile: string;
 }
 
-const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "session">> = {
+const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 	worker: {
 		model: "coralbricks/deepseek-v4.1-flash-fast",
 		thinking: "high",
@@ -47,6 +61,12 @@ interface ChildResult {
 	turns: number;
 	toolCalls: number;
 	usage: Usage;
+	thinkingLine?: string;
+}
+
+interface TranscriptRef {
+	file: string;
+	fromLine: number;
 }
 
 interface LoopDetails {
@@ -55,7 +75,14 @@ interface LoopDetails {
 	turns: number;
 	toolCalls: number;
 	usage: Usage;
+	transcript?: TranscriptRef;
 	reviewPath?: string;
+	thinkingLine?: string;
+}
+
+interface TranscriptCache {
+	key: string;
+	messages: Message[] | undefined;
 }
 
 let runningRole: Role | undefined;
@@ -169,14 +196,26 @@ function requireSpec(featureDir: string): string {
 	return specPath;
 }
 
-function nextReviewPath(featureDir: string): string {
+function nextReviewNumber(featureDir: string): number {
 	const numbers = fs
 		.readdirSync(featureDir)
-		.map((name) => /^review-(\d+)\.md$/.exec(name)?.[1])
+		.map((name) => /^review-(\d+)\.(md|jsonl)$/.exec(name)?.[1])
 		.filter((match): match is string => match !== undefined)
 		.map(Number);
-	const next = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
-	return path.join(featureDir, `review-${next}.md`);
+	return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+}
+
+function countLines(filePath: string): number {
+	if (!fs.existsSync(filePath)) return 0;
+	return fs.readFileSync(filePath, "utf-8").split("\n").length - 1;
+}
+
+function lastNonEmptyLine(text: string): string | undefined {
+	const lines = text
+		.split("\n")
+		.map((line) => line.replace(/\s+/g, " ").trim())
+		.filter((line) => line.length > 0);
+	return lines.at(-1);
 }
 
 function getPiInvocation(args: string[]): { command: string; args: string[] } {
@@ -193,12 +232,12 @@ function getPiInvocation(args: string[]): { command: string; args: string[] } {
 }
 
 function buildChildArgs(config: ChildConfig, message: string): string[] {
-	const sessionArgs = config.session.kind === "persistent" ? ["--session", config.session.file] : ["--no-session"];
 	return [
 		"--mode",
 		"json",
 		"-p",
-		...sessionArgs,
+		"--session",
+		config.sessionFile,
 		"--model",
 		config.model,
 		"--thinking",
@@ -242,13 +281,37 @@ function runChild(
 	return new Promise((resolve) => {
 		const child = spawn(invocation.command, invocation.args, { cwd, shell: false, stdio: ["ignore", "pipe", "pipe"] });
 		let buffer = "";
+		let thinkingText = "";
+		let lastProgressAt = 0;
+
+		const reportProgress = () => {
+			lastProgressAt = Date.now();
+			onProgress(result);
+		};
+
+		const processThinking = (assistantEvent: { type?: string; delta?: string; content?: string }) => {
+			if (assistantEvent.type === "thinking_start") thinkingText = "";
+			else if (assistantEvent.type === "thinking_delta") thinkingText += assistantEvent.delta ?? "";
+			else if (assistantEvent.type === "thinking_end") thinkingText = assistantEvent.content ?? thinkingText;
+			else return;
+			result.thinkingLine = lastNonEmptyLine(thinkingText) ?? result.thinkingLine;
+			if (Date.now() - lastProgressAt >= PROGRESS_INTERVAL_MS) reportProgress();
+		};
 
 		const processLine = (line: string) => {
 			if (!line.trim()) return;
-			let event: { type?: string; message?: Message };
+			let event: {
+				type?: string;
+				message?: Message;
+				assistantMessageEvent?: { type?: string; delta?: string; content?: string };
+			};
 			try {
 				event = JSON.parse(line);
 			} catch {
+				return;
+			}
+			if (event.type === "message_update" && event.assistantMessageEvent) {
+				processThinking(event.assistantMessageEvent);
 				return;
 			}
 			if (event.type !== "message_end" || event.message?.role !== "assistant") return;
@@ -259,7 +322,7 @@ function runChild(
 			result.finalText = lastAssistantText(assistant) ?? result.finalText;
 			if (assistant.stopReason) result.stopReason = assistant.stopReason;
 			if (assistant.errorMessage) result.errorMessage = assistant.errorMessage;
-			onProgress(result);
+			reportProgress();
 		};
 
 		child.stdout.on("data", (data) => {
@@ -304,13 +367,20 @@ function failureText(role: Role, result: ChildResult): string {
 	return `The ${role} failed (exit ${result.exitCode}, stop reason ${result.stopReason ?? "none"}): ${reason}\n\n${formatUsage(result)}`;
 }
 
-function makeDetails(role: Role, feature: string, result: ChildResult, reviewPath?: string): LoopDetails {
+function makeDetails(
+	role: Role,
+	feature: string,
+	result: ChildResult,
+	transcript: TranscriptRef,
+	reviewPath?: string,
+): LoopDetails {
 	return {
 		role,
 		feature,
 		turns: result.turns,
 		toolCalls: result.toolCalls,
 		usage: result.usage,
+		transcript,
 		reviewPath,
 	};
 }
@@ -329,18 +399,162 @@ async function withLock<T>(role: Role, run: () => Promise<T>): Promise<T> {
 
 type OnUpdate = ((partial: AgentToolResult<LoopDetails>) => void) | undefined;
 
-function progressReporter(role: Role, feature: string, onUpdate: OnUpdate): (result: ChildResult) => void {
+function progressHeader(details: Pick<LoopDetails, "role" | "turns" | "toolCalls">): string {
+	return `${details.role} running: ${details.turns} turns, ${details.toolCalls} tool calls`;
+}
+
+function progressReporter(
+	role: Role,
+	feature: string,
+	transcript: TranscriptRef,
+	onUpdate: OnUpdate,
+): (result: ChildResult) => void {
 	return (result) => {
+		const details = { ...makeDetails(role, feature, result, transcript), thinkingLine: result.thinkingLine };
+		const thinkText = result.thinkingLine ? `\nthink: ${result.thinkingLine}` : "";
 		onUpdate?.({
-			content: [
-				{
-					type: "text",
-					text: `${role} running: ${result.turns} turns, ${result.toolCalls} tool calls\n${result.finalText}`,
-				},
-			],
-			details: makeDetails(role, feature, result),
+			content: [{ type: "text", text: `${progressHeader(details)}${thinkText}` }],
+			details,
 		});
 	};
+}
+
+function tailToWidth(text: string, width: number): string {
+	const textWidth = visibleWidth(text);
+	if (textWidth <= width) return text;
+	return `…${sliceByColumn(text, textWidth - width + 1, width - 1)}`;
+}
+
+function progressView(details: LoopDetails, theme: Theme): Component {
+	return {
+		invalidate() {},
+		render(width) {
+			const lines = [truncateToWidth(theme.fg("warning", progressHeader(details)), width)];
+			if (details.thinkingLine) {
+				const label = "think: ";
+				const tail = tailToWidth(details.thinkingLine, Math.max(1, width - visibleWidth(label)));
+				lines.push(truncateToWidth(theme.fg("muted", label) + theme.fg("thinkingText", theme.italic(tail)), width));
+			}
+			return lines;
+		},
+	};
+}
+
+function resultText(result: AgentToolResult<LoopDetails | undefined>): string {
+	return result.content
+		.filter((part) => part.type === "text")
+		.map((part) => part.text)
+		.join("\n");
+}
+
+function reportView(text: string, expanded: boolean, theme: Theme): Component {
+	const lines = text.split("\n");
+	const shown = expanded ? lines : lines.slice(0, COLLAPSED_REPORT_LINES);
+	let rendered = shown.map((line) => theme.fg("toolOutput", line)).join("\n");
+	const remaining = lines.length - shown.length;
+	if (remaining > 0) {
+		rendered += `${theme.fg("muted", `\n... (${remaining} more lines,`)} ${keyHint("app.tools.expand", "to expand")}${theme.fg("muted", ")")}`;
+	}
+	return new Text(rendered, 0, 0);
+}
+
+function readDispatchMessages(transcript: TranscriptRef): Message[] | undefined {
+	if (!fs.existsSync(transcript.file)) return undefined;
+	const messages: Message[] = [];
+	for (const line of fs.readFileSync(transcript.file, "utf-8").split("\n").slice(transcript.fromLine)) {
+		if (!line.trim()) continue;
+		let entry: { type?: string; message?: Message };
+		try {
+			entry = JSON.parse(line);
+		} catch {
+			continue;
+		}
+		if (entry.type !== "message" || !entry.message) continue;
+		if (entry.message.role === "user" && messages.some((message) => message.role === "user")) break;
+		messages.push(entry.message);
+	}
+	return messages;
+}
+
+function cachedDispatchMessages(transcript: TranscriptRef, state: { transcript?: TranscriptCache }) {
+	const key = `${transcript.file}:${transcript.fromLine}`;
+	if (state.transcript?.key !== key) state.transcript = { key, messages: readDispatchMessages(transcript) };
+	return state.transcript.messages;
+}
+
+function trimBlock(text: string, theme: Theme): string {
+	const lines = text.replace(/\s+$/, "").split("\n");
+	if (lines.length <= TRANSCRIPT_BLOCK_LINES) return lines.join("\n");
+	const remaining = lines.length - TRANSCRIPT_BLOCK_LINES;
+	return `${lines.slice(0, TRANSCRIPT_BLOCK_LINES).join("\n")}\n${theme.fg("muted", `… ${remaining} more lines`)}`;
+}
+
+function formatArguments(args: Record<string, unknown>): string {
+	return Object.entries(args)
+		.map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`)
+		.join("\n");
+}
+
+function transcriptView(messages: Message[], theme: Theme): Component {
+	const container = new Container();
+	const markdownTheme = getMarkdownTheme();
+	const add = (component: Component) => {
+		if (container.children.length > 0) container.addChild(new Spacer(1));
+		container.addChild(component);
+	};
+	for (const message of messages) {
+		if (message.role === "user") {
+			const text =
+				typeof message.content === "string"
+					? message.content
+					: message.content
+							.filter((part) => part.type === "text")
+							.map((part) => part.text)
+							.join("\n");
+			add(new Text(theme.fg("muted", "task\n") + theme.fg("dim", trimBlock(text, theme)), 0, 0));
+		} else if (message.role === "assistant") {
+			for (const part of message.content) {
+				if (part.type === "thinking" && part.thinking.trim()) {
+					add(new Text(theme.fg("thinkingText", theme.italic(part.thinking.trim())), 0, 0));
+				} else if (part.type === "text" && part.text.trim()) {
+					add(new Markdown(part.text.trim(), 0, 0, markdownTheme));
+				} else if (part.type === "toolCall") {
+					const header = theme.fg("muted", "→ ") + theme.fg("toolTitle", theme.bold(part.name));
+					const args = formatArguments(part.arguments);
+					add(new Text(args ? `${header}\n${theme.fg("dim", trimBlock(args, theme))}` : header, 0, 0));
+				}
+			}
+		} else if (message.role === "toolResult") {
+			const text = message.content
+				.filter((part) => part.type === "text")
+				.map((part) => part.text)
+				.join("\n");
+			add(new Text(theme.fg(message.isError ? "error" : "toolOutput", trimBlock(text || "(no output)", theme)), 0, 0));
+		}
+	}
+	if (container.children.length === 0) container.addChild(new Text(theme.fg("muted", "(empty transcript)"), 0, 0));
+	return container;
+}
+
+function callView(role: Role, feature: string | undefined, brief: string | undefined, theme: Theme): Component {
+	const header = `${theme.fg("toolTitle", theme.bold(role))} ${theme.fg("accent", feature ?? "...")}`;
+	return new TruncatedText(brief ? `${header} ${theme.fg("muted", brief.replace(/\s+/g, " "))}` : header, 0, 0);
+}
+
+function resultView(
+	result: AgentToolResult<LoopDetails | undefined>,
+	options: { expanded: boolean; isPartial: boolean },
+	theme: Theme,
+	state: { transcript?: TranscriptCache },
+): Component {
+	const details = result.details;
+	if (options.isPartial && details) return progressView(details, theme);
+	if (options.expanded && details?.transcript) {
+		const messages = cachedDispatchMessages(details.transcript, state);
+		if (!messages) return new Text(theme.fg("error", `transcript not found: ${details.transcript.file}`), 0, 0);
+		return transcriptView(messages, theme);
+	}
+	return reportView(resultText(result), options.expanded, theme);
 }
 
 const FeatureParam = Type.String({
@@ -371,14 +585,15 @@ export default function (pi: ExtensionAPI) {
 			return withLock("worker", async () => {
 				consumeApproval(featureDir, specPath);
 				const sessionFile = path.join(featureDir, "worker.jsonl");
+				const transcript = { file: sessionFile, fromLine: countLines(sessionFile) };
 				const result = await runChild(
-					{ ...ROLE_CONFIG.worker, session: { kind: "persistent", file: sessionFile } },
+					{ ...ROLE_CONFIG.worker, sessionFile },
 					`Spec: ${specPath}\n\n${params.task}`,
 					ctx.cwd,
 					signal,
-					progressReporter("worker", params.feature, onUpdate),
+					progressReporter("worker", params.feature, transcript, onUpdate),
 				);
-				const details = makeDetails("worker", params.feature, result);
+				const details = makeDetails("worker", params.feature, result, transcript);
 				if (isFailed(result)) {
 					return {
 						content: [{ type: "text", text: failureText("worker", result) }],
@@ -398,6 +613,14 @@ export default function (pi: ExtensionAPI) {
 					usage: result.usage,
 				};
 			});
+		},
+
+		renderCall(args, theme) {
+			return callView("worker", args.feature, args.task, theme);
+		},
+
+		renderResult(result, options, theme, context) {
+			return resultView(result, options, theme, context.state);
 		},
 	});
 
@@ -426,17 +649,19 @@ export default function (pi: ExtensionAPI) {
 				]
 					.filter((line) => line !== undefined)
 					.join("\n\n");
+				const reviewNumber = nextReviewNumber(featureDir);
+				const transcript = { file: path.join(featureDir, `review-${reviewNumber}.jsonl`), fromLine: 0 };
 				const result = await runChild(
-					{ ...ROLE_CONFIG.reviewer, session: { kind: "none" } },
+					{ ...ROLE_CONFIG.reviewer, sessionFile: transcript.file },
 					message,
 					ctx.cwd,
 					signal,
-					progressReporter("reviewer", params.feature, onUpdate),
+					progressReporter("reviewer", params.feature, transcript, onUpdate),
 				);
 				if (isFailed(result)) {
 					return {
 						content: [{ type: "text", text: failureText("reviewer", result) }],
-						details: makeDetails("reviewer", params.feature, result),
+						details: makeDetails("reviewer", params.feature, result, transcript),
 						usage: result.usage,
 						isError: true,
 					};
@@ -444,19 +669,27 @@ export default function (pi: ExtensionAPI) {
 				if (!result.finalText.trim()) {
 					return {
 						content: [{ type: "text", text: `The reviewer returned no verdict.\n\n${formatUsage(result)}` }],
-						details: makeDetails("reviewer", params.feature, result),
+						details: makeDetails("reviewer", params.feature, result, transcript),
 						usage: result.usage,
 						isError: true,
 					};
 				}
-				const reviewPath = nextReviewPath(featureDir);
+				const reviewPath = path.join(featureDir, `review-${reviewNumber}.md`);
 				fs.writeFileSync(reviewPath, `${result.finalText.trim()}\n`, { encoding: "utf-8", flag: "wx" });
 				return {
 					content: [{ type: "text", text: `${result.finalText}\n\n${formatUsage(result)}\nreview: ${reviewPath}` }],
-					details: makeDetails("reviewer", params.feature, result, reviewPath),
+					details: makeDetails("reviewer", params.feature, result, transcript, reviewPath),
 					usage: result.usage,
 				};
 			});
+		},
+
+		renderCall(args, theme) {
+			return callView("reviewer", args.feature, args.focus, theme);
+		},
+
+		renderResult(result, options, theme, context) {
+			return resultView(result, options, theme, context.state);
 		},
 	});
 
