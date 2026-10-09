@@ -180,6 +180,7 @@ in
         ".pi/agent/AGENTS.md".source = link "config/ai/pi/AGENTS.md";
         ".pi/agent/prompts".source = link "config/ai/pi/prompts";
         ".pi/agent/extensions/loop".source = link "config/ai/pi/extensions/loop";
+        ".pi/agent/extensions/exit.ts".source = link "config/ai/pi/extensions/exit.ts";
         ".pi/agent/extensions/permission-gate.ts".source =
           "${pi}/libexec/pi/examples/extensions/permission-gate.ts";
       }
