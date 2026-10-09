@@ -1,45 +1,31 @@
 {
   "providers": {
-    "openrouter": {
-      "apiKey": "!cat /run/agenix/openrouter-key",
-      "modelOverrides": {
-        "z-ai/glm-5.3-flash": {
+    "coralbricks": {
+      "baseUrl": "https://inference.coralbricks.ai/v1",
+      "api": "openai-completions",
+      "apiKey": "!cat /run/agenix/coralbricks-key",
+      "models": [
+        {
+          "id": "glm-5.3-fast",
+          "name": "GLM 5.3",
+          "reasoning": true,
           "contextWindow": 1048576,
           "maxTokens": 131072,
-          "compat": {
-            "openRouterRouting": {
-              "only": ["baseten", "inceptron", "morph", "near-ai", "novita", "siliconflow", "z-ai"],
-              "quantizations": ["fp8"],
-              "data_collection": "deny",
-              "zdr": true
-            }
-          }
+          "cost": { "input": 1.12, "output": 4.4, "cacheRead": 0, "cacheWrite": 0.56 },
+          "promptCache": { "short": 3600 },
+          "samplingParams": { "prompt_cache_options": { "ttl": "60m" } }
         },
-        "z-ai/glm-5.3": {
-          "contextWindow": 1048576,
-          "maxTokens": 131072,
-          "compat": {
-            "openRouterRouting": {
-              "only": ["akashml", "baseten", "morph", "novita", "parasail", "sail-research", "siliconflow", "z-ai"],
-              "quantizations": ["fp8"],
-              "data_collection": "deny",
-              "zdr": true
-            }
-          }
-        },
-        "deepseek/deepseek-v4.1-flash": {
+        {
+          "id": "deepseek-v4.1-flash-fast",
+          "name": "DeepSeek V4.1 Flash",
+          "reasoning": true,
           "contextWindow": 1048576,
           "maxTokens": 393216,
-          "compat": {
-            "openRouterRouting": {
-              "only": ["coreweave", "crusoe", "makora", "morph", "novita", "parasail", "siliconflow"],
-              "quantizations": ["fp8"],
-              "data_collection": "deny",
-              "zdr": true
-            }
-          }
+          "cost": { "input": 0.01, "output": 1.2, "cacheRead": 0, "cacheWrite": 0.08 },
+          "promptCache": { "short": 3600 },
+          "samplingParams": { "prompt_cache_options": { "ttl": "60m" } }
         }
-      }
+      ]
     }
   }
 }

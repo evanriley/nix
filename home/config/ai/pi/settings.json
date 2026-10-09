@@ -1,8 +1,10 @@
 {
-  "defaultProvider": "openrouter",
-  "defaultModel": "z-ai/glm-5.3-flash",
-  "enabledModels": ["openrouter/z-ai/glm-5.3-flash", "openrouter/z-ai/glm-5.3", "openrouter/deepseek/deepseek-v4.1-flash"],
+  "defaultProvider": "coralbricks",
+  "defaultModel": "glm-5.3-fast",
+  "enabledModels": ["coralbricks/glm-5.3-fast", "coralbricks/deepseek-v4.1-flash-fast"],
   "defaultThinkingLevel": "high",
+  "compaction": { "enabled": false },
+  "cacheWarming": "idle",
   "enableInstallTelemetry": false,
   "npmCommand": ["nix", "shell", "nixpkgs#nodejs", "-c", "npm"]
 }
