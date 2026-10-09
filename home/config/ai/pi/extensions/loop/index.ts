@@ -39,6 +39,8 @@ const STATUS_KEY = "loop";
 type Role = "worker" | "reviewer";
 
 interface ChildConfig {
+	role: Role;
+	scratch?: string;
 	model: string;
 	thinking: string;
 	tools: string[];
@@ -48,12 +50,14 @@ interface ChildConfig {
 
 const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 	worker: {
+		role: "worker",
 		model: "coralbricks/deepseek-v4.1-flash-fast",
 		thinking: "high",
 		tools: ["read", "bash", "edit", "write"],
 		promptFile: path.join(EXTENSION_DIR, "worker.md"),
 	},
 	reviewer: {
+		role: "reviewer",
 		model: "coralbricks/glm-5.3-fast",
 		thinking: "high",
 		tools: ["read", "grep", "find", "ls", "bash"],
@@ -426,13 +430,20 @@ function buildChildArgs(config: ChildConfig, message: string): string[] {
 		config.tools.join(","),
 		"--no-extensions",
 		"--extension",
-		path.join(getAgentDir(), "extensions", "permission-gate.ts"),
+		path.join(getAgentDir(), "extensions", "guard", "index.ts"),
 		"--no-prompt-templates",
 		"--append-system-prompt",
 		config.promptFile,
 		"--",
 		message,
 	];
+}
+
+function childEnvironment(config: ChildConfig): NodeJS.ProcessEnv {
+	const environment: NodeJS.ProcessEnv = { ...process.env, PI_LOOP_ROLE: config.role };
+	delete environment.PI_LOOP_SCRATCH;
+	if (config.scratch) environment.PI_LOOP_SCRATCH = config.scratch;
+	return environment;
 }
 
 function lastAssistantText(message: Message): string | undefined {
@@ -459,7 +470,12 @@ function runChild(
 	const invocation = getPiInvocation(buildChildArgs(config, message));
 
 	return new Promise((resolve) => {
-		const child = spawn(invocation.command, invocation.args, { cwd, shell: false, stdio: ["ignore", "pipe", "pipe"] });
+		const child = spawn(invocation.command, invocation.args, {
+			cwd,
+			env: childEnvironment(config),
+			shell: false,
+			stdio: ["ignore", "pipe", "pipe"],
+		});
 		let buffer = "";
 		let thinkingText = "";
 		let lastProgressAt = 0;
@@ -872,7 +888,7 @@ export default function (pi: ExtensionAPI) {
 					.join("\n\n");
 				const transcript = { file: path.join(featureDir, `review-${reviewNumber}.jsonl`), fromLine: 0 };
 				const result = await runChild(
-					{ ...ROLE_CONFIG.reviewer, sessionFile: transcript.file },
+					{ ...ROLE_CONFIG.reviewer, sessionFile: transcript.file, scratch },
 					message,
 					ctx.cwd,
 					signal,

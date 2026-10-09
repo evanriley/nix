@@ -197,8 +197,7 @@ in
         ".pi/agent/prompts".source = link "config/ai/pi/prompts";
         ".pi/agent/extensions/loop".source = link "config/ai/pi/extensions/loop";
         ".pi/agent/extensions/exit.ts".source = link "config/ai/pi/extensions/exit.ts";
-        ".pi/agent/extensions/permission-gate.ts".source =
-          "${pi}/libexec/pi/examples/extensions/permission-gate.ts";
+        ".pi/agent/extensions/guard".source = link "config/ai/pi/extensions/guard";
       }
       // linkSkills ".claude/skills"
       // linkSkills ".agents/skills"

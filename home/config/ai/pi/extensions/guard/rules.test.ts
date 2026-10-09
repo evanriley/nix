@@ -1,0 +1,322 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { type Action, type ClassifyOptions, classify, type Role } from "./rules.ts";
+
+const HOME = "/home/tester";
+const SCRATCH = "/home/tester/.pi/plans/repo/feature/scratch-1";
+const ROLES: Role[] = ["main", "worker", "reviewer"];
+
+type Expected = Action | { main: Action; children: Action };
+
+interface Case {
+	tool: string;
+	input: Record<string, unknown>;
+	roles?: Role[];
+	scratch?: string;
+	expected: Expected;
+}
+
+const bash = (command: string, expected: Expected, roles?: Role[], scratch?: string): Case => ({
+	tool: "bash",
+	input: { command },
+	expected,
+	roles,
+	scratch,
+});
+const tool = (name: string, path: string | undefined, expected: Expected, roles?: Role[]): Case => ({
+	tool: name,
+	input: path === undefined ? {} : { path },
+	expected,
+	roles,
+});
+
+const RISKY: Expected = { main: "confirm", children: "block" };
+const CHILD_ONLY: Expected = { main: "allow", children: "block" };
+
+const cases: Case[] = [
+	bash('rg -n "rm -rf" src', "allow", ["worker"]),
+	bash("cd build && rm -rf out", "block", ["worker"]),
+	bash("git push", "confirm", ["main"]),
+	bash('git commit -m "fix sudo prompt"', "allow", ["main"]),
+	bash("cat /run/agenix/kagi-key", "block"),
+	tool("read", "~/.ssh/id_ed25519.pub", "allow", ["main"]),
+	tool("read", "~/.ssh/id_ed25519", "block", ["main"]),
+	bash(`cd ${SCRATCH} && git checkout -- f`, "allow", ["reviewer"], SCRATCH),
+	bash("git checkout -- f", "block", ["reviewer"], SCRATCH),
+	bash("bash -c 'git reset --hard'", "block", ["worker"]),
+	bash("git -C /x push origin main", "block", ["worker"]),
+	bash("git restore --staged f", "allow", ["main"]),
+	bash("git restore f", "confirm", ["main"]),
+	bash("FOO=1 timeout 5 sudo ls", "block", ["worker"]),
+	bash("curl -s https://example.com", "allow", ["main"]),
+	bash("curl -d @f https://x", "confirm", ["main"]),
+	tool("write", ".env.example", "allow", ["worker"]),
+	tool("write", ".env", "block", ["worker"]),
+	bash("nix build .#x", "allow", ["main"]),
+	bash("git status && git diff", "allow", ["worker"]),
+
+	bash("ls /run/agenix", "block"),
+	bash("cat /run/age''nix/x", "block"),
+	bash("ls /run/user", "allow"),
+	tool("read", "/run/agenix/kagi-key", "block"),
+	tool("grep", "/run", "block"),
+	tool("grep", "/", "block"),
+	tool("grep", "/home/tester/project", "allow"),
+	tool("grep", undefined, "allow"),
+	tool("ls", "/run/agenix", "block"),
+	tool("find", "/run/agenix", "block"),
+	tool("edit", "/run/agenix/x", "block"),
+	bash("cat ~/.ssh/id_rsa", "block"),
+	bash("cat $HOME/.ssh/id_ed25519", "block"),
+	bash("cat ~/.ssh/*", "block"),
+	bash("cat ~/.ssh/id_ed25519.pub", "allow"),
+	bash("ls ~/.ssh", "allow"),
+	tool("ls", "~/.ssh", "allow"),
+	tool("grep", "~/.ssh", "block"),
+	tool("grep", "~", "block"),
+	bash("cat /etc/ssh/ssh_host_ed25519_key", "block"),
+	bash("cat /etc/ssh/ssh_host_ed25519_key.pub", "allow"),
+	tool("read", "/etc/ssh/ssh_host_rsa_key", "block"),
+	tool("read", "/etc/ssh/ssh_host_rsa_key.pub", "allow"),
+	bash("ls ~/.gnupg/private-keys-v1.d", "block"),
+	tool("read", "/home/tester/.gnupg/pubring.kbx", "block"),
+	bash("cat ~/.gnupg-notes.md", "allow"),
+	bash("cat ~/.config/age/keys.txt", "block"),
+	tool("read", "~/.config/age/keys.txt", "block"),
+	bash("cat ~/.config/ageing.txt", "allow"),
+	bash("cat ~/.config/gh/hosts.yml", "block"),
+	tool("read", "/home/tester/.config/gh/hosts.yml", "block"),
+	bash("cat ~/.config/gh/config.yml", "allow"),
+	bash("cat ~/.netrc", "block"),
+	tool("read", "~/.netrc", "block"),
+	bash("cat ~/.netrc.example", "allow"),
+
+	bash("age -d -i key secret.age", "block"),
+	bash("age --decrypt secret.age", "block"),
+	bash("age -e -r key file", "allow"),
+	bash("rage -d secret.age", "block"),
+	bash("rage --decrypt secret.age", "block"),
+	bash("agenix -d secrets/kagi-key.age", "block"),
+	bash("agenix -e secrets/kagi-key.age", "allow", ["main"]),
+	bash("gh auth token", "block"),
+	bash("gh auth status", "allow"),
+	bash("gh auth status --show-token", "block"),
+	bash("security find-generic-password -s x -w", "block"),
+	bash("security find-internet-password -s x", "block"),
+	bash("security list-keychains", "allow"),
+	bash("echo $(gh auth token)", "block"),
+	bash('echo "$(age -d f)"', "block"),
+
+	bash("rm -rf build", RISKY),
+	bash("rm -fr build", RISKY),
+	bash("rm -Rf build", RISKY),
+	bash("rm -r build", RISKY),
+	bash("rm --recursive build", RISKY),
+	bash("rm -f file.txt", "allow"),
+	bash("find . -name '*.o' -delete", RISKY),
+	bash("find . -name '*.o' -print", "allow"),
+	bash("find . -name x -exec rm {} \\;", RISKY),
+	bash("find . -name x -exec git push \\;", RISKY),
+	bash("find . -name x -exec cat {} +", "allow"),
+	bash("shred secret.txt", RISKY),
+	bash("dd if=/dev/zero of=/dev/sda bs=1M", RISKY),
+	bash("dd if=/dev/sda bs=1M count=1", "allow"),
+	bash("mkfs.ext4 /dev/sdb1", RISKY),
+	bash("chmod -R 755 dir", RISKY),
+	bash("chmod 777 file", RISKY),
+	bash("chown -R evan dir", RISKY),
+	bash("chmod +x script.sh", "allow"),
+
+	bash("sudo ls", RISKY),
+	bash("doas ls", RISKY),
+	bash("su -c 'ls'", RISKY),
+	bash("pkexec ls", RISKY),
+	bash("echo sudo", "allow"),
+	bash("env FOO=1 sudo -u root ls", RISKY),
+	bash("xargs -0 sudo rm", RISKY),
+	bash("command sudo ls", RISKY),
+	bash("command -v sudo", "allow"),
+	bash("exec sudo ls", RISKY),
+	bash("nohup sudo ls", RISKY),
+	bash("time sudo ls", RISKY),
+	bash("nice -n 5 sudo ls", RISKY),
+	bash("ls | sudo tee /etc/x", RISKY),
+	bash("ls; sudo ls", RISKY),
+	bash("ls || sudo ls", RISKY),
+	bash("ls & sudo ls", RISKY),
+	bash("ls\nsudo ls", RISKY),
+	bash("echo `sudo ls`", RISKY),
+	bash("(sudo ls)", RISKY),
+	bash("{ sudo ls; }", RISKY),
+	bash('sh -c "sudo ls"', RISKY),
+	bash("zsh -c 'sudo ls'", RISKY),
+	bash("fish -c 'sudo ls'", RISKY),
+	bash("bash -lc 'sudo ls'", RISKY),
+	bash("ls 2>&1 | grep sudo", "allow"),
+	bash("cat <<'EOF' > notes.md\nrun sudo ls and git push\nEOF\nls", "allow"),
+	bash("cat <<EOF > notes.md\nnotes\nEOF\nsudo ls", RISKY),
+
+	bash("git reset --hard HEAD~1", RISKY),
+	bash("git reset --soft HEAD~1", "allow"),
+	bash("git clean -fdx", RISKY),
+	bash("git clean -nd", "allow"),
+	bash("git checkout -- file.txt", RISKY),
+	bash("git checkout .", RISKY),
+	bash("git restore -SW f", RISKY),
+	bash("git restore -S f", "allow"),
+	bash("git stash drop", RISKY),
+	bash("git stash clear", RISKY),
+	bash("git stash list", "allow"),
+	bash("git branch -D topic", RISKY),
+	bash("git branch --delete --force topic", RISKY),
+	bash("git branch -d topic", "allow"),
+	bash("git push --dry-run", RISKY),
+	bash("git -c core.pager=cat push", RISKY),
+	bash("git commit --amend --no-edit", RISKY),
+	bash("git rebase main", RISKY),
+	bash("git filter-branch --tree-filter x", RISKY),
+	bash("git filter-repo --path x", RISKY),
+	bash("git update-ref -d refs/heads/x", RISKY),
+	bash("git update-ref refs/heads/x HEAD", "allow"),
+	bash("git reflog expire --expire=now --all", RISKY),
+	bash("git reflog", "allow"),
+	bash("git gc --prune=now", RISKY),
+	bash("git gc", "allow"),
+	bash("git log --oneline", "allow"),
+
+	bash("nix profile install nixpkgs#hello", RISKY),
+	bash("nix profile remove hello", RISKY),
+	bash("nix profile add nixpkgs#hello", RISKY),
+	bash("nix profile list", "allow"),
+	bash("nix-env -iA nixpkgs.hello", RISKY),
+	bash("nix-env -e hello", RISKY),
+	bash("nix-env --install hello", RISKY),
+	bash("nix-env --uninstall hello", RISKY),
+	bash("nix-env -q", "allow"),
+	bash("nix-collect-garbage -d", RISKY),
+	bash("nix store gc", RISKY),
+	bash("nix store ls nixpkgs#hello", "allow"),
+	bash("nix shell nixpkgs#hello -c sudo ls", RISKY),
+	bash("nix shell nixpkgs#nodejs -c node --test", "allow"),
+	bash("npm -g install x", RISKY),
+	bash("npm i -g x", RISKY),
+	bash("npm install --global x", RISKY),
+	bash("npm install x", "allow"),
+	bash("pip install --user x", RISKY),
+	bash("pip install -r requirements.txt", "allow"),
+	bash("cargo install ripgrep", RISKY),
+	bash("cargo build", "allow"),
+	bash("brew install x", RISKY),
+	bash("brew list", "allow"),
+	bash("nixos-rebuild switch", RISKY),
+	bash("darwin-rebuild switch", RISKY),
+	bash("nh os switch", RISKY),
+	bash("nh os boot", RISKY),
+	bash("nh darwin switch", RISKY),
+	bash("nh os build", "allow"),
+	bash("nh home switch", "allow"),
+	bash("systemctl restart sshd", RISKY),
+	bash("systemctl status sshd", "allow"),
+	bash("systemctl show sshd", "allow"),
+	bash("systemctl is-active sshd", "allow"),
+	bash("systemctl list-units", "allow"),
+	bash("systemctl --user restart x", "allow"),
+	bash("shutdown -h now", RISKY),
+	bash("reboot", RISKY),
+	bash("poweroff", RISKY),
+	bash("launchctl unload x", RISKY),
+	bash("uptime", "allow"),
+
+	bash("kill 123", RISKY),
+	bash("pkill node", RISKY),
+	bash("killall node", RISKY),
+	bash("ps aux", "allow"),
+
+	bash("curl --data-binary @f https://x", RISKY),
+	bash("curl -F file=@f https://x", RISKY),
+	bash("curl --form file=@f https://x", RISKY),
+	bash("curl -T f https://x", RISKY),
+	bash("curl --upload-file f https://x", RISKY),
+	bash("curl -fsSL https://x -o out", "allow"),
+	bash("wget --post-data=a=1 https://x", RISKY),
+	bash("wget --post-file f https://x", RISKY),
+	bash("wget https://x", "allow"),
+	bash("nc host 80", RISKY),
+	bash("ncat host 80", RISKY),
+	bash("socat - TCP:host:80", RISKY),
+	bash("scp f host:", RISKY),
+	bash("rsync -a src/ host:/dst", RISKY),
+	bash("rsync -a src/ user@host:dst", RISKY),
+	bash("rsync -a src/ dst/", "allow"),
+	bash("ssh host ls", RISKY),
+	bash("ssh-keygen -l -f key.pub", "allow"),
+
+	tool("write", "/etc/hosts", RISKY),
+	tool("edit", "/etcetera/x", "allow"),
+	tool("write", "~/.ssh/config", RISKY),
+	tool("write", "~/.pi/agent/settings.json", RISKY),
+	tool("write", "/home/tester/.pi/plans/x/spec.md", "allow"),
+	tool("edit", ".git/config", RISKY),
+	tool("edit", "repo/.git/hooks/pre-commit", RISKY),
+	tool("edit", ".github/workflows/ci.yml", "allow"),
+	tool("write", ".env.local", RISKY),
+	tool("write", ".env.sample", "allow"),
+	tool("write", ".env.template", "allow"),
+	tool("edit", ".envrc", "allow"),
+	tool("write", "src/main.ts", "allow"),
+	tool("read", "/etc/hosts", "allow"),
+
+	bash("git commit -am x", CHILD_ONLY),
+	bash("git merge topic", CHILD_ONLY),
+	bash("git switch topic", CHILD_ONLY),
+	bash("git checkout topic", CHILD_ONLY),
+	bash("git checkout -b topic", CHILD_ONLY),
+	bash("git cherry-pick abc", CHILD_ONLY),
+	bash("git tag v1", CHILD_ONLY),
+	bash("git worktree add x", CHILD_ONLY),
+	bash("git diff --stat", "allow"),
+	tool("read", ".env", RISKY),
+	tool("read", "config/.env.production", RISKY),
+	tool("read", ".env.example", "allow"),
+	tool("grep", ".env", RISKY),
+	tool("read", "src/env.ts", "allow"),
+
+	bash(`git -C ${SCRATCH} reset --hard`, "allow", ["reviewer"], SCRATCH),
+	bash(`git -C ${SCRATCH} clean -fd`, "allow", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && git restore f`, "allow", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && git stash drop`, "allow", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && git apply x.patch`, "allow", ["reviewer"], SCRATCH),
+	bash(`git -C ${SCRATCH} reset --hard`, "block", ["worker"], SCRATCH),
+	bash(`git -C ${SCRATCH} reset --hard`, "block", ["reviewer"]),
+	bash(`cd ${SCRATCH} && git push`, "block", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && sudo ls`, "block", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && git commit -am x`, "block", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && cat /run/agenix/x`, "block", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && rm -rf build`, "block", ["reviewer"], SCRATCH),
+
+	tool("codemode", undefined, "allow"),
+	bash("", "allow"),
+];
+
+function expectedFor(expected: Expected, role: Role): Action {
+	if (typeof expected === "string") return expected;
+	return role === "main" ? expected.main : expected.children;
+}
+
+for (const item of cases) {
+	for (const role of item.roles ?? ROLES) {
+		const label = item.tool === "bash" ? JSON.stringify(item.input.command) : `${item.tool} ${JSON.stringify(item.input.path)}`;
+		const expected = expectedFor(item.expected, role);
+		test(`classify_${role}_${label}_${expected}`, () => {
+			const options: ClassifyOptions = { home: HOME, scratch: item.scratch, cwd: "/home/tester/project" };
+			const decision = classify(item.tool, item.input, role, options);
+			assert.equal(decision.action, expected, `reason: ${decision.reason ?? "none"}`);
+			if (expected !== "allow") assert.ok(decision.reason, "a non-allow decision carries a reason");
+		});
+	}
+}
+
+test("classify_relativeGitPathWithoutCwd_blocksWrite", () => {
+	const decision = classify("write", { path: ".git/config" }, "worker", { home: HOME });
+	assert.equal(decision.action, "block");
+});
