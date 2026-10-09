@@ -10,6 +10,10 @@ let
     file = inputs.self + "/secrets/kagi-key.age";
     owner = user.name;
   };
+  coralbricksKey = {
+    file = inputs.self + "/secrets/coralbricks-key.age";
+    owner = user.name;
+  };
   codexRoles = {
     search = {
       model = "gpt-6-luna";
@@ -41,11 +45,13 @@ in
   flake.modules.nixos.ai.age.secrets = {
     openrouter-key = openrouterKey;
     kagi-key = kagiKey;
+    coralbricks-key = coralbricksKey;
   };
 
   flake.modules.darwin.ai.age.secrets = {
     openrouter-key = openrouterKey;
     kagi-key = kagiKey;
+    coralbricks-key = coralbricksKey;
   };
 
   flake.modules.homeManager.ai =
