@@ -109,6 +109,15 @@ in
       mergeToml = "${lib.getExe pythonWithTomlkit} ${./_ai/merge-toml}";
       mergeClaudeSettings = "${./_ai/merge-claude-settings}";
       pi = inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.pi;
+      piWithLongCache = pkgs.symlinkJoin {
+        name = "pi-${pi.version}";
+        paths = [ pi ];
+        nativeBuildInputs = [ pkgs.makeWrapper ];
+        postBuild = ''
+          wrapProgram $out/bin/pi --set PI_CACHE_RETENTION long
+        '';
+        meta.mainProgram = "pi";
+      };
       mergeSettings =
         {
           directory,
@@ -168,7 +177,7 @@ in
             pkgs.nixfmt
           ];
         })
-        pi
+        piWithLongCache
       ];
 
       home.file = {
