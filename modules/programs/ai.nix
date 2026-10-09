@@ -177,14 +177,9 @@ in
         ".codex/AGENTS.md".source = link "config/ai/AGENTS.md";
         ".pi/agent/models.json".source = link "config/ai/pi/models.json";
         ".pi/agent/mcp.json".source = link "config/ai/pi/mcp.json";
-        ".pi/agent/extensions/notify.ts".source = link "config/ai/pi/extensions/notify.ts";
         ".pi/agent/AGENTS.md".source = link "config/ai/pi/AGENTS.md";
-        ".pi/agent/agents".source = link "config/ai/pi/agents";
         ".pi/agent/prompts".source = link "config/ai/pi/prompts";
-        ".pi/agent/extensions/subagent/index.ts".source =
-          "${pi}/libexec/pi/examples/extensions/subagent/index.ts";
-        ".pi/agent/extensions/subagent/agents.ts".source =
-          "${pi}/libexec/pi/examples/extensions/subagent/agents.ts";
+        ".pi/agent/extensions/loop".source = link "config/ai/pi/extensions/loop";
         ".pi/agent/extensions/permission-gate.ts".source =
           "${pi}/libexec/pi/examples/extensions/permission-gate.ts";
       }
