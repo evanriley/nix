@@ -58,8 +58,8 @@ const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 		thinking: "high",
 		tools: ["read", "bash", "edit", "write"],
 		promptFile: path.join(EXTENSION_DIR, "worker.md"),
-		maxTurns: 200,
-		maxMinutes: 60,
+		maxTurns: 500,
+		maxMinutes: 120,
 		maxCost: 3,
 	},
 	reviewer: {
