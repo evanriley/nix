@@ -29,6 +29,8 @@ A repository's own `AGENTS.md` takes precedence for that repository.
 ## Git
 
 - Commit or push only when the user asks.
+- Push a work branch by name: `git push -u origin <branch>`. A push that names
+  no branch, targets `main`, forces or deletes asks the user first.
 - Use Conventional Commits: `<type>(<scope>): <description>`.
 - Write the description in the imperative, lowercase, with no trailing
   period. Keep the subject under about 72 characters.

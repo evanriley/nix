@@ -349,6 +349,76 @@ function findExecCommands(args: string[]): string[][] {
 
 const GIT_GLOBAL_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"]);
 
+const PUSH_OPTIONS = new Set(["--repo", "-o", "--push-option", "--receive-pack", "--exec"]);
+const PROTECTED_BRANCHES = new Set(["main", "master"]);
+const PUSH_BULK_OPTIONS = new Set(["--all", "--branches", "--mirror", "--tags", "--follow-tags"]);
+const PUSH_DELETE_OPTIONS = new Set(["--delete", "--prune", "--mirror"]);
+const UNRESOLVED_DESTINATION = /[$`*()]/;
+
+function pushFindings(rest: string[]): Finding[] {
+	const positionals: string[] = [];
+	for (let index = 0; index < rest.length; index++) {
+		const word = rest[index];
+		if (word === "--") {
+			positionals.push(...rest.slice(index + 1));
+			break;
+		}
+		if (word.startsWith("-") && word !== "-") {
+			if (PUSH_OPTIONS.has(word)) index++;
+		} else {
+			positionals.push(word);
+		}
+	}
+	const refspecs = positionals.slice(1);
+	const destinations = refspecs.map((refspec) => {
+		const target = refspec.replace(/^\+/, "");
+		const colon = target.indexOf(":");
+		return colon === -1 ? target : target.slice(colon + 1);
+	});
+
+	const findings: Finding[] = [];
+	if (
+		rest.includes("--force") ||
+		hasShortFlag(rest, "f") ||
+		rest.some((word) => word.startsWith("--force-with-lease") || word.startsWith("--force-if-includes")) ||
+		refspecs.some((refspec) => refspec.startsWith("+"))
+	) {
+		findings.push(risky("git push --force overwrites remote history"));
+	}
+	if (
+		rest.some((word) => PUSH_DELETE_OPTIONS.has(word)) ||
+		hasShortFlag(rest, "d") ||
+		refspecs.some((refspec) => refspec.startsWith(":"))
+	) {
+		findings.push(risky("git push deletes a remote ref"));
+	}
+	if (
+		rest.some((word) => PUSH_BULK_OPTIONS.has(word)) ||
+		refspecs.includes("tag") ||
+		destinations.some((destination) => destination.startsWith("refs/") && !destination.startsWith("refs/heads/"))
+	) {
+		findings.push(risky("git push publishes tags or every branch"));
+	}
+	if (
+		refspecs.length === 0 ||
+		destinations.some(
+			(destination) =>
+				destination === "HEAD" ||
+				destination === "@" ||
+				destination === "" ||
+				destination.endsWith("/") ||
+				UNRESOLVED_DESTINATION.test(destination),
+		)
+	) {
+		findings.push(risky("git push names no branch, so it may publish to main"));
+	}
+	for (const destination of destinations) {
+		const branch = destination.replace(/^refs\/heads\//, "");
+		if (PROTECTED_BRANCHES.has(branch)) findings.push(risky(`git push publishes to ${destination}`));
+	}
+	return findings.length > 0 ? findings : [childOnly("git push publishes to a remote")];
+}
+
 function gitFindings(args: string[]): Finding[] {
 	const start = skipOptions(args, 0, GIT_GLOBAL_OPTIONS);
 	const subcommand = args[start];
@@ -385,7 +455,7 @@ function gitFindings(args: string[]): Finding[] {
 			return forceDelete ? [risky("git branch -D deletes an unmerged branch")] : [];
 		}
 		case "push":
-			return [risky("git push publishes to a remote")];
+			return pushFindings(rest);
 		case "commit":
 			return rest.includes("--amend")
 				? [risky("git commit --amend rewrites history")]
