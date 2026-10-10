@@ -34,7 +34,7 @@ function finding(severity: Severity, reason: string, scratchExempt = false): Fin
 
 const secret = (reason: string) => finding("secret", reason);
 const risky = (reason: string, scratchExempt = false) => finding("risky", reason, scratchExempt);
-const childOnly = (reason: string) => finding("childOnly", reason);
+const childOnly = (reason: string, scratchExempt = false) => finding("childOnly", reason, scratchExempt);
 
 interface Token {
 	kind: "word" | "separator" | "redirect";
@@ -360,10 +360,16 @@ function gitFindings(args: string[]): Finding[] {
 			return rest.includes("--force") || hasShortFlag(rest, "f")
 				? [risky("git clean -f deletes untracked files", true)]
 				: [];
-		case "checkout":
-			if (rest.includes("--")) return [risky("git checkout -- discards uncommitted changes", true)];
-			if (rest.includes(".")) return [risky("git checkout . discards uncommitted changes")];
-			return [childOnly("git checkout switches branches")];
+		case "checkout": {
+			const createsBranch =
+				rest.includes("--orphan") || hasShortFlag(rest, "b") || hasShortFlag(rest, "B")
+					? [childOnly("git checkout -b creates a branch")]
+					: [];
+			if (rest.includes("--"))
+				return [...createsBranch, risky("git checkout -- discards uncommitted changes", true)];
+			if (rest.includes(".")) return [...createsBranch, risky("git checkout . discards uncommitted changes", true)];
+			return [...createsBranch, childOnly("git checkout switches branches", true)];
+		}
 		case "restore": {
 			const staged = rest.includes("--staged") || hasShortFlag(rest, "S");
 			const worktree = rest.includes("--worktree") || hasShortFlag(rest, "W");
