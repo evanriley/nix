@@ -418,13 +418,13 @@ async function ensureFeatureBranch(repoRoot: string, feature: string): Promise<s
 
 async function reviewScope(repoRoot: string | undefined, feature: string): Promise<string> {
 	const uncommitted =
-		"Review the uncommitted changes in this repository against the spec: run `git status`, `git diff` and `git diff --cached`, and read every untracked file.";
+		"Review the uncommitted changes in this repository against the spec: run `git status`, `git diff` and `git diff --cached`, and read every file listed by `git ls-files --others --exclude-standard`.";
 	if (!repoRoot || (await currentBranch(repoRoot)) !== feature) return uncommitted;
 	const base = await defaultBranch(repoRoot);
 	const ref = (await branchExists(repoRoot, base)) ? base : `origin/${base}`;
 	const mergeBase = await gitText(repoRoot, ["merge-base", "HEAD", ref]);
 	if (!mergeBase) return uncommitted;
-	return `Review the changes on this branch against the spec: run \`git status\`, \`git log --oneline ${mergeBase}..HEAD\` and \`git diff ${mergeBase}\`, and read every untracked file.`;
+	return `Review the changes on this branch against the spec: run \`git status\`, \`git log --oneline ${mergeBase}..HEAD\` and \`git diff ${mergeBase}\`, and read every file listed by \`git ls-files --others --exclude-standard\`.`;
 }
 
 async function removeScratch(repoRoot: string, scratchDir: string): Promise<void> {
