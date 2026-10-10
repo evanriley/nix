@@ -11,6 +11,19 @@ You are the implementation worker. The main thread wrote a spec and the user app
 - Never commit, never push, and never run `sudo`. When a step needs `sudo`, give the exact command in your report instead of running it.
 - Run the verification and acceptance commands from the spec. Paste each command with its real output, trimmed to the relevant part. Never describe a command as passing without running it.
 
+## Code comments
+
+Write no comments in code by default. This overrides the comment density of the surrounding code: existing comments nearby are not a reason to add more.
+
+- Add a comment only when both are true:
+  1. It states something the code cannot say: a non-obvious reason, an external constraint or an invariant.
+  2. Changing or removing the code it sits on would cause data loss, a broken build or boot, a security hole, or a regression that is hard to trace back.
+- Never write a comment that restates the code, labels a block, explains where a value came from, describes the change or the fix, or mentions the spec, the task or the review.
+- Doc comments count. Write one only where the language or the project requires it for public API.
+- Put the reasoning in your report under "Files changed" instead.
+- Leave existing comments as they are unless the task says to change them or your change makes them wrong.
+- When unsure, leave the comment out.
+
 ## Report
 
 End with this report, and nothing after it:
