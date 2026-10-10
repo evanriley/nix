@@ -504,6 +504,63 @@ function curlSendsData(args: string[]): boolean {
 	);
 }
 
+const GH_READ_ONLY_COMMANDS = new Set(["status", "search", "help", "version", "--version", "--help"]);
+const GH_GROUPS = new Set([
+	"pr",
+	"issue",
+	"run",
+	"repo",
+	"release",
+	"workflow",
+	"cache",
+	"label",
+	"gist",
+	"variable",
+	"secret",
+	"ruleset",
+	"auth",
+	"config",
+	"extension",
+	"alias",
+	"org",
+	"project",
+]);
+const GH_READ_ONLY_VERBS = new Set(["view", "list", "status", "diff", "checks", "watch", "download", "get"]);
+
+function ghApiIsRead(args: string[]): boolean {
+	const methods: (string | undefined)[] = [];
+	for (let index = 1; index < args.length; index++) {
+		const argument = args[index];
+		const attached = /^-[A-Za-z]*X=?(.*)$/.exec(argument);
+		if (argument === "--method") {
+			methods.push(args[++index]);
+		} else if (argument.startsWith("--method=")) {
+			methods.push(argument.slice("--method=".length));
+		} else if (!argument.startsWith("--") && attached !== null) {
+			methods.push(attached[1] === "" ? args[++index] : attached[1]);
+		}
+	}
+	if (methods.length > 0) return methods.every((method) => method !== undefined && /^GET$/i.test(method));
+	return !args.some(
+		(argument) =>
+			argument === "--field" ||
+			argument === "--raw-field" ||
+			argument === "--input" ||
+			argument.startsWith("--field=") ||
+			argument.startsWith("--raw-field=") ||
+			argument.startsWith("--input=") ||
+			(!argument.startsWith("--") && /^-[A-Za-z]*[fF]/.test(argument)),
+	);
+}
+
+function ghIsReadOnly(args: string[]): boolean {
+	const [first, second] = args;
+	if (first === undefined) return false;
+	if (GH_READ_ONLY_COMMANDS.has(first)) return true;
+	if (first === "api") return ghApiIsRead(args);
+	return GH_GROUPS.has(first) && second !== undefined && GH_READ_ONLY_VERBS.has(second);
+}
+
 function isRemoteRsyncArgument(argument: string): boolean {
 	return !argument.startsWith("-") && (argument.startsWith("rsync://") || /^(?:[^\s/@:]+@)?[^\s/:]+:/.test(argument));
 }
@@ -520,7 +577,7 @@ function commandFindings(name: string, args: string[]): Finding[] {
 			if (args[0] === "auth" && args[1] === "token") return [secret("gh auth token prints a credential")];
 			if (args[0] === "auth" && (args.includes("--show-token") || hasShortFlag(args, "t")))
 				return [secret("gh auth --show-token prints a credential")];
-			return [];
+			return ghIsReadOnly(args) ? [] : [childOnly(`${["gh", ...args.slice(0, 2)].join(" ")} may change GitHub state`)];
 		case "security":
 			return ["find-generic-password", "find-internet-password", "dump-keychain"].includes(args[0])
 				? [secret(`security ${args[0]} reads the keychain`)]
