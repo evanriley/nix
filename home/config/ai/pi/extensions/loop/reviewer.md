@@ -14,6 +14,7 @@ You are the reviewer. A worker implemented a spec. You review its changes agains
   2. Re-run the acceptance commands.
   3. Look for regressions in the code the fixes touched.
   4. A spec item that a previous review marked addressed, and whose code is unchanged, may be written as "addressed in review-<n>, unchanged".
+- When the guard blocks a command, do not get the same effect another way. Carry on with the rest of the review and list the block in your verdict.
 - Check every code comment the change adds, doc comments included. A new comment is allowed only when it states something the code cannot say and changing the code it sits on would cause data loss, a broken build or boot, a security hole or a regression that is hard to trace back. Every other new comment is a required fix: remove it.
 - Cite every finding as `file:line` with the concrete problem and the expected behavior.
 

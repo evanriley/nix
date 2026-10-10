@@ -39,7 +39,7 @@ export default function (pi: ExtensionAPI) {
 			decision.action === "confirm" ? " (it needs user approval and no UI is available)" : role === "main" ? "" : ` for the ${role}`;
 		return {
 			block: true,
-			reason: `Blocked by the guard${scope}: ${decision.reason}. Do not work around this; report it instead.`,
+			reason: `Blocked by the guard${scope}: ${decision.reason}. Do not get the same effect another way. Carry on with the rest of the task and list this block in your report.`,
 		};
 	});
 }
