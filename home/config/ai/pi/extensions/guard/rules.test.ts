@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { type Action, type ClassifyOptions, classify, type Role } from "./rules.ts";
+import {
+	type Action,
+	bashTimeout,
+	type ClassifyOptions,
+	classify,
+	DEFAULT_BASH_TIMEOUT_SECONDS,
+	MAX_BASH_TIMEOUT_SECONDS,
+	type Role,
+} from "./rules.ts";
 
 const HOME = "/home/tester";
 const SCRATCH = "/home/tester/.pi/plans/repo/feature/scratch-1";
@@ -329,4 +337,28 @@ for (const item of cases) {
 test("classify_relativeGitPathWithoutCwd_blocksWrite", () => {
 	const decision = classify("write", { path: ".git/config" }, "worker", { home: HOME });
 	assert.equal(decision.action, "block");
+});
+
+test("bashTimeout_childOmitted_defaults", () => {
+	for (const role of ["worker", "reviewer"] as const) {
+		assert.equal(bashTimeout(role, undefined), DEFAULT_BASH_TIMEOUT_SECONDS);
+		assert.equal(bashTimeout(role, null), DEFAULT_BASH_TIMEOUT_SECONDS);
+		assert.equal(bashTimeout(role, 0), DEFAULT_BASH_TIMEOUT_SECONDS);
+		assert.equal(bashTimeout(role, "60"), DEFAULT_BASH_TIMEOUT_SECONDS);
+	}
+	assert.equal(DEFAULT_BASH_TIMEOUT_SECONDS, 600);
+});
+
+test("bashTimeout_childRequested_clampsToMaximum", () => {
+	for (const role of ["worker", "reviewer"] as const) {
+		assert.equal(bashTimeout(role, 60), undefined);
+		assert.equal(bashTimeout(role, 1800), undefined);
+		assert.equal(bashTimeout(role, 5000), MAX_BASH_TIMEOUT_SECONDS);
+	}
+	assert.equal(MAX_BASH_TIMEOUT_SECONDS, 1800);
+});
+
+test("bashTimeout_main_neverChanged", () => {
+	assert.equal(bashTimeout("main", undefined), undefined);
+	assert.equal(bashTimeout("main", 5000), undefined);
 });

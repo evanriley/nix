@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { classify, type Role } from "./rules.ts";
+import { bashTimeout, classify, type Role } from "./rules.ts";
 
 function roleFromEnvironment(value: string | undefined): Role {
 	return value === "worker" || value === "reviewer" ? value : "main";
@@ -20,7 +20,13 @@ export default function (pi: ExtensionAPI) {
 	pi.on("tool_call", async (event, ctx) => {
 		const input = event.input as Record<string, unknown>;
 		const decision = classify(event.toolName, input, role, { home, scratch, cwd: ctx.cwd });
-		if (decision.action === "allow") return undefined;
+		if (decision.action === "allow") {
+			if (event.toolName === "bash") {
+				const timeout = bashTimeout(role, input.timeout);
+				if (timeout !== undefined) input.timeout = timeout;
+			}
+			return undefined;
+		}
 		if (decision.action === "confirm" && role === "main" && ctx.hasUI) {
 			const approved = await ctx.ui.confirm(
 				`Allow ${event.toolName}?`,

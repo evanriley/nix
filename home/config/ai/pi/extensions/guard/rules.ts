@@ -642,6 +642,15 @@ function analyzePath(toolName: string, rawPath: unknown, options: ClassifyOption
 	return [];
 }
 
+export const DEFAULT_BASH_TIMEOUT_SECONDS = 600;
+export const MAX_BASH_TIMEOUT_SECONDS = 1800;
+
+export function bashTimeout(role: Role, requested: unknown): number | undefined {
+	if (role === "main") return undefined;
+	if (typeof requested !== "number" || !Number.isFinite(requested) || requested <= 0) return DEFAULT_BASH_TIMEOUT_SECONDS;
+	return requested > MAX_BASH_TIMEOUT_SECONDS ? MAX_BASH_TIMEOUT_SECONDS : undefined;
+}
+
 function decide(findings: Finding[], role: Role, scratchCommand: boolean): Decision {
 	const describe = (selected: Finding[]) => [...new Set(selected.map((item) => item.reason))].join("; ");
 	const secrets = findings.filter((item) => item.severity === "secret");
