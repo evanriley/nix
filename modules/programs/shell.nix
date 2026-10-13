@@ -41,6 +41,15 @@ in
         (pkgs.writeShellScriptBin "wl-copy" "exec /usr/bin/pbcopy")
         (pkgs.writeShellScriptBin "wl-paste" "exec /usr/bin/pbpaste")
       ];
+      # Boots the tmux server at login so the mail session exists after
+      # reboots. tmux.conf creates the mail session when the server starts;
+      # the throwaway __autostart session only forces a fresh server up, and
+      # the has-session guard covers a server that is already running.
+      tmuxServerBoot = pkgs.writeShellScript "tmux-server-boot" ''
+        ${pkgs.tmux}/bin/tmux new-session -A -d -s __autostart
+        ${pkgs.tmux}/bin/tmux has-session -t =mail 2>/dev/null || ${pkgs.tmux}/bin/tmux new-session -d -s mail -n aerc aerc
+        ${pkgs.tmux}/bin/tmux kill-session -t __autostart 2>/dev/null || true
+      '';
     in
     {
       imports = [ inputs.nix-index-database.homeModules.nix-index ];
@@ -108,6 +117,29 @@ in
       programs.zoxide.enable = true;
       programs.nix-index.enable = true;
       programs.nix-index-database.comma.enable = true;
+
+      # Boot the tmux server at login so the mail session exists after
+      # reboots.
+      systemd.user.services.tmux-server = lib.mkIf (!isDarwin) {
+        Unit.Description = "Start the tmux server and its mail session";
+        Service = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ExecStart = "${tmuxServerBoot}";
+        };
+        Install.WantedBy = [ "default.target" ];
+      };
+
+      # launchd does not inherit the profile, so PATH needs to cover aerc and
+      # msmtpq inside the tmux server it starts.
+      launchd.agents.tmux-server = lib.mkIf isDarwin {
+        enable = true;
+        config = {
+          ProgramArguments = [ "${tmuxServerBoot}" ];
+          EnvironmentVariables.PATH = "${config.home.homeDirectory}/.nix-profile/bin:/usr/bin:/bin:/usr/sbin:/sbin";
+          RunAtLoad = true;
+        };
+      };
 
       programs.btop = {
         enable = true;
