@@ -674,11 +674,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1791678239,
-        "narHash": "sha256-PYZPRzfkVKA5jkGVpy68S/gSeoAxGJthm07l47UDkSg=",
+        "lastModified": 1791843632,
+        "narHash": "sha256-ihR1POKw2v/4ziORaNYsafHYWj71nV5g2SEWs0Okcj0=",
         "owner": "evanriley",
         "repo": "orca",
-        "rev": "d012824e9e5e0cbb3a33d56a76403af8b9e6cb1d",
+        "rev": "e6fbde6e4651e87f3ba2657075143da97c95e259",
         "type": "github"
       },
       "original": {
