@@ -121,6 +121,7 @@
             # Hunk signs come from gitsigns instead.
             extra.enable = true;
             git.enable = true;
+            hipatterns.enable = true;
             icons.enable = true;
             jump.enable = true;
             jump2d.enable = true;
