@@ -11,6 +11,8 @@ in
     networking
     shell
     ai
+    emacs
+    mail
   ];
 
   flake.modules.darwin.base.imports = with darwin; [
@@ -20,6 +22,7 @@ in
     networking
     shell
     ai
+    mail
   ];
 
   flake.modules.homeManager.cli.imports = with homeManager; [

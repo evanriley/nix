@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+emacs_dir="${HOME}/.config/emacs"
+
+if [ ! -d "$emacs_dir" ]; then
+  git clone --depth 1 --branch v2.2.4 https://github.com/doomemacs/core "$emacs_dir"
+fi
+
+git -C "$emacs_dir" submodule update --init --recursive
+
+exec "$emacs_dir/bin/doom" install

@@ -155,6 +155,7 @@ in
 
           # btop reloads its config and theme on SIGUSR2.
           pkill -USR2 -x btop || true
+          emacsclient --eval "(evan/load-monobiome-theme)" >/dev/null 2>&1 || true
         '';
       };
     in

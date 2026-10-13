@@ -26,6 +26,8 @@ in
     mpv
     bitwarden
     yubikey
+    emacs
+    mail
   ];
 
   flake.modules.homeManager.desktop.imports = with homeManager; [
