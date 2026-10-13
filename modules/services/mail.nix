@@ -97,12 +97,47 @@ in
           };
           msmtp.enable = true;
           mu.enable = true;
+          # The maildir folder names Fastmail exposes (not the IMAP-style
+          # home-manager defaults).
+          folders = {
+            inbox = "Inbox";
+            sent = "Sent";
+            drafts = "Drafts";
+            trash = "Trash";
+          };
+          aerc = {
+            enable = true;
+            extraAccounts = {
+              # The maildir backend only rescans on check-mail; run the
+              # flock-guarded sync script so aerc and the push/timer syncs
+              # never race.
+              check-mail-cmd = lib.getExe mailSync;
+              check-mail-interval = 5;
+              # Without this, :delete hard-deletes instead of moving to Trash.
+              trash = "Trash";
+            };
+          };
         };
       };
 
       programs.mu.enable = true;
       programs.mbsync.enable = true;
       programs.msmtp.enable = true;
+
+      # aerc reads the mbsync maildir and sends through msmtpq (from the msmtp
+      # package). Failed sends queue here until `msmtpq -r` flushes them.
+      programs.aerc = {
+        enable = true;
+        # accounts.conf lives in the store (0444); safe because the password
+        # comes from passwordCommand (agenix), never written to the file.
+        extraConfig.general.unsafe-accounts-conf = true;
+        extraConfig.ui.sidebar-width = 25;
+      };
+
+      home.sessionVariables = {
+        MSMTPQ_Q = "${config.xdg.dataHome}/msmtp/queue";
+        MSMTPQ_LOG = "${config.xdg.dataHome}/msmtp/queue.log";
+      };
 
       xdg.configFile."goimapnotify/goimapnotify.yaml".source = goimapnotifyConfig;
 
