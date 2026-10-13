@@ -196,6 +196,12 @@
               package = render-markdown-nvim;
               setup = "require('render-markdown').setup({})";
             };
+            # Wraps the claude CLI: :ClaudeCode* commands, selection sending and
+            # automatic diff review of the agent's edits.
+            claude-code = {
+              package = claudecode-nvim;
+              setup = "require('claudecode').setup()";
+            };
             # Set up from config.lua: their options need Lua functions.
             mini-snippets.package = mini-snippets;
             mini-clue.package = mini-clue;
@@ -230,6 +236,14 @@
             (map "n" "<leader>u" "<Cmd>UndotreeToggle<CR>" "Toggle undotree")
             (map "n" "<leader>cw" "<Cmd>lua MiniTrailspace.trim()<CR>" "Trim trailing whitespace")
             (map "n" "<leader>G" "<Cmd>botright 15split | terminal lazygit<CR>" "Lazygit")
+            (map "n" "<leader>ac" "<Cmd>ClaudeCode<CR>" "Claude Code toggle")
+            (map "n" "<leader>af" "<Cmd>ClaudeCodeFocus<CR>" "Claude Code focus")
+            (map "n" "<leader>ar" "<Cmd>ClaudeCode --resume<CR>" "Claude Code resume")
+            (map "n" "<leader>am" "<Cmd>ClaudeCodeSelectModel<CR>" "Claude Code model")
+            (map "n" "<leader>ab" "<Cmd>ClaudeCodeAdd %<CR>" "Add buffer to Claude")
+            (map "x" "<leader>as" "<Cmd>ClaudeCodeSend<CR>" "Send selection to Claude")
+            (map "n" "<leader>aa" "<Cmd>ClaudeCodeDiffAccept<CR>" "Claude diff accept")
+            (map "n" "<leader>ad" "<Cmd>ClaudeCodeDiffDeny<CR>" "Claude diff deny")
           ];
         };
       };
