@@ -43,6 +43,8 @@ in
 
       home.stateVersion = "26.05";
 
+      home.sessionVariables.ZIG_LOCAL_CACHE_DIR = "/data/zig-cache";
+
       services.mpd.musicDirectory = "/mnt/Media/Music";
 
       programs.noctalia.settings.plugin_settings."mindnbytes/nix-status".nixos_configuration =

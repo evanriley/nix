@@ -51,6 +51,8 @@
                       "noatime"
                     ];
                   in
+                  # Nested exclusion subvolumes live under @home but are created
+                  # imperatively: disko cannot order nested subvolume creation.
                   {
                     "@" = {
                       mountpoint = "/";
