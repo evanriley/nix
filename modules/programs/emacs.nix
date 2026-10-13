@@ -38,44 +38,23 @@ in
       programs.emacs = {
         enable = true;
         package = emacsPackage;
-        # mu4e propagates mu; the rest are needed on PATH for launchd, which
-        # does not inherit the user profile (mu4e, spell, and ruff run them).
+        # mu4e propagates mu; emacs is launched from a shell, so everything
+        # else (isync, msmtp, git, ruff) comes from the profile.
         extraPackages = epkgs: [
           epkgs.mu4e
-          pkgs.git
-          pkgs.isync
-          pkgs.msmtp
-          pkgs.ruff
           aspellEnv
         ];
       };
 
-      services.emacs.enable = true;
-      services.emacs.extraOptions = [
-        "--init-directory=${config.home.homeDirectory}/.config/emacs"
-      ];
-
-      # launchd does not source the profile, so the darwin daemon needs these
-      # explicitly; the Linux daemon gets sessionVariables via the systemd
-      # user environment (environment.d), not its login shell.
-      launchd.agents.emacs.config.EnvironmentVariables = lib.mkIf (!isLinux) {
-        PARINFER_RUST_LIBRARY = "${parinferRustLibrary}";
-        MU4E_MU_BINARY = muBinary;
-      };
+      # No daemon: emacs is a fallback editor, launched on demand.
 
       home.packages =
         with pkgs;
         [
           mu
-          rust-analyzer
-          gopls
-          zls
-          clang-tools
-          jdt-language-server
-          clojure-lsp
+          # LSP servers and tooling moved to the neovim module; emacs picks
+          # them up from the shared profile.
           nerd-fonts.symbols-only
-          # Python linter/formatter LSP, matching the nvim setup.
-          ruff
           aspellEnv
         ]
         ++ lib.optional isLinux gcc
