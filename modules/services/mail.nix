@@ -94,6 +94,9 @@ in
           mbsync = {
             enable = true;
             create = "maildir";
+            # Propagate deletions both ways so cleanup in aerc reaches the
+            # server (and web-UI deletions reach aerc).
+            expunge = "both";
           };
           msmtp.enable = true;
           mu.enable = true;
