@@ -118,7 +118,7 @@
             ai.enable = true;
             bracketed.enable = true;
             bufremove.enable = true;
-            diff.enable = true;
+            # Hunk signs come from gitsigns instead.
             extra.enable = true;
             git.enable = true;
             icons.enable = true;
@@ -166,6 +166,25 @@
           };
 
           repl.conjure.enable = true;
+
+          git.gitsigns = {
+            enable = true;
+            mappings = {
+              nextHunk = "]c";
+              previousHunk = "[c";
+              stageHunk = "<leader>gs";
+              undoStageHunk = "<leader>gu";
+              resetHunk = "<leader>gr";
+              stageBuffer = "<leader>gS";
+              resetBuffer = "<leader>gR";
+              previewHunk = "<leader>gp";
+              blameLine = "<leader>gb";
+              toggleBlame = "<leader>gB";
+              diffThis = "<leader>gd";
+              diffProject = "<leader>gD";
+              toggleDeleted = "<leader>gx";
+            };
+          };
 
           extraPlugins = with pkgs.vimPlugins; {
             mini-input = {
