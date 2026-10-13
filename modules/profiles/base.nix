@@ -11,6 +11,7 @@ in
     networking
     shell
     ai
+    eca
     emacs
     mail
   ];
@@ -22,6 +23,7 @@ in
     networking
     shell
     ai
+    eca
     mail
   ];
 

@@ -87,7 +87,8 @@ them explicitly before enabling."
       ;; Only one machine should sync at a time; the state file rides syncthing.
       :desc "org-caldav sync" "o C" #'org-caldav-sync
       :desc "org-roam-ui" "n r u" #'org-roam-ui-open
-      :desc "toggle inline blame" "g a" #'blamer-mode)
+      :desc "toggle inline blame" "g a" #'blamer-mode
+      :desc "eca" "o e" #'eca)
 
 (after! mu4e
   (setq mu4e-maildir "~/.mail"

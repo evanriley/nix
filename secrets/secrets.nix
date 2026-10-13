@@ -37,6 +37,7 @@ shared [ "cinderace" ] "evan-password.age"
 // shared (builtins.attrNames hosts) "openrouter-key.age"
 // shared (builtins.attrNames hosts) "kagi-key.age"
 // shared (builtins.attrNames hosts) "coralbricks-key.age"
+// shared [ "cinderace" "ninetales" ] "eca-netrc.age"
 // hostSecrets "cinderace" [
   "u2f-mappings.age"
   "borg-passphrase.age"

@@ -6,3 +6,4 @@
 (package! consult-ghostel)
 (package! org-roam-ui)
 (package! blamer)
+(package! eca)

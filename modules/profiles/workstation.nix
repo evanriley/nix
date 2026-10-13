@@ -27,6 +27,7 @@ in
     bitwarden
     yubikey
     emacs
+    eca
     mail
   ];
 
