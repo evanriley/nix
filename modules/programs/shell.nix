@@ -82,6 +82,7 @@ in
           ll = "ls -lah";
           la = "ls -A";
           l = "ls -CF";
+          t = "tmux new -A -s main";
           clj-repl = ''clj "-J-Dclojure.server.repl={:port 5555 :accept clojure.core.server/repl :server-daemon false}"'';
           nrepl = ''clojure -Sdeps '{:deps {nrepl/nrepl {:mvn/version "1.7.0"}}}' -M -m nrepl.cmdline --interactive'';
         };
