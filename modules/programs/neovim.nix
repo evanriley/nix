@@ -17,6 +17,22 @@
     {
       imports = [ inputs.nvf.homeManagerModules.default ];
 
+      # LSP servers live on the global profile so editors work outside dev
+      # shells too; a project's dev shell still takes precedence on PATH.
+      home.packages = with pkgs; [
+        rust-analyzer
+        zls
+        clang-tools
+        gopls
+        jdt-language-server
+        clojure-lsp
+        lua-language-server
+        ocamlPackages.ocaml-lsp
+        gleam
+        basedpyright
+        ruff
+      ];
+
       programs.nvf = {
         enable = true;
         defaultEditor = false;

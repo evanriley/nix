@@ -67,8 +67,9 @@ vim.keymap.set('n', '<leader>sl', swap_buf('l'), { desc = 'Swap buffer l' })
 vim.lsp.config('*', { root_markers = { '.git' } })
 vim.lsp.config('gleam', { root_markers = { 'gleam.toml' } })
 vim.lsp.config('zls', { settings = { zls = { enable_build_on_save = true } } })
--- Servers come from each project's development shell.
-vim.lsp.enable({ 'rust_analyzer', 'ruff', 'zls', 'clangd', 'clojure_lsp', 'gleam', 'lua_ls', 'ocamllsp' })
+-- Servers are installed on the global profile (modules/programs/neovim.nix);
+-- a project's dev shell still takes precedence on PATH.
+vim.lsp.enable({ 'rust_analyzer', 'basedpyright', 'ruff', 'zls', 'clangd', 'clojure_lsp', 'gleam', 'lua_ls', 'ocamllsp', 'gopls', 'jdtls' })
 
 vim.api.nvim_create_autocmd('LspAttach', {
   group = vim.api.nvim_create_augroup('lsp-attach', {}),
