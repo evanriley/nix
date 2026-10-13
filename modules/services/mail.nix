@@ -132,6 +132,17 @@ in
         # comes from passwordCommand (agenix), never written to the file.
         extraConfig.general.unsafe-accounts-conf = true;
         extraConfig.ui.sidebar-width = 25;
+        # aerc skips its packaged aerc.conf once a user config exists, so the
+        # builtin filter commands must be re-declared here or message bodies
+        # render as "no filter configured for this mimetype".
+        extraConfig.filters = {
+          "text/plain" = "colorize";
+          "text/calendar" = "calendar";
+          "message/delivery-status" = "colorize";
+          "message/rfc822" = "colorize";
+          "text/html" = "! html";
+          ".headers" = "colorize";
+        };
       };
 
       home.sessionVariables = {
