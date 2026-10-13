@@ -79,7 +79,7 @@ vim.api.nvim_create_autocmd('LspAttach', {
     local buf = args.buf
 
     if client:supports_method('textDocument/completion') then
-      vim.lsp.completion.enable(true, client.id, buf, { autotrigger = false })
+      vim.lsp.completion.enable(true, client.id, buf, { autotrigger = true })
       vim.bo[buf].omnifunc = 'v:lua.vim.lsp.omnifunc'
     end
 

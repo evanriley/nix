@@ -73,8 +73,6 @@
             updatetime = 250;
             timeoutlen = 300;
             completeopt = "menuone,noselect,popup,fuzzy";
-            autocomplete = true;
-            autocompletedelay = 100;
             foldmethod = "expr";
             foldexpr = "v:lua.vim.treesitter.foldexpr()";
             foldlevelstart = 99;
