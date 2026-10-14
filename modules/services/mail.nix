@@ -153,6 +153,12 @@ in
         MSMTPQ_LOG = "${config.xdg.dataHome}/msmtp/queue.log";
       };
 
+      # aerc replaces (not merges) its default binds.conf when a user one
+      # exists, so the full default set is vendored at home/config/aerc and
+      # hand-edited like tmux.conf. Only the single file is linked: HM owns
+      # the rest of ~/.config/aerc.
+      xdg.configFile."aerc/binds.conf".source = config.dotfiles.link "config/aerc/binds.conf";
+
       xdg.configFile."goimapnotify/goimapnotify.yaml".source = goimapnotifyConfig;
 
       systemd.user.services.mail-sync = lib.mkIf isLinux {
