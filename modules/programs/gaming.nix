@@ -20,7 +20,10 @@ in
 
       programs.gpu-screen-recorder.enable = true;
 
-      environment.systemPackages = [ pkgs.faugus-launcher ];
+      environment.systemPackages = [
+        pkgs.faugus-launcher
+        pkgs.xivlauncher
+      ];
 
       boot.kernelModules = [ "ntsync" ];
       services.udev.extraRules = ''
