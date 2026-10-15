@@ -41,6 +41,7 @@ in
         casks = [
           "firefox"
           "helium-browser"
+          "iina"
           "obs"
         ];
         # Nothing is removed until casks are managed here.
@@ -159,7 +160,11 @@ in
     };
 
   flake.modules.homeManager.ninetales =
-    { lib, ... }:
+    {
+      lib,
+      pkgs,
+      ...
+    }:
     {
       imports = with homeManager; [
         workstation
@@ -173,5 +178,32 @@ in
       home.activation.screenshotsDir = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         run mkdir -p "$HOME/Pictures/Screenshots"
       '';
+
+      home.activation.defaultVideoPlayer =
+        let
+          duti = lib.getExe pkgs.duti;
+          utis = [
+            "public.movie"
+            "public.avi"
+            "public.mpeg"
+            "com.apple.quicktime-movie"
+            "public.mpeg-4"
+            "com.apple.m4v-video"
+            "org.matroska.mkv"
+            "org.webmproject.webm"
+            "public.audio"
+            "public.mp3"
+            "com.apple.m4a-audio"
+            "org.xiph.flac"
+          ];
+          setDefaults = lib.concatMapStrings (uti: ''
+            ${duti} -s com.colliderli.iina ${uti} all
+          '') utis;
+        in
+        lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+          if [ -d /Applications/IINA.app ]; then
+            ${setDefaults}
+          fi
+        '';
     };
 }
