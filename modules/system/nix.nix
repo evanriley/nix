@@ -1,6 +1,17 @@
 { config, ... }:
 let
   inherit (config.meta) user repoDir;
+
+  # Temporary: nixpkgs 55bfb4d builds lix 2.95.4 with -Dmimalloc, which
+  # meson rejects on lix < 2.96 (fixed upstream in 982cb88083). Until the
+  # channel advances, point the stable/latest aliases at lix 2.96.
+  lixOverlay = _: prev: {
+    lixPackageSets = prev.lixPackageSets // {
+      inherit (prev.lixPackageSets) extend makeLixScope;
+      latest = prev.lixPackageSets.lix_2_96;
+      stable = prev.lixPackageSets.lix_2_96;
+    };
+  };
   settings = {
     experimental-features = [
       "nix-command"
@@ -26,6 +37,7 @@ in
   flake.modules.nixos.nix =
     { config, pkgs, ... }:
     {
+      nixpkgs.overlays = [ lixOverlay ];
       nix.package = pkgs.lix;
       nix.channel.enable = false;
       nix.settings = settings // {
@@ -54,6 +66,7 @@ in
   flake.modules.darwin.nix =
     { config, pkgs, ... }:
     {
+      nixpkgs.overlays = [ lixOverlay ];
       nix.package = pkgs.lix;
       nix.channel.enable = false;
       nix.settings = settings;
