@@ -106,6 +106,18 @@ in
         # Leaves CTRL-R to Atuin.
         historyWidget.command = "";
       };
+      # Skipped on darwin: atuin's interactive PTY e2e tests fail there
+      # (nixpkgs#573527, nixpkgs PR#574333 skips only the first; the rest of
+      # the bash-preexec setup family fails the same way on macOS 27).
+      # Drop this override once the nixpkgs pin contains a fix.
+      programs.atuin.package = lib.mkIf isDarwin (
+        pkgs.atuin.overrideAttrs (old: {
+          checkFlags = old.checkFlags ++ [
+            "--skip=filtered_commands_leave_no_captured_output"
+            "--skip=setup_2_tests_shells_bash_preexec_toml"
+          ];
+        })
+      );
       programs.atuin = {
         enable = true;
         flags = [ "--disable-up-arrow" ];
