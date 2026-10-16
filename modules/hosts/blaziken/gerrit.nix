@@ -1,0 +1,141 @@
+{
+  config,
+  inputs,
+  lib,
+  ...
+}:
+let
+  domain = "maybemaybe.lol";
+in
+{
+  flake.modules.nixos.blaziken =
+    { config, ... }:
+    {
+      # The upstream module runs Gerrit under a dynamic user; cgit needs to
+      # read the bare repositories, so run it as a static user instead.
+      users.users.gerrit = {
+        isSystemUser = true;
+        group = "gerrit";
+        home = "/var/lib/gerrit";
+      };
+      users.groups.gerrit = { };
+
+      systemd.services.gerrit.serviceConfig = {
+        DynamicUser = lib.mkForce false;
+        User = "gerrit";
+        Group = "gerrit";
+      };
+
+      systemd.services.gerrit.preStart = ''
+        install -Dm600 ${config.age.secrets.mailgun-smtp.path} /var/lib/gerrit/etc/secure.config
+      '';
+
+      age.secrets.mailgun-smtp = {
+        file = inputs.self + "/secrets/blaziken/mailgun-smtp.age";
+        owner = "gerrit";
+      };
+
+      services.gerrit = {
+        enable = true;
+        serverId = "efb806d6-0752-468a-b31d-e463214486d2";
+        jvmHeapLimit = "4g";
+        listenAddress = "127.0.0.1:8082";
+        builtinPlugins = [ "delete-project" ];
+        settings = {
+          gerrit = {
+            canonicalWebUrl = "https://git.${domain}/";
+            defaultBranch = "refs/heads/main";
+          };
+          user.email = "gerrit@news.${domain}";
+          auth.type = "HTTP";
+          # proxy-https makes Gerrit trust the proxy's REMOTE_USER header.
+          httpd.listenUrl = "proxy-https://127.0.0.1:8082";
+          sshd = {
+            listenAddress = "*:29418";
+            advertisedAddress = "git.${domain}:29418";
+          };
+          sendemail = {
+            enable = true;
+            smtpServer = "smtp.mailgun.org";
+            smtpServerPort = 587;
+            smtpEncryption = "tls";
+            # SMTP password lives in etc/secure.config, outside the store.
+            smtpUser = "postmaster@news.${domain}";
+          };
+        };
+      };
+
+      services.cgit.code = {
+        enable = true;
+        nginx.virtualHost = "code-upstream";
+        # Runs as gerrit so git-http-backend owns the repositories it serves;
+        # the module merges its user definition with ours.
+        user = "gerrit";
+        group = "gerrit";
+        scanPath = "/var/lib/gerrit/git";
+        gitHttpBackend.checkExportOkFiles = false;
+        settings = {
+          root-title = "maybemaybe";
+          root-desc = "personal monorepo";
+          clone-url = [
+            "https://code.${domain}/\$GIT_URL"
+            "ssh://git.${domain}:29418/\$GIT_URL"
+          ];
+        };
+      };
+
+      services.nginx.virtualHosts."code-upstream".listen = [
+        {
+          addr = "127.0.0.1";
+          port = 8081;
+        }
+      ];
+
+      services.anubis.instances.code = {
+        group = "nginx";
+        settings.TARGET = "http://127.0.0.1:8081";
+        policy.settings.bots = [
+          {
+            name = "git";
+            user_agent_regex = "^git/";
+            action = "ALLOW";
+          }
+          {
+            name = "libgit2";
+            user_agent_regex = "^libgit2";
+            action = "ALLOW";
+          }
+        ];
+      };
+
+      services.nginx = {
+        virtualHosts."git.${domain}" = {
+          forceSSL = true;
+          useACMEHost = domain;
+          basicAuthFile = config.age.secrets.gerrit-htpasswd.path;
+          locations."/" = {
+            proxyPass = "http://127.0.0.1:8082";
+            # Gerrit trusts the basic-auth user from this header.
+            extraConfig = ''
+              proxy_set_header REMOTE_USER $remote_user;
+            '';
+          };
+        };
+
+        virtualHosts."code.${domain}" = {
+          forceSSL = true;
+          useACMEHost = domain;
+          locations."/" = {
+            proxyPass = "http://unix:/run/anubis/anubis-code/anubis.sock";
+          };
+        };
+      };
+
+      age.secrets.gerrit-htpasswd = {
+        file = inputs.self + "/secrets/blaziken/gerrit-htpasswd.age";
+        owner = "nginx";
+        group = "nginx";
+        mode = "440";
+      };
+    };
+}
