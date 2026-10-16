@@ -17,6 +17,8 @@ in
     {
       services.buildkite-agents.blaziken = {
         tokenPath = config.age.secrets.buildkite-token.path;
+        name = "%hostname-%spawn";
+        extraConfig = "spawn=2";
         # The monorepo is public; pipelines clone over https without credentials.
         tags = {
           queue = "blaziken";
@@ -74,11 +76,15 @@ in
         };
       };
 
-      nix.settings.trusted-users = [
-        "root"
-        "@wheel"
-        agent
-      ];
+      nix.settings = {
+        trusted-users = [
+          "root"
+          "@wheel"
+          agent
+        ];
+        max-jobs = 2;
+        cores = 4;
+      };
 
       age.secrets.buildkite-token = {
         file = inputs.self + "/secrets/blaziken/buildkite-token.age";
