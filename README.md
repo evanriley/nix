@@ -22,7 +22,7 @@ git clone git@github.com:evanriley/nix.git ~/nix
 | Roll back system | `nh os rollback` | `sudo darwin-rebuild --rollback` |
 | Roll back home | `home-manager generations`, then `<path>/activate` | `home-manager generations`, then `<path>/activate` |
 
-Update inputs with `nix flake update --flake ~/nix`; `berkeley-mono`, `manta`,
+Update inputs with `nix flake update --flake ~/nix`; `berkeley-mono`,
 `monobiome` and `lanzaboote` are updated by hand.
 
 CI runs on [Buildkite](https://buildkite.com/evanriley) on the `blaziken`
@@ -37,7 +37,7 @@ git -C ~/nix checkout HEAD~1 -- flake.lock
 ```
 
 `nh home switch` needs GitHub SSH access to fetch the private
-`evanriley/berkeley-mono` and `evanriley/manta` inputs.
+`evanriley/berkeley-mono` input; `orca` and `manta` live in the monorepo.
 
 ### Secrets
 

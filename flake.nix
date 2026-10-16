@@ -46,16 +46,13 @@
       url = "git+ssh://git@github.com/evanriley/berkeley-mono";
       flake = false;
     };
-    # Private repository; fetching it needs GitHub SSH access.
-    manta = {
-      url = "git+ssh://git@github.com/evanriley/manta";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # Sibling projects in the monorepo; the whole tree is the flake source.
+    orca.url = "path:../orca";
+    manta.url = "path:../manta";
     monobiome = {
       url = "github:endofunctorio/monobiome/2f2d196a71ec885e836a9c1cdd04bfd01b2fb0f4";
       flake = false;
     };
-    orca.url = "github:evanriley/orca";
     nvf = {
       url = "github:notashelf/nvf";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -429,22 +429,17 @@
     },
     "manta": {
       "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
+        "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1790521452,
-        "narHash": "sha256-URImD2ZigG994nzAAZA6i2oXKE7Ea9mMdqWsBE7hzTc=",
-        "ref": "refs/heads/main",
-        "rev": "e9666961623d6b78980e77cf72ca58743d118789",
-        "revCount": 182,
-        "type": "git",
-        "url": "ssh://git@github.com/evanriley/manta"
+        "lastModified": 1,
+        "narHash": "sha256-07EgnFvYH0adW1VRua4h6YYy2fBxGj0xFs8byN0EiHc=",
+        "path": "../manta",
+        "type": "path"
       },
       "original": {
-        "type": "git",
-        "url": "ssh://git@github.com/evanriley/manta"
+        "path": "../manta",
+        "type": "path"
       }
     },
     "mnw": {
@@ -557,6 +552,22 @@
     },
     "nixpkgs_2": {
       "locked": {
+        "lastModified": 1789632929,
+        "narHash": "sha256-RjR8AyvGlWuw16XRj7C1YDEw4E27ciuyPeB2nDMzgTU=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "a32edd7654519351e48e80372a928df336394670",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_3": {
+      "locked": {
         "lastModified": 1791956154,
         "narHash": "sha256-jBYGPi4udQ9uo4KQp9m2J0546nJVQitG15gvZSaVVAs=",
         "owner": "NixOS",
@@ -571,7 +582,7 @@
         "type": "github"
       }
     },
-    "nixpkgs_3": {
+    "nixpkgs_4": {
       "locked": {
         "lastModified": 1791048980,
         "narHash": "sha256-KgItSKML8Xvte0B7/uGnBDsYzSnnKHcOaiUbgWBXLXw=",
@@ -709,20 +720,17 @@
     },
     "orca": {
       "inputs": {
-        "nixpkgs": "nixpkgs_3"
+        "nixpkgs": "nixpkgs_4"
       },
       "locked": {
-        "lastModified": 1792085941,
-        "narHash": "sha256-U61bO+zfcD/xK8gGfzIPwTAVVE3VhdHQmUdKiw1BYKg=",
-        "owner": "evanriley",
-        "repo": "orca",
-        "rev": "0b01bc970a1acc360976f3a6ef4c8331f1e807ae",
-        "type": "github"
+        "lastModified": 1,
+        "narHash": "sha256-zLD2UssoTv5VBk//Gs1EXSFvGEysGgWIzXTxzsoLS3g=",
+        "path": "../orca",
+        "type": "path"
       },
       "original": {
-        "owner": "evanriley",
-        "repo": "orca",
-        "type": "github"
+        "path": "../orca",
+        "type": "path"
       }
     },
     "root": {
@@ -743,7 +751,7 @@
         "nix-darwin": "nix-darwin",
         "nix-index-database": "nix-index-database",
         "nixos-hardware": "nixos-hardware",
-        "nixpkgs": "nixpkgs_2",
+        "nixpkgs": "nixpkgs_3",
         "noctalia": "noctalia",
         "noctalia-greeter": "noctalia-greeter",
         "noctalia-plugins-community": "noctalia-plugins-community",
