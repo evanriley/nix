@@ -20,7 +20,10 @@ in
         description = "git-bug web UI";
         after = [ "network.target" ];
         wantedBy = [ "multi-user.target" ];
-        path = [ pkgs.git ];
+        path = [
+          pkgs.git
+          pkgs.gawk
+        ];
 
         preStart = ''
           set -e
@@ -44,6 +47,10 @@ in
             ${gitBug}/bin/git-bug user new --non-interactive \
               --name "Evan Riley" \
               --email evan@evanriley.com
+          elif ! git config --get git-bug.identity >/dev/null; then
+            # A fresh clone has the identities but no default identity set.
+            ID=$(${gitBug}/bin/git-bug user ls | awk '/Evan Riley/ {print $1; exit}')
+            ${gitBug}/bin/git-bug user adopt "$ID"
           fi
         '';
 
