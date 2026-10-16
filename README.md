@@ -120,6 +120,7 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 | Buildkite agents (two) | queue `blaziken` | `buildkite.nix` |
 | Gerrit-to-Buildkite webhook | local | `ci-trigger.nix` |
 | Borg backups | BorgBase | `backup.nix` |
+| RAID, disk and service alerts | healthchecks.io | `monitoring.nix` |
 
 ## Adding a host
 

@@ -36,8 +36,6 @@ in
 
         swraid = {
           enable = true;
-          # mdmonitor exits failed without somewhere to send events.
-          mdadmConf = "PROGRAM ${pkgs.coreutils}/bin/true";
         };
 
         initrd.availableKernelModules = [
