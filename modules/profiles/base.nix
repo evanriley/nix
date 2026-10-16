@@ -10,6 +10,7 @@ in
     locale
     networking
     shell
+    git
     ai
     eca
     emacs
@@ -22,6 +23,7 @@ in
     users
     networking
     shell
+    git
     ai
     eca
     mail

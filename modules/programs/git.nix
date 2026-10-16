@@ -1,8 +1,29 @@
 { config, ... }:
 let
   inherit (config.meta) user;
+
+  # git-bug's go-git SSH client needs every Gerrit host key type, not just ed25519.
+  gerritKnownHosts = {
+    programs.ssh.knownHosts = {
+      gerrit-ed25519 = {
+        hostNames = [ "[git.maybemaybe.lol]:29418" ];
+        publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHGOzrLcNC9G05r/TC3Gldb+gKLK+OZwmLN0xKVE2RIO";
+      };
+      gerrit-rsa = {
+        hostNames = [ "[git.maybemaybe.lol]:29418" ];
+        publicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDti8boQ0FIEczXYuvDLS/Gd1BtRTE/Jv2vqFef/rUHmcWvmNQNG879fPGK8xlxqbIzQyp7DOu7dloFojez8mb+pGL5tZoOH2nukCGFm4eAx6eM8Q5GXjco9x8XuhTe7vyTUlSYxrsOe7GnziMThdJv/8LYba/FbLDOAOkD0fpdN98UO4maZ/TvVR5QMkbhKCzog90FS5R+j4t45agGIneQzmW+5LLUUe2T+0YzIaW1ol7pO7BskV9spGyFgsajkIt7xeBxbdrh7J/0Bfk8O7Z/AOT0F6oZM25VFV+xBTK1WlfGhltb1wAYR30MdcZRG5JRi7zkhE+zFd28Q6RBbjglFLqDaCEimUAbWyAgsFFF6GTVL0u4nRBoO97vw4JudNwcQsI89FMDEKixaJGVRogiYO1XQzlJkBT7zE79by/LUHMdHdOWmRCajix0s04ioSPt5K/W5xabh+AJH0jvd3Wd1iFhlgb2pWVxauWFGNZ37bbf4MKYTXnTJKvaF/7/FGM=";
+      };
+      gerrit-ecdsa = {
+        hostNames = [ "[git.maybemaybe.lol]:29418" ];
+        publicKey = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBL2Z4HWpKU6SpDOyIuavswlYDZljrV8CDofUqTISwn4LCfTeMXNJj+DzkEhbQQ1wYysPtZUXE9cfiHoTqMM54sQ=";
+      };
+    };
+  };
 in
 {
+  flake.modules.nixos.git = gerritKnownHosts;
+  flake.modules.darwin.git = gerritKnownHosts;
+
   flake.modules.homeManager.git =
     {
       config,
@@ -46,6 +67,11 @@ in
       };
     in
     {
+      home.packages = [
+        pkgs.git-review
+        pkgs.git-bug
+      ];
+
       programs.git = {
         enable = true;
         signing = {
