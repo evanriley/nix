@@ -3,7 +3,7 @@
 }:
 let
   domain = "maybemaybe.lol";
-  origin = "/var/lib/gerrit/git/nix.git";
+  origin = "/var/lib/gerrit/git/maybe.git";
 in
 {
   flake.modules.nixos.blaziken =
@@ -24,11 +24,11 @@ in
 
         preStart = ''
           set -e
-          if [ ! -e /var/lib/git-bug/nix/.git ]; then
-            git clone ${origin} /var/lib/git-bug/nix
-            git -C /var/lib/git-bug/nix checkout --detach
+          if [ ! -e /var/lib/git-bug/maybe/.git ]; then
+            git clone ${origin} /var/lib/git-bug/maybe
+            git -C /var/lib/git-bug/maybe checkout --detach
           fi
-          cd /var/lib/git-bug/nix
+          cd /var/lib/git-bug/maybe
           # Detached so fetching into refs/heads is allowed.
           git checkout -q --detach
           git fetch -q origin \
@@ -54,7 +54,7 @@ in
           StateDirectoryMode = "750";
           # The clone is created in preStart, after systemd has already applied
           # WorkingDirectory, so the service itself changes directory.
-          ExecStart = "${pkgs.bash}/bin/bash -c 'cd /var/lib/git-bug/nix && exec ${gitBug}/bin/git-bug webui --bind 127.0.0.1 --port 8083 --no-open'";
+          ExecStart = "${pkgs.bash}/bin/bash -c 'cd /var/lib/git-bug/maybe && exec ${gitBug}/bin/git-bug webui --bind 127.0.0.1 --port 8083 --no-open'";
           # Periodic restarts rebuild the cache and pick up bugs pushed by
           # other machines; preStart refetches on the way back up.
           Restart = "always";
@@ -72,8 +72,8 @@ in
           Type = "oneshot";
         };
         script = ''
-          [ -d /var/lib/git-bug/nix/.git ] || exit 0
-          cd /var/lib/git-bug/nix
+          [ -d /var/lib/git-bug/maybe/.git ] || exit 0
+          cd /var/lib/git-bug/maybe
           git push -q ${origin} \
             'refs/bugs/*:refs/bugs/*' \
             'refs/identities/*:refs/identities/*' || true

@@ -9,7 +9,11 @@ let
 in
 {
   flake.modules.nixos.blaziken =
-    { config, ... }:
+    {
+      config,
+      pkgs,
+      ...
+    }:
     {
       # The upstream module runs Gerrit under a dynamic user; cgit needs to
       # read the bare repositories, so run it as a static user instead.
@@ -81,6 +85,7 @@ in
             "https://code.${domain}/\$GIT_URL"
             "ssh://git.${domain}:29418/\$GIT_URL"
           ];
+          enable-git-config = true;
         };
       };
 
@@ -106,6 +111,25 @@ in
             action = "ALLOW";
           }
         ];
+      };
+
+      # All-Projects and All-Users are Gerrit bookkeeping, not projects;
+      # cgit ignores them via per-repo git config.
+      systemd.services.cgit-hide-gerrit-meta = {
+        description = "Hide Gerrit meta repositories from cgit";
+        after = [ "gerrit.service" ];
+        wantedBy = [ "multi-user.target" ];
+        path = [ pkgs.git ];
+        serviceConfig = {
+          User = "gerrit";
+          Group = "gerrit";
+          Type = "oneshot";
+        };
+        script = ''
+          for repo in All-Projects All-Users; do
+            git -C /var/lib/gerrit/git/$repo.git config cgit.ignore 1
+          done
+        '';
       };
 
       services.nginx = {
