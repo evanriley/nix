@@ -33,7 +33,14 @@ in
           GERRIT_KNOWN_HOSTS="${pkgs.writeText "gerrit-known-hosts" ''
             [git.maybemaybe.lol]:29418 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHGOzrLcNC9G05r/TC3Gldb+gKLK+OZwmLN0xKVE2RIO
           ''}"
+          ORCA_MIRROR_KEY="${config.age.secrets.orca-mirror-key.path}"
+          MANTA_MIRROR_KEY="${config.age.secrets.manta-mirror-key.path}"
+          ORCA_CACHIX_TOKEN="$(cat ${config.age.secrets.orca-cachix-token.path})"
+          GITHUB_KNOWN_HOSTS="${pkgs.writeText "github-known-hosts" ''
+            github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+          ''}"
           export CACHIX_AUTH_TOKEN BUILDKITE_API_TOKEN GERRIT_CI_KEY GERRIT_KNOWN_HOSTS
+          export ORCA_MIRROR_KEY MANTA_MIRROR_KEY ORCA_CACHIX_TOKEN GITHUB_KNOWN_HOSTS
         '';
       };
 
@@ -60,6 +67,21 @@ in
 
       age.secrets.gerrit-ci-key = {
         file = inputs.self + "/secrets/blaziken/gerrit-ci-key.age";
+        owner = agent;
+      };
+
+      age.secrets.orca-mirror-key = {
+        file = inputs.self + "/secrets/blaziken/orca-mirror-key.age";
+        owner = agent;
+      };
+
+      age.secrets.manta-mirror-key = {
+        file = inputs.self + "/secrets/blaziken/manta-mirror-key.age";
+        owner = agent;
+      };
+
+      age.secrets.orca-cachix-token = {
+        file = inputs.self + "/secrets/blaziken/orca-cachix-token.age";
         owner = agent;
       };
     };

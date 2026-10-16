@@ -77,7 +77,10 @@ class Handler(BaseHTTPRequestHandler):
                 return
             sha = update["newRev"]
             old = update.get("oldRev", "")
-            env = {"BUILDKITE_FETCH_DIFF_BASE": "true"}
+            env = {
+                "BUILDKITE_FETCH_DIFF_BASE": "true",
+                "GERRIT_MERGE": "1",
+            }
             if old and set(old) != {"0"}:
                 # After a merge, HEAD is origin/main, so the default diff
                 # base would see no changes; diff against the previous tip.
