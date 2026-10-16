@@ -113,7 +113,7 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 | Homepage behind Anubis | `maybemaybe.lol` | `homepage/` |
 | Gerrit | `git.maybemaybe.lol` | `gerrit.nix` |
 | cgit behind Anubis | `code.maybemaybe.lol` | `gerrit.nix` |
-| git-bug web UI | `bugs.maybemaybe.lol` | `git-bug.nix` |
+| git-bug web UI, Gerrit login | `bugs.maybemaybe.lol` | `git-bug.nix` |
 | Change short links | `cl.maybemaybe.lol/<n>` | `gerrit.nix` |
 | Bug short links | `b.maybemaybe.lol/<id>` | `git-bug.nix` |
 | Other subdomains redirect home | `*.maybemaybe.lol` | `nginx.nix` |

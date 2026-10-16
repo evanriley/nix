@@ -7,7 +7,7 @@ let
 in
 {
   flake.modules.nixos.blaziken =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     let
       gitBug = pkgs.git-bug;
     in
@@ -108,6 +108,7 @@ in
       services.nginx.virtualHosts."bugs.${domain}" = {
         forceSSL = true;
         useACMEHost = domain;
+        basicAuthFile = config.age.secrets.gerrit-htpasswd.path;
         locations."/" = {
           proxyPass = "http://unix:/run/anubis/anubis-bugs/anubis.sock";
           proxyWebsockets = true;
