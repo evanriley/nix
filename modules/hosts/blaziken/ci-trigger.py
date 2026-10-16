@@ -30,7 +30,8 @@ def trigger(commit: str, branch: str, message: str, env: dict) -> None:
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=4) as resp:
-        print(f"triggered build {json.load(resp)['number']} for {message}")
+        number = json.load(resp)["number"]
+        print(f"triggered build {number} for {message}", flush=True)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -64,11 +65,11 @@ class Handler(BaseHTTPRequestHandler):
             )
         elif kind == "ref-updated":
             update = event.get("refUpdate", {})
-            if event.get("project") != "maybe":
+            if update.get("project") != "maybe":
                 return
             # Patchset pushes also fire ref-updated on refs/changes/*;
             # patchset-created already covers those.
-            ref = update.get("ref", "")
+            ref = update.get("refName", "")
             if not ref.startswith("refs/heads/"):
                 return
             sha = update["newRev"]
