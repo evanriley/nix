@@ -113,5 +113,13 @@ in
           proxyWebsockets = true;
         };
       };
+
+      services.nginx.virtualHosts."b.${domain}" = {
+        forceSSL = true;
+        useACMEHost = domain;
+        locations."= /".return = "302 https://bugs.${domain}/_/issues";
+        locations."~ ^/([0-9a-f]+)/?$".return = "302 https://bugs.${domain}/_/issues/$1";
+        locations."/".return = "404";
+      };
     };
 }

@@ -155,6 +155,14 @@ in
             proxyPass = "http://unix:/run/anubis/anubis-code/anubis.sock";
           };
         };
+
+        virtualHosts."cl.${domain}" = {
+          forceSSL = true;
+          useACMEHost = domain;
+          locations."= /".return = "302 https://git.${domain}/q/status:open";
+          locations."~ ^/([0-9]+(/[0-9]+)?)/?$".return = "302 https://git.${domain}/c/maybe/+/$1";
+          locations."/".return = "404";
+        };
       };
 
       age.secrets.gerrit-htpasswd = {
