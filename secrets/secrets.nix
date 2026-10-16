@@ -67,6 +67,7 @@ shared [ "cinderace" "blaziken" ] "evan-password.age"
   "healthchecks-ping.age"
   "healthchecks-heartbeat.age"
   "healthchecks-disks.age"
+  "anubis-key.age"
 ]
 // hostSecrets "ninetales" [
   "borg-passphrase.age"
