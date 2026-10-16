@@ -41,7 +41,9 @@ A repository's own `AGENTS.md` takes precedence for that repository.
 - No attribution: no `Co-Authored-By` trailer, no "Generated with" line.
 - Commits are signed with a YubiKey and wait for a touch. Say so if a commit
   seems to hang.
-- In `~/nix` and other dotfile repositories, commit to `main` directly. No
+- In repositories with a `.gitreview` file, push only to `refs/for/<branch>`
+  (Gerrit review), never to the branch itself.
+- In dotfile repositories without code review, commit to `main` directly. No
   branches or pull requests.
 
 ## Output style
