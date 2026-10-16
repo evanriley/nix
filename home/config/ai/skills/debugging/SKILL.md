@@ -42,7 +42,7 @@ Find the cause before changing code. A fix without a known cause is a guess.
 - Services on macOS: `launchctl print gui/$(id -u)/<label>`,
   `log show --last 10m --predicate 'process == "<name>"'`.
 - Nix evaluation: rerun with `--show-trace`; the relevant frame is usually the
-  first one in files under `~/nix` or the project.
+  first one in files under `~/maybe/nix` or the project.
 - Nix builds: `nix log <drv>` for the full build log; `nix build -L` to stream
   it.
 - Processes: `ps -ef | rg <name>` (wrapped programs show as `.<name>-wrapped`),

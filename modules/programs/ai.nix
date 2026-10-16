@@ -188,7 +188,7 @@ in
 
       programs.git.includes = [
         {
-          condition = "gitdir:~/nix/";
+          condition = "gitdir:~/maybe/";
           contents.pi.featureBranches = false;
         }
       ];

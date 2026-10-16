@@ -1,7 +1,7 @@
 ---
 name: nix-packaging
 description: >
-  Package software with Nix: derivations for tools and apps in ~/nix or a
+  Package software with Nix: derivations for tools and apps in ~/maybe/nix or a
   project flake, fetchers and hashes, language builders (Rust, Python, Go,
   Node, OCaml, Clojure, Zig, Gleam), wrapping scripts, and overriding or
   patching nixpkgs packages. Load when adding a package, fixing a package
@@ -23,11 +23,11 @@ description: >
 
 ## Placement
 
-- Tools for my machines: `~/nix/modules/packages/<name>.nix` defining
+- Tools for my machines: `~/maybe/nix/modules/packages/<name>.nix` defining
   `perSystem.packages.<name>`, consumed in modules as
   `inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.<name>`.
-- Scripts in `~/nix`: the `mkScript` helper with the source in a `_scripts`
-  directory, `runtimeInputs` for every command the script calls.
+- Scripts in `~/maybe/nix`: the `mkScript` helper with the source in a
+  `_scripts` directory, `runtimeInputs` for every command the script calls.
 - Project artifacts: `packages.default` in the project's `flake.nix`, built
   with the builder the project template already uses.
 
@@ -82,6 +82,6 @@ description: >
 
 - `nix build .#<name> -L`, then run `./result/bin/<program> --version` or a
   real invocation.
-- `nix flake check` in `~/nix`.
+- `nix flake check` in `~/maybe/nix`.
 - On macOS-relevant packages, confirm `meta.platforms` and that nothing is
   Linux-only.

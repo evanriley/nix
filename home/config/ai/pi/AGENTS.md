@@ -5,8 +5,9 @@ A repository's own `AGENTS.md` takes precedence for that repository.
 ## Environment
 
 - Shell is fish. Write scripts in bash with `set -euo pipefail`.
-- Machines are managed with Nix from the `~/nix` flake: NixOS `cinderace`,
-  nix-darwin `ninetales` and standalone Home Manager.
+- Machines are managed with Nix from the `~/maybe/nix` flake: NixOS `cinderace`,
+  NixOS `blaziken` (server, x86_64-linux), nix-darwin `ninetales` and
+  standalone Home Manager.
 - For a missing tool, run it once with `, <cmd>` or
   `nix shell nixpkgs#<pkg> -c <cmd>`.
 - Project tools belong in the project's dev shell.
