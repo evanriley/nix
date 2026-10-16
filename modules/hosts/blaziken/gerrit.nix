@@ -90,12 +90,20 @@ in
         };
       };
 
-      services.nginx.virtualHosts."code-upstream".listen = [
-        {
-          addr = "127.0.0.1";
-          port = 8081;
-        }
-      ];
+      services.nginx.virtualHosts."code-upstream" = {
+        listen = [
+          {
+            addr = "127.0.0.1";
+            port = 8081;
+          }
+        ];
+        # git-http-backend serves every repository under scanPath, including
+        # Gerrit's account and access-control data; cgit.ignore does not apply.
+        locations."~ ^/All-(Users|Projects)(\\.git)?(/|$)" = {
+          priority = 100;
+          return = "404";
+        };
+      };
 
       services.anubis.instances.code = {
         group = "nginx";
