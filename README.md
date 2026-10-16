@@ -1,18 +1,24 @@
 # nix
 
-NixOS and nix-darwin configurations for my machines. They depend on private
-inputs and secrets, so they won't build as-is elsewhere.
+NixOS and nix-darwin configurations for my machines. They live in the
+[`maybe` monorepo](../README.md) at `nix/` and are mirrored read-only to
+[GitHub](https://github.com/evanriley/nix). They depend on private inputs and
+secrets, so they won't build as-is elsewhere.
 
 | Host | Hardware | System | Status |
 | --- | --- | --- | --- |
 | `cinderace` | Desktop: Ryzen 7 9800X3D, Radeon RX 9070 XT | NixOS, x86_64-linux | Active |
 | `ninetales` | MacBook Pro, M1 Pro | nix-darwin, aarch64-darwin | Active |
+| `blaziken` | Server: OVH KS-5, Xeon E3-1270 v6, 32 GB | NixOS, x86_64-linux | Active |
 
 ## Usage
 
 ```sh
-git clone git@github.com:evanriley/nix.git ~/nix
+git clone ssh://evan@git.maybemaybe.lol:29418/maybe ~/maybe
 ```
+
+The flake is in `~/maybe/nix`. The root README covers the
+[Gerrit workflow](../README.md) for contributing changes.
 
 | | cinderace | ninetales |
 | --- | --- | --- |
@@ -22,18 +28,35 @@ git clone git@github.com:evanriley/nix.git ~/nix
 | Roll back system | `nh os rollback` | `sudo darwin-rebuild --rollback` |
 | Roll back home | `home-manager generations`, then `<path>/activate` | `home-manager generations`, then `<path>/activate` |
 
-Update inputs with `nix flake update --flake ~/nix`; `berkeley-mono`,
+blaziken has no Home Manager configuration. Deploy it from any host with SSH
+access over Tailscale, using [deploy-rs](https://github.com/serokell/deploy-rs)
+from the dev shell:
+
+```sh
+cd ~/maybe/nix && nix develop -c deploy .#blaziken
+```
+
+deploy-rs rolls back automatically when the activation fails. Build without
+deploying:
+
+```sh
+nix build ~/maybe/nix#nixosConfigurations.blaziken.config.system.build.toplevel
+```
+
+Update inputs with `nix flake update --flake ~/maybe/nix`; `berkeley-mono`,
 `monobiome` and `lanzaboote` are updated by hand.
 
-CI runs on [Buildkite](https://buildkite.com/evanriley) on the `blaziken`
-agent: `nix flake check`, a build of cinderace's toplevel pushed to the
-`evanriley` cachix so local switches substitute from it, and an evaluation of
-the darwin systems, which cannot be built on x86_64-linux.
+CI runs on [Buildkite](https://buildkite.com/riley-industries/maybe) on the
+`blaziken` agents and builds what changed in `legacyPackages.x86_64-linux.ci`
+([how the pipeline works](../README.md#ci)): the flake checks, the cinderace
+and blaziken toplevels, and an evaluation of the home configurations and of
+ninetales, which cannot be built on x86_64-linux. The cinderace toplevel is
+pushed to the `evanriley` cachix so local switches substitute from it.
 
 After a bad update, restore the previous lock and switch again:
 
 ```sh
-git -C ~/nix checkout HEAD~1 -- flake.lock
+git -C ~/maybe checkout HEAD~1 -- nix/flake.lock
 ```
 
 `nh home switch` needs GitHub SSH access to fetch the private
@@ -48,8 +71,8 @@ key is the recovery recipient.
 Edit a secret:
 
 ```sh
-cd ~/nix/secrets
-nix develop ~/nix -c agenix -e <path>.age -i ~/.config/age/yubikeys.txt
+cd ~/maybe/nix/secrets
+nix develop ~/maybe/nix -c agenix -e <path>.age -i ~/.config/age/yubikeys.txt
 ```
 
 Add a secret:
@@ -63,8 +86,8 @@ Add a secret:
 After changing recipients in `secrets/secrets.nix`, rekey:
 
 ```sh
-cd ~/nix/secrets
-nix develop ~/nix -c agenix -r -i ~/.config/age/yubikeys.txt
+cd ~/maybe/nix/secrets
+nix develop ~/maybe/nix -c agenix -r -i ~/.config/age/yubikeys.txt
 ```
 
 ### Shell history
@@ -77,6 +100,24 @@ decrypts. Log in once per host:
 atuin login -u <username>
 ```
 
+## blaziken
+
+A headless server, updated with deploy-rs. It has
+key-only SSH and is administered over Tailscale. Its disks are an mdadm RAID1
+pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
+`nixos.backup`; secrets are in `secrets/blaziken/`.
+
+| Service | Address | Module in `modules/hosts/blaziken/` |
+| --- | --- | --- |
+| nginx, wildcard ACME cert | `*.maybemaybe.lol` | `nginx.nix` |
+| Homepage behind Anubis | `maybemaybe.lol` | `homepage/` |
+| Gerrit | `git.maybemaybe.lol` | `gerrit.nix` |
+| cgit behind Anubis | `code.maybemaybe.lol` | `gerrit.nix` |
+| git-bug web UI | `bugs.maybemaybe.lol` | `git-bug.nix` |
+| Buildkite agents (two) | queue `blaziken` | `buildkite.nix` |
+| Gerrit-to-Buildkite webhook | local | `ci-trigger.nix` |
+| Borg backups | BorgBase | `backup.nix` |
+
 ## Adding a host
 
 Profiles in `modules/profiles/`:
@@ -84,6 +125,7 @@ Profiles in `modules/profiles/`:
 | Module | Contents |
 | --- | --- |
 | `nixos.base`, `darwin.base` | Nix, agenix, user, locale, networking, fish |
+| `nixos.server` | Nix, agenix, user, locale, networking, fish, zram |
 | `nixos.workstation` | `base` plus boot, zram, NextDNS, YubiKey, noctalia-greeter, umbriel, Plymouth, audio, Bluetooth, fonts |
 | `homeManager.cli` | Home basics, dotfiles, shell, Atuin, git, jj, Neovim, theme, agent config |
 | `homeManager.workstation` | `cli` plus browsers, Discord, mpv, Bitwarden, YubiKey tools |
@@ -91,8 +133,8 @@ Profiles in `modules/profiles/`:
 
 1. Create `modules/hosts/<host>/configuration.nix` with
    `flake.nixosConfigurations.<host>` (or `darwinConfigurations`) and a
-   `flake.modules.nixos.<host>` module that imports `base` or `workstation`
-   and the features it needs, and sets `networking.hostName` and
+   `flake.modules.nixos.<host>` module that imports `base`, `server` or
+   `workstation` and the features it needs, and sets `networking.hostName` and
    `system.stateVersion`. A `flake.modules.homeManager.<host>` module that
    imports `cli`, `workstation` or `desktop` and sets `home.stateVersion` adds
    `homeConfigurations."evan@<host>"`.
@@ -107,11 +149,12 @@ Profiles in `modules/profiles/`:
 4. For `syncthing`: add the device ID to `devices` in
    `modules/services/syncthing.nix`. On NixOS, also create
    `<host>/syncthing-cert.age` and `<host>/syncthing-key.age`.
-
-5. Add the host to the machine list in `home/config/ai/AGENTS.md` and
-   `home/config/ai/skills/nix-environment/SKILL.md`.
-
-CI evaluates every host in `nixosConfigurations` and `darwinConfigurations`.
+5. Add the host to the machine lists in
+   `home/config/ai/skills/nix-environment/SKILL.md` and
+   `home/config/ai/pi/AGENTS.md`.
+6. Add the host to `legacyPackages.ci` in `modules/flake/ci.nix`: `targets`
+   for a NixOS host, which CI builds, or `evalOnly` for a darwin host. For a
+   server, also add a deploy-rs node in `modules/flake/deploy.nix`.
 
 ## First-time setup
 
@@ -121,14 +164,14 @@ CI evaluates every host in `nixosConfigurations` and `darwinConfigurations`.
 2. Clone with Nix's OpenSSH (Apple's lacks FIDO2 for the YubiKey):
 
    ```sh
-   nix shell nixpkgs#openssh -c git clone git@github.com:evanriley/nix.git ~/nix
+   nix shell nixpkgs#openssh -c git clone ssh://evan@git.maybemaybe.lol:29418/maybe ~/maybe
    ```
 
 3. Apply the system, then home:
 
    ```sh
-   sudo nix run --inputs-from ~/nix nix-darwin -- switch --flake ~/nix#ninetales
-   nix run --inputs-from ~/nix home-manager -- switch --flake ~/nix#evan@ninetales
+   sudo nix run --inputs-from ~/maybe/nix nix-darwin -- switch --flake ~/maybe/nix#ninetales
+   nix run --inputs-from ~/maybe/nix home-manager -- switch --flake ~/maybe/nix#evan@ninetales
    ```
 
 Then, by hand:
@@ -139,14 +182,15 @@ Then, by hand:
 - In Firefox, `about:profiles` → Create a New Profile → Choose Folder
   `~/Library/Application Support/org.nixos.firefox/Profiles/default` → Set as
   default profile.
-- System Settings → Spotlight: exclude `~/nix`.
+- System Settings → Spotlight: exclude `~/maybe`.
 - If a Dock icon shows `?`, run `killall Dock`.
 - Log in to Atuin (see [Shell history](#shell-history)).
 
 ### cinderace
 
-1. Boot the NixOS installer, clone to `~/nix`, and partition and mount the
-   disks with disko.
+1. Boot the NixOS installer, clone with
+   `git clone ssh://evan@git.maybemaybe.lol:29418/maybe ~/maybe`, and
+   partition and mount the disks with disko.
 2. Restore the host SSH key and the Secure Boot keys from Borg into `/mnt`
    (see [Restoring from Borg](#restoring-from-borg)). The agenix secrets,
    including the login password, only decrypt with that host key.
@@ -156,29 +200,30 @@ Then, by hand:
    sudo -E nix shell nixpkgs#borgbackup -c borg extract ::<archive> etc/ssh/ssh_host_ed25519_key etc/ssh/ssh_host_ed25519_key.pub var/lib/sbctl
    ```
 
-3. `nixos-install --flake ~/nix#cinderace`
+3. `nixos-install --flake ~/maybe/nix#cinderace`
 4. After the first login, log in to Atuin (see
    [Shell history](#shell-history)).
 
 ## Restoring from Borg
 
-Both hosts back up daily to BorgBase; `repos` in `modules/services/backup.nix`
-maps each host to its repository.
+All three hosts back up daily to BorgBase; `repos` in
+`modules/services/backup.nix` maps each host to its repository.
 
 ```sh
 sudo borgmatic repo-list --last 5
 sudo borgmatic extract --archive latest --path <home>/<path> --destination /tmp/restore
 ```
 
-`<home>` is `home/evan` on cinderace and `Users/evan` on ninetales.
+`<home>` is `home/evan` on cinderace, `Users/evan` on ninetales and
+`home/evan` on blaziken.
 
 On a new machine, borgmatic has no credentials yet. The passphrase and the key
 export (`borg-key-<host>`) are in Bitwarden; the SSH key decrypts with a
 YubiKey:
 
 ```sh
-cd ~/nix/secrets
-nix develop ~/nix -c agenix -d <host>/borg-ssh-key.age -i ~/.config/age/yubikeys.txt > /tmp/borg-ssh-key
+cd ~/maybe/nix/secrets
+nix develop ~/maybe/nix -c agenix -d <host>/borg-ssh-key.age -i ~/.config/age/yubikeys.txt > /tmp/borg-ssh-key
 chmod 600 /tmp/borg-ssh-key
 export BORG_RSH="ssh -i /tmp/borg-ssh-key" BORG_REPO="ssh://<repo>@<repo>.repo.borgbase.com/./repo"
 nix shell nixpkgs#borgbackup -c borg list
