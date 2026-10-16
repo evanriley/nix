@@ -73,8 +73,14 @@ class Handler(BaseHTTPRequestHandler):
             if not ref.startswith("refs/heads/"):
                 return
             sha = update["newRev"]
+            old = update.get("oldRev", "")
+            env = {}
+            if old and set(old) != {"0"}:
+                # After a merge, HEAD is origin/main, so the default diff
+                # base would see no changes; diff against the previous tip.
+                env["BUILDKITE_GIT_DIFF_BASE"] = old
             branch = ref.removeprefix("refs/heads/")
-            trigger(sha, branch, f"{sha[:12]} on {branch}", {})
+            trigger(sha, branch, f"{sha[:12]} on {branch}", env)
 
 
 def main() -> None:
