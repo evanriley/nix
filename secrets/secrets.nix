@@ -13,6 +13,7 @@ let
   hosts = {
     cinderace = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIDES4qGRr0cZtmy1BQ0aO+5Ti1O+7Pyzk7O6XJnfuAI root@cinderace";
     ninetales = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINCffWfU8zD0rbzO2bcefQZf0uQ7meUM+jVA+OuB88J4";
+    blaziken = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMltQu8qZLDlna9ZoESX8WJEi7Gv+43JDwq59E3LZUmz root@blaziken";
   };
 
   shared = hostNames: name: {
@@ -28,7 +29,7 @@ let
       }) names
     );
 in
-shared [ "cinderace" ] "evan-password.age"
+shared [ "cinderace" "blaziken" ] "evan-password.age"
 // shared [ "cinderace" ] "listenbrainz-token.age"
 // shared [ "cinderace" "ninetales" ] "nextdns.conf.age"
 // shared [ "cinderace" "ninetales" ] "fastmail-mail.age"
@@ -48,6 +49,15 @@ shared [ "cinderace" ] "evan-password.age"
   "lidarr.env.age"
   "slskd.env.age"
   "soularr-config.age"
+]
+// hostSecrets "blaziken" [
+  "cloudflare-dns.age"
+  "gerrit-htpasswd.age"
+  "buildkite-token.age"
+  "mailgun-smtp.age"
+  "borg-ssh-key.age"
+  "borg-passphrase.age"
+  "healthchecks-ping.age"
 ]
 // hostSecrets "ninetales" [
   "borg-passphrase.age"
