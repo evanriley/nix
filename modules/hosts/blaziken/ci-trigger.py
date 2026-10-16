@@ -55,15 +55,18 @@ class Handler(BaseHTTPRequestHandler):
             change = event.get("change", {})
             if change.get("project") != "maybe":
                 return
+            if change.get("branch") != "main":
+                return
             number = change["number"]
             patchset = event["patchSet"]["number"]
             trigger(
                 event["patchSet"]["revision"],
-                change.get("branch", "main"),
+                f"cl/{number}",
                 f"Gerrit change {number} patchset {patchset}",
                 {
                     "GERRIT_PATCHSET": f"{number},{patchset}",
                     "BUILDKITE_FETCH_DIFF_BASE": "true",
+                    "BUILDKITE_REFSPEC": event["patchSet"]["ref"],
                 },
             )
         elif kind == "ref-updated":
@@ -72,8 +75,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             # Patchset pushes also fire ref-updated on refs/changes/*;
             # patchset-created already covers those.
-            ref = update.get("refName", "")
-            if not ref.startswith("refs/heads/"):
+            if update.get("refName") != "refs/heads/main":
                 return
             sha = update["newRev"]
             old = update.get("oldRev", "")
@@ -85,8 +87,7 @@ class Handler(BaseHTTPRequestHandler):
                 # After a merge, HEAD is origin/main, so the default diff
                 # base would see no changes; diff against the previous tip.
                 env["BUILDKITE_GIT_DIFF_BASE"] = old
-            branch = ref.removeprefix("refs/heads/")
-            trigger(sha, branch, f"{sha[:12]} on {branch}", env)
+            trigger(sha, "main", f"{sha[:12]} on main", env)
 
 
 def main() -> None:
