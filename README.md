@@ -122,6 +122,36 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 | Borg backups | BorgBase | `backup.nix` |
 | RAID, disk and service alerts | healthchecks.io | `monitoring.nix` |
 
+### Gerrit state outside Nix
+
+Gerrit keeps its project and access configuration in git, on
+`refs/meta/config` of each repository, not in this flake. The Borg bundles
+(see [Gerrit](#gerrit)) restore it; a Gerrit set up from scratch needs it
+recreated by hand. CI depends on:
+
+- `maybe`, `webhooks.config`: remote `buildkite` posts `patchset-created` and
+  `ref-updated` to `http://127.0.0.1:8470/gerrit` (`ci-trigger.nix`).
+- `maybe`, `project.config`: `submit.action = fast forward only`; access is
+  inherited from All-Projects.
+- All-Projects, `project.config`:
+  - The `Verified` label (-1..+1) and its submit requirement, which does not
+    apply to `refs/meta/config`.
+  - `label-Verified = -1..+1 group CI` on `refs/heads/*`.
+  - `read = group Anonymous Users` on `refs/heads/*`, which makes the
+    repository public.
+  - No `push` on `refs/heads/*`; changes reach `main` only by submit.
+- Groups: `buildkite` in CI; `evan` in Administrators.
+
+Read or edit a project's configuration:
+
+```sh
+git fetch ssh://evan@git.maybemaybe.lol:29418/<project> refs/meta/config
+git checkout FETCH_HEAD
+git push ssh://evan@git.maybemaybe.lol:29418/<project> HEAD:refs/for/refs/meta/config
+```
+
+The Access page in the web UI edits the same files.
+
 ## Adding a host
 
 Profiles in `modules/profiles/`:
