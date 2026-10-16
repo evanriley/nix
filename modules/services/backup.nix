@@ -5,6 +5,7 @@ let
   repos = {
     cinderace = "asfr5z3s";
     ninetales = "o0dskefv";
+    blaziken = "o6hequuj";
   };
 
   repo = hostName: repos.${hostName};

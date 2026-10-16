@@ -20,7 +20,10 @@ in
   flake.modules.nixos.blaziken =
     { pkgs, ... }:
     {
-      imports = [ nixos.server ];
+      imports = [
+        nixos.server
+        nixos.backup
+      ];
       networking.hostName = "blaziken";
 
       system.stateVersion = "26.05";
