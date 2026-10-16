@@ -1,12 +1,14 @@
 import json
 import os
+import sys
 import urllib.request
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(os.environ.get("PORT", "8470"))
-API = (
+API = os.environ.get(
+    "BUILDKITE_API_URL",
     "https://api.buildkite.com/v2/organizations/"
-    "riley-industries/pipelines/maybe/builds"
+    "riley-industries/pipelines/maybe/builds",
 )
 TOKEN_PATH = os.environ.get("BUILDKITE_REST_TOKEN_PATH")
 
@@ -29,7 +31,7 @@ def trigger(commit: str, branch: str, message: str, env: dict) -> None:
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=4) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:
         number = json.load(resp)["number"]
         print(f"triggered build {number} for {message}", flush=True)
 
@@ -40,14 +42,28 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         length = int(self.headers.get("Content-Length") or 0)
-        event = json.loads(self.rfile.read(length) or b"{}")
+        try:
+            event = json.loads(self.rfile.read(length) or b"{}")
+        except ValueError:
+            event = None
+        if not isinstance(event, dict):
+            self.send_error(400, "Expected a JSON object body")
+            return
+        self.send_response(204)
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.flush()
         try:
             self.dispatch(event)
         except Exception as exc:
-            self.send_error(500, str(exc))
-            return
-        self.send_response(204)
-        self.end_headers()
+            update = event.get("refUpdate") or {}
+            patch_set = event.get("patchSet") or {}
+            ref = update.get("refName") or patch_set.get("ref")
+            print(
+                f"failed to handle {event.get('type')} {ref}: {exc!r}",
+                file=sys.stderr,
+                flush=True,
+            )
 
     def dispatch(self, event: dict) -> None:
         kind = event.get("type")
@@ -91,7 +107,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
 
 
 if __name__ == "__main__":
