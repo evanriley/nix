@@ -1,6 +1,6 @@
-{ config, inputs, ... }:
+{ config, ... }:
 let
-  inherit (config.meta) user;
+  inherit (config.meta) user secrets;
   devices = {
     cinderace.id = "FBEDWXO-5RKRXQM-X7UBGPV-K4CBHTF-W7T7PM4-PZF3P57-RJAR4CX-UUAASAB";
     ninetales.id = "NHA632C-HULI6WD-PLTGJ3L-DFKQIPD-2AWJICR-K3SV7ZA-KMM47CK-LN6VGAL";
@@ -29,11 +29,11 @@ in
     {
       age.secrets = {
         syncthing-cert = {
-          file = inputs.self + "/secrets/${config.networking.hostName}/syncthing-cert.age";
+          file = secrets + "/${config.networking.hostName}/syncthing-cert.age";
           owner = user.name;
         };
         syncthing-key = {
-          file = inputs.self + "/secrets/${config.networking.hostName}/syncthing-key.age";
+          file = secrets + "/${config.networking.hostName}/syncthing-key.age";
           owner = user.name;
         };
       };

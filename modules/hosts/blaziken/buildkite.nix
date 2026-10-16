@@ -1,9 +1,6 @@
-{
-  config,
-  inputs,
-  ...
-}:
+{ config, ... }:
 let
+  inherit (config.meta) secrets;
   agent = "buildkite-agent-blaziken";
 in
 {
@@ -87,42 +84,42 @@ in
       };
 
       age.secrets.buildkite-token = {
-        file = inputs.self + "/secrets/blaziken/buildkite-token.age";
+        file = secrets + "/blaziken/buildkite-token.age";
         owner = agent;
       };
 
       age.secrets.cachix-token = {
-        file = inputs.self + "/secrets/blaziken/cachix-token.age";
+        file = secrets + "/blaziken/cachix-token.age";
         owner = agent;
       };
 
       age.secrets.buildkite-rest-token = {
-        file = inputs.self + "/secrets/blaziken/buildkite-rest-token.age";
+        file = secrets + "/blaziken/buildkite-rest-token.age";
         owner = agent;
       };
 
       age.secrets.gerrit-ci-key = {
-        file = inputs.self + "/secrets/blaziken/gerrit-ci-key.age";
+        file = secrets + "/blaziken/gerrit-ci-key.age";
         owner = agent;
       };
 
       age.secrets.orca-mirror-key = {
-        file = inputs.self + "/secrets/blaziken/orca-mirror-key.age";
+        file = secrets + "/blaziken/orca-mirror-key.age";
         owner = agent;
       };
 
       age.secrets.manta-mirror-key = {
-        file = inputs.self + "/secrets/blaziken/manta-mirror-key.age";
+        file = secrets + "/blaziken/manta-mirror-key.age";
         owner = agent;
       };
 
       age.secrets.nix-mirror-key = {
-        file = inputs.self + "/secrets/blaziken/nix-mirror-key.age";
+        file = secrets + "/blaziken/nix-mirror-key.age";
         owner = agent;
       };
 
       age.secrets.orca-cachix-token = {
-        file = inputs.self + "/secrets/blaziken/orca-cachix-token.age";
+        file = secrets + "/blaziken/orca-cachix-token.age";
         owner = agent;
       };
     };

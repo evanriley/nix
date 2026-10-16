@@ -1,6 +1,11 @@
 { config, inputs, ... }:
 let
-  inherit (config.meta) user repoDir location;
+  inherit (config.meta)
+    user
+    repoDir
+    location
+    secrets
+    ;
 in
 {
   flake.modules.nixos.noctalia =
@@ -19,7 +24,7 @@ in
       };
 
       age.secrets.fastmail-caldav = {
-        file = inputs.self + "/secrets/${config.networking.hostName}/fastmail-caldav.age";
+        file = secrets + "/${config.networking.hostName}/fastmail-caldav.age";
         owner = user.name;
         mode = "0400";
       };

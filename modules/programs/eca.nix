@@ -1,8 +1,8 @@
-{ config, inputs, ... }:
+{ config, ... }:
 let
-  inherit (config.meta) user;
+  inherit (config.meta) user secrets;
   ecaNetrc = {
-    file = inputs.self + "/secrets/eca-netrc.age";
+    file = secrets + "/eca-netrc.age";
     owner = user.name;
   };
 in

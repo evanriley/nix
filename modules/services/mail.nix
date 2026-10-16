@@ -1,8 +1,8 @@
-{ config, inputs, ... }:
+{ config, ... }:
 let
-  inherit (config.meta) user;
+  inherit (config.meta) user secrets;
   secret = name: {
-    file = inputs.self + "/secrets/${name}.age";
+    file = secrets + "/${name}.age";
     owner = user.name;
   };
 in

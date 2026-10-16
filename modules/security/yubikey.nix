@@ -1,4 +1,7 @@
-{ inputs, ... }:
+{ config, ... }:
+let
+  inherit (config.meta) secrets;
+in
 {
   flake.modules.nixos.yubikey =
     { config, pkgs, ... }:
@@ -17,7 +20,7 @@
       ];
 
       age.secrets.u2f-mappings = {
-        file = inputs.self + "/secrets/${config.networking.hostName}/u2f-mappings.age";
+        file = secrets + "/${config.networking.hostName}/u2f-mappings.age";
         mode = "0444";
       };
 

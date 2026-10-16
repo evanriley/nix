@@ -1,6 +1,6 @@
-{ config, inputs, ... }:
+{ config, ... }:
 let
-  inherit (config.meta) user;
+  inherit (config.meta) user secrets;
   inherit (config.flake.lib) mkScript;
 in
 {
@@ -12,7 +12,7 @@ in
       ...
     }:
     let
-      secret = name: inputs.self + "/secrets/${config.networking.hostName}/${name}.age";
+      secret = name: secrets + "/${config.networking.hostName}/${name}.age";
       listenbrainzRecommendations = mkScript pkgs {
         name = "listenbrainz-recommendations";
         src = ./_listenbrainz-recommendations/listenbrainz-recommendations.py;

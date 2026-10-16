@@ -1,6 +1,6 @@
-{ config, inputs, ... }:
+{ config, ... }:
 let
-  inherit (config.meta) user;
+  inherit (config.meta) user secrets;
 in
 {
   flake.modules.nixos.users =
@@ -21,7 +21,7 @@ in
         hashedPasswordFile = config.age.secrets.user-password.path;
       };
 
-      age.secrets.user-password.file = inputs.self + "/secrets/${user.name}-password.age";
+      age.secrets.user-password.file = secrets + "/${user.name}-password.age";
 
       # AccountsService has no declarative config, and its users file also holds
       # the last GDM session, so only the Icon= line is managed.

@@ -14,6 +14,12 @@
     # Checkout location of the nix configuration flake, relative to the
     # home directory (/home/evan or /Users/evan).
     repoDir = "maybe/nix";
+    # inputs.self carries the whole monorepo as string context, so secrets
+    # are copied on their own to keep orca and manta out of every host.
+    secrets = builtins.path {
+      path = ../../secrets;
+      name = "secrets";
+    };
     location = {
       latitude = 36.08;
       longitude = -78.91;

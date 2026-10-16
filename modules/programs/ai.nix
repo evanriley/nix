@@ -1,17 +1,17 @@
 { config, inputs, ... }:
 let
   inherit (config.flake.lib) mkScript;
-  inherit (config.meta) user;
+  inherit (config.meta) user secrets;
   openrouterKey = {
-    file = inputs.self + "/secrets/openrouter-key.age";
+    file = secrets + "/openrouter-key.age";
     owner = user.name;
   };
   kagiKey = {
-    file = inputs.self + "/secrets/kagi-key.age";
+    file = secrets + "/kagi-key.age";
     owner = user.name;
   };
   coralbricksKey = {
-    file = inputs.self + "/secrets/coralbricks-key.age";
+    file = secrets + "/coralbricks-key.age";
     owner = user.name;
   };
   codexRoles = {

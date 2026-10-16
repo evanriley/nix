@@ -1,10 +1,6 @@
-{
-  config,
-  inputs,
-  ...
-}:
+{ config, ... }:
 let
-  inherit (config.meta) user;
+  inherit (config.meta) user secrets;
   domain = "maybemaybe.lol";
 in
 {
@@ -69,7 +65,7 @@ in
       };
 
       age.secrets.cloudflare-dns = {
-        file = inputs.self + "/secrets/blaziken/cloudflare-dns.age";
+        file = secrets + "/blaziken/cloudflare-dns.age";
         owner = "acme";
       };
     };

@@ -1,7 +1,7 @@
-{
-  inputs,
-  ...
-}:
+{ config, ... }:
+let
+  inherit (config.meta) secrets;
+in
 {
   flake.modules.nixos.blaziken =
     {
@@ -14,7 +14,7 @@
     in
     {
       age.secrets.healthchecks-ping = {
-        file = inputs.self + "/secrets/blaziken/healthchecks-ping.age";
+        file = secrets + "/blaziken/healthchecks-ping.age";
       };
       # The shared backup module already covers the user home and SSH host
       # keys; list concatenation adds the server state on top.

@@ -1,8 +1,8 @@
 { config, inputs, ... }:
 let
-  inherit (config.meta) user;
+  inherit (config.meta) user secrets;
   atuinKey = {
-    file = inputs.self + "/secrets/atuin-key.age";
+    file = secrets + "/atuin-key.age";
     owner = user.name;
   };
 in

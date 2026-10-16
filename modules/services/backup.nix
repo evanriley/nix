@@ -1,6 +1,6 @@
-{ config, inputs, ... }:
+{ config, ... }:
 let
-  inherit (config.meta) user;
+  inherit (config.meta) user secrets;
   borgbaseHostKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGU0mISTyHBw9tBs6SuhSq8tvNM8m9eifQxM+88TowPO";
   repos = {
     cinderace = "asfr5z3s";
@@ -17,8 +17,8 @@ let
     in
     {
       age.secrets = {
-        borg-passphrase.file = inputs.self + "/secrets/${hostName}/borg-passphrase.age";
-        borg-ssh-key.file = inputs.self + "/secrets/${hostName}/borg-ssh-key.age";
+        borg-passphrase.file = secrets + "/${hostName}/borg-passphrase.age";
+        borg-ssh-key.file = secrets + "/${hostName}/borg-ssh-key.age";
       };
 
       programs.ssh.knownHosts.borgbase = {

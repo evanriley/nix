@@ -1,9 +1,7 @@
-{
-  config,
-  inputs,
-  lib,
-  ...
-}:
+{ config, lib, ... }:
+let
+  inherit (config.meta) secrets;
+in
 let
   domain = "maybemaybe.lol";
 in
@@ -35,7 +33,7 @@ in
       '';
 
       age.secrets.mailgun-smtp = {
-        file = inputs.self + "/secrets/blaziken/mailgun-smtp.age";
+        file = secrets + "/blaziken/mailgun-smtp.age";
         owner = "gerrit";
       };
 
@@ -159,7 +157,7 @@ in
       };
 
       age.secrets.gerrit-htpasswd = {
-        file = inputs.self + "/secrets/blaziken/gerrit-htpasswd.age";
+        file = secrets + "/blaziken/gerrit-htpasswd.age";
         owner = "nginx";
         group = "nginx";
         mode = "440";

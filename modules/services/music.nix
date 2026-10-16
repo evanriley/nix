@@ -1,11 +1,11 @@
 { inputs, config, ... }:
 let
-  inherit (config.meta) user;
+  inherit (config.meta) user secrets;
 in
 {
   flake.modules.nixos.music = {
     age.secrets.listenbrainz-token = {
-      file = inputs.self + "/secrets/listenbrainz-token.age";
+      file = secrets + "/listenbrainz-token.age";
       owner = user.name;
     };
   };
