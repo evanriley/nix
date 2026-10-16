@@ -42,10 +42,7 @@ in
         serverId = "efb806d6-0752-468a-b31d-e463214486d2";
         jvmHeapLimit = "4g";
         listenAddress = "127.0.0.1:8082";
-        builtinPlugins = [
-          "delete-project"
-          "webhooks"
-        ];
+        builtinPlugins = [ "webhooks" ];
         settings = {
           gerrit = {
             canonicalWebUrl = "https://git.${domain}/";
