@@ -10,14 +10,17 @@ let
   ];
 
   units = [
-    "nginx"
-    "gerrit"
-    "git-bug-webui"
-    "ci-trigger"
-    "anubis-homepage"
-    "anubis-code"
-    "anubis-bugs"
-    "buildkite-agent-blaziken"
+    "nginx.service"
+    "gerrit.service"
+    "git-bug-webui.service"
+    "ci-trigger.service"
+    "anubis-homepage.service"
+    "anubis-code.service"
+    "anubis-bugs.service"
+    "anubis-search.service"
+    "buildkite-agent-blaziken.service"
+    "zoekt-webserver.service"
+    "zoekt-index.timer"
   ];
 
   sites = [
@@ -25,6 +28,7 @@ let
     "git.${domain}"
     "code.${domain}"
     "bugs.${domain}"
+    "cs.${domain}"
   ];
 in
 {
@@ -96,8 +100,8 @@ in
           fi
 
           for unit in ${lib.escapeShellArgs units}; do
-            if ! systemctl is-active --quiet "$unit.service"; then
-              failures+=("$unit.service is not active")
+            if ! systemctl is-active --quiet "$unit"; then
+              failures+=("$unit is not active")
             fi
           done
 
