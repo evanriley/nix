@@ -16,6 +16,7 @@
           pkgs.age-plugin-yubikey
           pkgs.nixfmt
         ]
+        ++ lib.optional (system == "x86_64-linux") inputs.deploy-rs.packages.${system}.default
         ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.mkpasswd;
         shellHook = config.pre-commit.installationScript;
       };

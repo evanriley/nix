@@ -42,6 +42,11 @@ in
       nix.channel.enable = false;
       nix.settings = settings // {
         auto-optimise-store = true;
+        # deploy-rs copies closures over ssh as the wheel user.
+        trusted-users = [
+          "root"
+          "@wheel"
+        ];
       };
 
       nixpkgs.config.allowUnfree = true;
