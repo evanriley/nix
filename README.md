@@ -22,9 +22,13 @@ git clone git@github.com:evanriley/nix.git ~/nix
 | Roll back system | `nh os rollback` | `sudo darwin-rebuild --rollback` |
 | Roll back home | `home-manager generations`, then `<path>/activate` | `home-manager generations`, then `<path>/activate` |
 
-Update inputs with `nix flake update --flake ~/nix`. The `update-flake-lock`
-workflow opens a pull request every Monday for the public, unpinned inputs;
-`berkeley-mono`, `manta`, `monobiome` and `lanzaboote` are updated by hand.
+Update inputs with `nix flake update --flake ~/nix`; `berkeley-mono`, `manta`,
+`monobiome` and `lanzaboote` are updated by hand.
+
+CI runs on [Buildkite](https://buildkite.com/evanriley) on the `blaziken`
+agent: `nix flake check`, a build of cinderace's toplevel pushed to the
+`evanriley` cachix so local switches substitute from it, and an evaluation of
+the darwin systems, which cannot be built on x86_64-linux.
 
 After a bad update, restore the previous lock and switch again:
 

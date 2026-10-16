@@ -18,9 +18,15 @@ in
           host = "blaziken";
         };
         runtimePackages = [
+          pkgs.bash
           pkgs.git
+          pkgs.cachix
           config.nix.package
         ];
+        hooks.environment = ''
+          CACHIX_AUTH_TOKEN="$(cat ${config.age.secrets.cachix-token.path})"
+          export CACHIX_AUTH_TOKEN
+        '';
       };
 
       nix.settings.trusted-users = [
@@ -31,6 +37,11 @@ in
 
       age.secrets.buildkite-token = {
         file = inputs.self + "/secrets/blaziken/buildkite-token.age";
+        owner = agent;
+      };
+
+      age.secrets.cachix-token = {
+        file = inputs.self + "/secrets/blaziken/cachix-token.age";
         owner = agent;
       };
     };
