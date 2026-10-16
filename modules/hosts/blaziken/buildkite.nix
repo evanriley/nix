@@ -74,11 +74,6 @@ in
       };
 
       nix.settings = {
-        trusted-users = [
-          "root"
-          "@wheel"
-          agent
-        ];
         max-jobs = 2;
         cores = 4;
       };
