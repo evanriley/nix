@@ -21,11 +21,19 @@ in
           pkgs.bash
           pkgs.git
           pkgs.cachix
+          pkgs.curl
+          pkgs.jq
+          pkgs.openssh
           config.nix.package
         ];
         hooks.environment = ''
           CACHIX_AUTH_TOKEN="$(cat ${config.age.secrets.cachix-token.path})"
-          export CACHIX_AUTH_TOKEN
+          BUILDKITE_API_TOKEN="$(cat ${config.age.secrets.buildkite-rest-token.path})"
+          GERRIT_CI_KEY="${config.age.secrets.gerrit-ci-key.path}"
+          GERRIT_KNOWN_HOSTS="${pkgs.writeText "gerrit-known-hosts" ''
+            [git.maybemaybe.lol]:29418 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHGOzrLcNC9G05r/TC3Gldb+gKLK+OZwmLN0xKVE2RIO
+          ''}"
+          export CACHIX_AUTH_TOKEN BUILDKITE_API_TOKEN GERRIT_CI_KEY GERRIT_KNOWN_HOSTS
         '';
       };
 
@@ -42,6 +50,16 @@ in
 
       age.secrets.cachix-token = {
         file = inputs.self + "/secrets/blaziken/cachix-token.age";
+        owner = agent;
+      };
+
+      age.secrets.buildkite-rest-token = {
+        file = inputs.self + "/secrets/blaziken/buildkite-rest-token.age";
+        owner = agent;
+      };
+
+      age.secrets.gerrit-ci-key = {
+        file = inputs.self + "/secrets/blaziken/gerrit-ci-key.age";
         owner = agent;
       };
     };
