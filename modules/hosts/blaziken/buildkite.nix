@@ -23,6 +23,7 @@ in
           pkgs.cachix
           pkgs.curl
           pkgs.jq
+          pkgs.josh
           pkgs.openssh
           config.nix.package
         ];
@@ -35,12 +36,13 @@ in
           ''}"
           ORCA_MIRROR_KEY="${config.age.secrets.orca-mirror-key.path}"
           MANTA_MIRROR_KEY="${config.age.secrets.manta-mirror-key.path}"
+          NIX_MIRROR_KEY="${config.age.secrets.nix-mirror-key.path}"
           ORCA_CACHIX_TOKEN="$(cat ${config.age.secrets.orca-cachix-token.path})"
           GITHUB_KNOWN_HOSTS="${pkgs.writeText "github-known-hosts" ''
             github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
           ''}"
           export CACHIX_AUTH_TOKEN BUILDKITE_API_TOKEN GERRIT_CI_KEY GERRIT_KNOWN_HOSTS
-          export ORCA_MIRROR_KEY MANTA_MIRROR_KEY ORCA_CACHIX_TOKEN GITHUB_KNOWN_HOSTS
+          export ORCA_MIRROR_KEY MANTA_MIRROR_KEY NIX_MIRROR_KEY ORCA_CACHIX_TOKEN GITHUB_KNOWN_HOSTS
         '';
       };
 
@@ -77,6 +79,11 @@ in
 
       age.secrets.manta-mirror-key = {
         file = inputs.self + "/secrets/blaziken/manta-mirror-key.age";
+        owner = agent;
+      };
+
+      age.secrets.nix-mirror-key = {
+        file = inputs.self + "/secrets/blaziken/nix-mirror-key.age";
         owner = agent;
       };
 
