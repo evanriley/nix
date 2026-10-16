@@ -34,10 +34,14 @@ in
           cd /var/lib/git-bug/maybe
           # Detached so fetching into refs/heads is allowed.
           git checkout -q --detach
+          git push -q ${origin} \
+            'refs/bugs/*:refs/bugs/*' \
+            'refs/identities/*:refs/identities/*' || true
+          git fetch -q --prune origin '+refs/heads/*:refs/heads/*' || true
           git fetch -q origin \
-            '+refs/heads/*:refs/heads/*' \
             '+refs/bugs/*:refs/bugs/*' \
             '+refs/identities/*:refs/identities/*' || true
+          git checkout -q --detach refs/heads/main
           # go-git cannot read packs written by Gerrit's JGit receive path;
           # consolidate them with the system git on every restart.
           git repack -adq
