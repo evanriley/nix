@@ -35,6 +35,13 @@ in
           };
         };
 
+        virtualHosts."_" = {
+          default = true;
+          addSSL = true;
+          useACMEHost = domain;
+          locations."/".return = "302 https://${domain}/";
+        };
+
         virtualHosts."www.${domain}" = {
           forceSSL = true;
           useACMEHost = domain;

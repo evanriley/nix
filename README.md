@@ -116,6 +116,7 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 | git-bug web UI | `bugs.maybemaybe.lol` | `git-bug.nix` |
 | Change short links | `cl.maybemaybe.lol/<n>` | `gerrit.nix` |
 | Bug short links | `b.maybemaybe.lol/<id>` | `git-bug.nix` |
+| Other subdomains redirect home | `*.maybemaybe.lol` | `nginx.nix` |
 | Buildkite agents (two) | queue `blaziken` | `buildkite.nix` |
 | Gerrit-to-Buildkite webhook | local | `ci-trigger.nix` |
 | Borg backups | BorgBase | `backup.nix` |
