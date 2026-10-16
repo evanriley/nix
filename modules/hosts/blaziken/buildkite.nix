@@ -8,7 +8,12 @@ let
 in
 {
   flake.modules.nixos.blaziken =
-    { config, pkgs, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     {
       services.buildkite-agents.blaziken = {
         tokenPath = config.age.secrets.buildkite-token.path;
@@ -44,6 +49,29 @@ in
           export CACHIX_AUTH_TOKEN BUILDKITE_API_TOKEN GERRIT_CI_KEY GERRIT_KNOWN_HOSTS
           export ORCA_MIRROR_KEY MANTA_MIRROR_KEY NIX_MIRROR_KEY ORCA_CACHIX_TOKEN GITHUB_KNOWN_HOSTS
         '';
+      };
+
+      systemd.services.${agent} = {
+        # Restarting on activation kills the running job; SIGTERM lets it finish first.
+        reloadIfChanged = true;
+        serviceConfig = {
+          Restart = lib.mkForce "always";
+          RuntimeDirectory = agent;
+          ExecReload = "${
+            pkgs.writeShellApplication {
+              name = "${agent}-stop-gracefully";
+              runtimeInputs = [ pkgs.coreutils ];
+              text = ''
+                main_pid="$1"
+                marker="$RUNTIME_DIRECTORY/graceful-stop-$main_pid"
+                if [ ! -e "$marker" ]; then
+                  touch "$marker"
+                  kill -TERM "$main_pid" || true
+                fi
+              '';
+            }
+          }/bin/${agent}-stop-gracefully $MAINPID";
+        };
       };
 
       nix.settings.trusted-users = [
