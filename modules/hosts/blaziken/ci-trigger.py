@@ -61,7 +61,10 @@ class Handler(BaseHTTPRequestHandler):
                 event["patchSet"]["revision"],
                 change.get("branch", "main"),
                 f"Gerrit change {number} patchset {patchset}",
-                {"GERRIT_PATCHSET": f"{number},{patchset}"},
+                {
+                    "GERRIT_PATCHSET": f"{number},{patchset}",
+                    "BUILDKITE_FETCH_DIFF_BASE": "true",
+                },
             )
         elif kind == "ref-updated":
             update = event.get("refUpdate", {})
@@ -74,7 +77,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             sha = update["newRev"]
             old = update.get("oldRev", "")
-            env = {}
+            env = {"BUILDKITE_FETCH_DIFF_BASE": "true"}
             if old and set(old) != {"0"}:
                 # After a merge, HEAD is origin/main, so the default diff
                 # base would see no changes; diff against the previous tip.
