@@ -46,9 +46,6 @@
       url = "git+ssh://git@github.com/evanriley/berkeley-mono";
       flake = false;
     };
-    # Sibling projects in the monorepo; the whole tree is the flake source.
-    orca.url = "path:../orca";
-    manta.url = "path:../manta";
     monobiome = {
       url = "github:endofunctorio/monobiome/2f2d196a71ec885e836a9c1cdd04bfd01b2fb0f4";
       flake = false;
@@ -105,5 +102,31 @@
     crane.url = "github:ipetkov/crane";
   };
 
-  outputs = inputs: inputs.flake-parts.lib.mkFlake { inherit inputs; } (inputs.import-tree ./modules);
+  outputs =
+    inputs:
+    let
+      # Path inputs lock by narHash and go stale; read the checkout instead.
+      sibling =
+        name:
+        let
+          dir = inputs.self.sourceInfo.outPath + "/${name}";
+          flake = import (dir + "/flake.nix");
+          outputs = flake.outputs {
+            self = outputs // {
+              outPath = dir;
+            };
+            inherit (inputs) nixpkgs;
+          };
+        in
+        if builtins.pathExists (dir + "/flake.nix") then
+          outputs
+        else
+          throw "${name} is only available inside the maybe monorepo";
+    in
+    inputs.flake-parts.lib.mkFlake {
+      inputs = inputs // {
+        orca = sibling "orca";
+        manta = sibling "manta";
+      };
+    } (inputs.import-tree ./modules);
 }
