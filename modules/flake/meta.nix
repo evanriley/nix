@@ -11,8 +11,9 @@
       fullName = "Evan Riley";
       email = "evan@evanriley.com";
     };
-    # Checkout location relative to the home directory (/home/evan or /Users/evan).
-    repoDir = "nix";
+    # Checkout location of the nix configuration flake, relative to the
+    # home directory (/home/evan or /Users/evan).
+    repoDir = "maybe/nix";
     location = {
       latitude = 36.08;
       longitude = -78.91;
