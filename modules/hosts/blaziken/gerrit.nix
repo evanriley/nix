@@ -150,6 +150,7 @@ in
         virtualHosts."code.${domain}" = {
           forceSSL = true;
           useACMEHost = domain;
+          locations."= /".return = "302 /maybe.git/";
           locations."/" = {
             proxyPass = "http://unix:/run/anubis/anubis-code/anubis.sock";
           };
