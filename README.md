@@ -234,6 +234,30 @@ nix shell nixpkgs#borgbackup -c borg list
 nix shell nixpkgs#borgbackup -c borg extract ::<archive> <path>
 ```
 
+### Gerrit
+
+blaziken backs up `/var/lib/gerrit` live and, before each run, a
+`git bundle --all` of every repository in `/var/backup/gerrit/`. The bundles
+are consistent snapshots of all refs: review history (`refs/changes/*`,
+NoteDb), bugs (`refs/bugs/*`), accounts (All-Users) and access rules
+(All-Projects).
+
+1. Stop Gerrit: `sudo systemctl stop gerrit`.
+2. Extract `var/lib/gerrit` and `var/backup/gerrit` from the archive.
+3. If a repository in `/var/lib/gerrit/git` is damaged, replace it with a
+   mirror of its bundle, owned by `gerrit`:
+
+   ```sh
+   sudo -u gerrit git clone --mirror /var/backup/gerrit/<name>.bundle /var/lib/gerrit/git/<name>.git
+   ```
+
+4. Rebuild the search index, then start Gerrit:
+
+   ```sh
+   sudo -u gerrit $(systemctl show -P ExecStart gerrit | grep -oE '/nix/store/[^ ]+/bin/gerrit' | head -1) reindex -d /var/lib/gerrit
+   sudo systemctl start gerrit
+   ```
+
 ## Inspiration and resources
 
 Configurations:
