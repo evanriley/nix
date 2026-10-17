@@ -203,6 +203,100 @@ in
         '';
       };
 
+      flakeUpdate = pkgs.writeShellApplication {
+        name = "ci-flake-update";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.gawk
+          pkgs.git
+          pkgs.jq
+          pkgs.openssh
+          config.nix.package
+        ];
+        text = ''
+          remote=$FLAKE_UPDATE_REMOTE
+          gerrit_destination=$FLAKE_UPDATE_GERRIT
+          workdir=$FLAKE_UPDATE_WORKDIR
+          read -ra ssh_command <<<"$FLAKE_UPDATE_SSH"
+          projects=(manta orca nix)
+          export GIT_AUTHOR_NAME=Buildkite GIT_AUTHOR_EMAIL=buildkite@maybemaybe.lol
+          export GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+          open_update_changes() {
+            local rows
+            if ! rows=$("''${ssh_command[@]}" "$gerrit_destination" gerrit query --format=JSON \
+              project:maybe status:open owner:buildkite 'topic:^flake-update-.*') \
+              || ! jq -e -s 'all(.type != "error")' <<<"$rows" >/dev/null; then
+              printf '%s\n' "''${rows:-}" >&2
+              echo "querying Gerrit for open flake-update changes failed; without it the run could stack a second chain on the open one. Check gerrit-ci-key and git.maybemaybe.lol:29418, then start ci-flake-update.service again" >&2
+              return 1
+            fi
+            jq -r 'select(.type != "stats") | "\(.number) \(.topic)"' <<<"$rows"
+          }
+
+          update_inputs() {
+            local project=$1 root_inputs inputs=()
+            if [ "$project" = nix ]; then
+              if ! root_inputs=$(jq -r '.nodes.root.inputs | keys[] | select(. != "berkeley-mono")' nix/flake.lock) \
+                || [ -z "$root_inputs" ]; then
+                echo "reading the root inputs from nix/flake.lock failed or found none; updating nix without them would also update berkeley-mono. Check nix/flake.lock on main" >&2
+                return 1
+              fi
+              mapfile -t inputs <<<"$root_inputs"
+            fi
+            nix flake update --flake "./$project" "''${inputs[@]}"
+          }
+
+          open_changes=$(open_update_changes)
+          if [ -n "$open_changes" ]; then
+            echo "flake-update changes are still open; skipping this run until they merge or are abandoned:"
+            printf '%s\n' "$open_changes"
+            exit 0
+          fi
+
+          rm -rf "$workdir"
+          if ! git clone --quiet --branch main -c core.sshCommand="$FLAKE_UPDATE_SSH" "$remote" "$workdir"; then
+            echo "cloning main from $remote into $workdir failed. Check gerrit-ci-key and git.maybemaybe.lol:29418, then start ci-flake-update.service again" >&2
+            exit 1
+          fi
+          cd "$workdir"
+
+          refspecs=()
+          for project in "''${projects[@]}"; do
+            echo "--- updating $project"
+            if ! update_log=$(update_inputs "$project" 2>&1); then
+              printf '%s\n' "$update_log" >&2
+              echo "nix flake update for $project failed; no changes were pushed. Fix the error above, then start ci-flake-update.service again" >&2
+              exit 1
+            fi
+            printf '%s\n' "$update_log"
+
+            if git diff --quiet -- "$project/flake.lock"; then
+              echo "$project/flake.lock matches main"
+              continue
+            fi
+
+            change_id=I$(od -An -N20 -tx1 /dev/urandom | tr -d ' \n')
+            updates=$(awk '/^• / { keep = 1; print; next } keep && /^ / { print; next } { keep = 0 }' <<<"$update_log")
+            printf 'build(%s): update flake inputs\n\n%s\n\nChange-Id: %s\n' "$project" "$updates" "$change_id" \
+              | git commit --quiet --file=- -- "$project/flake.lock"
+            refspecs+=("$(git rev-parse HEAD):refs/for/main%topic=flake-update-$project,l=Autosubmit+1")
+          done
+
+          if [ "''${#refspecs[@]}" -eq 0 ]; then
+            echo "no flake.lock changed; nothing to push"
+            exit 0
+          fi
+          for refspec in "''${refspecs[@]}"; do
+            echo "--- pushing $refspec"
+            if ! git push --quiet origin "$refspec"; then
+              echo "pushing $refspec to $remote failed; changes below it in the chain may already be open. Check the error above, then start ci-flake-update.service again" >&2
+              exit 1
+            fi
+          done
+        '';
+      };
+
       gracefulReload = agent: {
         # Restarting on activation kills the running job; SIGTERM lets it finish first.
         reloadIfChanged = true;
@@ -323,12 +417,39 @@ in
             TimeoutStartSec = "6h";
           };
         };
+
+        ci-flake-update = {
+          description = "Open Gerrit changes that update the flake.lock files";
+          wants = [ "network-online.target" ];
+          after = [ "network-online.target" ];
+          environment = {
+            FLAKE_UPDATE_REMOTE = "ssh://buildkite@git.maybemaybe.lol:29418/maybe";
+            FLAKE_UPDATE_GERRIT = "ssh://buildkite@git.maybemaybe.lol:29418";
+            FLAKE_UPDATE_SSH = gerritSsh;
+            FLAKE_UPDATE_WORKDIR = "${mainHome}/flake-update";
+          };
+          serviceConfig = {
+            Type = "oneshot";
+            User = mainAgent;
+            Group = mainAgent;
+            ExecStart = "${flakeUpdate}/bin/ci-flake-update";
+            TimeoutStartSec = "2h";
+          };
+        };
       };
 
       systemd.timers.ci-nightly = {
         wantedBy = [ "timers.target" ];
         timerConfig = {
           OnCalendar = "*-*-* 03:00";
+          Persistent = true;
+        };
+      };
+
+      systemd.timers.ci-flake-update = {
+        wantedBy = [ "timers.target" ];
+        timerConfig = {
+          OnCalendar = "*-*-* 04:00";
           Persistent = true;
         };
       };
