@@ -136,5 +136,17 @@ in
               ];
             });
       };
+
+      # git-bug's go-git SSH client authenticates only with agent keys.
+      launchd.agents.ssh-add = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
+        enable = true;
+        config = {
+          ProgramArguments = [
+            "/usr/bin/ssh-add"
+            "${config.home.homeDirectory}/.ssh/id_ed25519"
+          ];
+          RunAtLoad = true;
+        };
+      };
     };
 }
