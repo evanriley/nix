@@ -34,6 +34,12 @@ in
       - Change `name` and `[project.scripts]` in `pyproject.toml`, rename `src/app/`,
         then `uv lock`.
     '';
+    cpp = template "cpp" "C++23 with CMake and Clang" ''
+      - Change `project(app …)` in `CMakeLists.txt` and `pname` in `flake.nix`.
+      - Rename `src/app/`, the `app` namespace and `#include "app/…"` lines in `src/`, `tests/`
+        and `fuzz/`, the `APP_FUZZ` option in `CMakeLists.txt` and `CMakePresets.json`, and
+        `app` in `src/main.cpp` and the `build/fuzz/app_fuzz` path in `ci.sh`.
+    '';
     clojure = template "clojure" "Clojure with clj-nix" ''
       - Rename `src/app/`, then change `ns` in `core.clj` and `name`/`main-ns` in `flake.nix`.
       - After any change to `deps.edn`, run `deps-lock` to regenerate `deps-lock.json`.

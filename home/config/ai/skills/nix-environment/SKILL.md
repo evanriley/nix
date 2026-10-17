@@ -39,7 +39,7 @@ description: >
 - After changing the dev shell: `direnv reload`, or run commands with
   `nix develop -c <cmd>` when direnv is not active in the agent's shell.
 - New project: `nix flake init -t ~/maybe/nix#<template>`, with templates
-  `clojure`, `gleam`, `ocaml`, `python`, `rust`, `zig`.
+  `clojure`, `cpp`, `gleam`, `ocaml`, `python`, `rust`, `zig`.
 - Flakes only see files tracked by git: `git add` new files before
   `nix build`, `nix flake check` or `nix develop`.
 

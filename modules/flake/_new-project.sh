@@ -268,6 +268,13 @@ scaffold() {
       mv src/app "src/$name"
       sed -i -e "s/\"app-env\"/\"$name-env\"/" -e "s/\"app-dev-env\"/\"$name-dev-env\"/" flake.nix
       ;;
+    cpp)
+      mv src/app "src/$name"
+      sed -i -e "s/\\bapp\\b/$name/g" -e "s/\\bAPP_/${name^^}_/g" \
+        CMakeLists.txt CMakePresets.json src/main.cpp "src/$name"/*.?pp tests/*.cpp fuzz/*.cpp
+      sed -i "s#build/fuzz/app_fuzz #build/fuzz/${name}_fuzz #" ci.sh
+      sed -i "s/^\( *\)pname = \"app\";\$/\1pname = \"$name\";/" flake.nix
+      ;;
     clojure)
       mv src/app "src/$name"
       sed -i "s/^(ns app\\.core\$/(ns $name.core/" "src/$name/core.clj"

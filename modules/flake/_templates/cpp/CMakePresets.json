@@ -1,0 +1,131 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "environment": {
+        "HARDENING_FLAGS": "-D_GLIBCXX_ASSERTIONS -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_CXX_FLAGS": "$env{HARDENING_FLAGS}"
+      }
+    },
+    {
+      "name": "sanitized",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "$env{HARDENING_FLAGS} $env{SANITIZER_FLAGS}",
+        "CMAKE_EXE_LINKER_FLAGS": "$env{SANITIZER_FLAGS}"
+      }
+    },
+    {
+      "name": "dev",
+      "displayName": "Debug build with library assertions",
+      "inherits": "base"
+    },
+    {
+      "name": "ci",
+      "displayName": "dev with warnings as errors and clang-tidy",
+      "inherits": "dev",
+      "cacheVariables": {
+        "CMAKE_COMPILE_WARNING_AS_ERROR": "ON",
+        "CMAKE_CXX_CLANG_TIDY": "clang-tidy;--warnings-as-errors=*"
+      }
+    },
+    {
+      "name": "asan",
+      "displayName": "dev with AddressSanitizer and UndefinedBehaviorSanitizer",
+      "inherits": "sanitized",
+      "environment": {
+        "SANITIZER_FLAGS": "-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "dev with ThreadSanitizer",
+      "inherits": "sanitized",
+      "environment": {
+        "SANITIZER_FLAGS": "-fsanitize=thread"
+      }
+    },
+    {
+      "name": "fuzz",
+      "displayName": "asan with the libFuzzer target",
+      "inherits": "asan",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "APP_FUZZ": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "ci", "configurePreset": "ci" },
+    { "name": "asan", "configurePreset": "asan" },
+    { "name": "tsan", "configurePreset": "tsan" },
+    { "name": "fuzz", "configurePreset": "fuzz" }
+  ],
+  "testPresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
+    },
+    { "name": "dev", "inherits": "base", "configurePreset": "dev" },
+    { "name": "ci", "inherits": "base", "configurePreset": "ci" },
+    { "name": "asan", "inherits": "base", "configurePreset": "asan" },
+    { "name": "tsan", "inherits": "base", "configurePreset": "tsan" }
+  ],
+  "workflowPresets": [
+    {
+      "name": "dev",
+      "steps": [
+        { "type": "configure", "name": "dev" },
+        { "type": "build", "name": "dev" },
+        { "type": "test", "name": "dev" }
+      ]
+    },
+    {
+      "name": "ci",
+      "steps": [
+        { "type": "configure", "name": "ci" },
+        { "type": "build", "name": "ci" },
+        { "type": "test", "name": "ci" }
+      ]
+    },
+    {
+      "name": "asan",
+      "steps": [
+        { "type": "configure", "name": "asan" },
+        { "type": "build", "name": "asan" },
+        { "type": "test", "name": "asan" }
+      ]
+    },
+    {
+      "name": "tsan",
+      "steps": [
+        { "type": "configure", "name": "tsan" },
+        { "type": "build", "name": "tsan" },
+        { "type": "test", "name": "tsan" }
+      ]
+    },
+    {
+      "name": "fuzz",
+      "steps": [
+        { "type": "configure", "name": "fuzz" },
+        { "type": "build", "name": "fuzz" }
+      ]
+    }
+  ]
+}
