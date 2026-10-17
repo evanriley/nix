@@ -39,10 +39,12 @@ const childOnly = (reason: string, scratchExempt = false) => finding("childOnly"
 interface Token {
 	kind: "word" | "separator" | "redirect";
 	text: string;
+	substituted?: boolean;
 }
 
 interface Lexed {
 	commands: string[][];
+	substitutedCommands: boolean[];
 	substitutions: string[];
 }
 
@@ -85,18 +87,20 @@ function lex(source: string): Lexed {
 	const pendingHeredocs: string[] = [];
 	let word = "";
 	let inWord = false;
+	let wordSubstituted = false;
 	let expectHeredocDelimiter = false;
 	let index = 0;
 
 	const endWord = () => {
 		if (!inWord) return;
-		tokens.push({ kind: "word", text: word });
+		tokens.push({ kind: "word", text: word, substituted: wordSubstituted });
 		if (expectHeredocDelimiter) {
 			pendingHeredocs.push(word);
 			expectHeredocDelimiter = false;
 		}
 		word = "";
 		inWord = false;
+		wordSubstituted = false;
 	};
 	const separator = () => {
 		endWord();
@@ -117,6 +121,7 @@ function lex(source: string): Lexed {
 	const substitute = (start: number, end: number) => {
 		substitutions.push(source.slice(start, end));
 		inWord = true;
+		wordSubstituted = true;
 	};
 
 	while (index < source.length) {
@@ -217,20 +222,30 @@ function lex(source: string): Lexed {
 	endWord();
 
 	const commands: string[][] = [];
+	const substitutedCommands: boolean[] = [];
 	let current: string[] = [];
+	let currentSubstituted = false;
 	for (let position = 0; position < tokens.length; position++) {
 		const token = tokens[position];
 		if (token.kind === "separator") {
-			if (current.length > 0) commands.push(current);
+			if (current.length > 0) {
+				commands.push(current);
+				substitutedCommands.push(currentSubstituted);
+			}
 			current = [];
+			currentSubstituted = false;
 		} else if (token.kind === "redirect") {
 			if (tokens[position + 1]?.kind === "word") position++;
 		} else {
 			current.push(token.text);
+			if (token.substituted) currentSubstituted = true;
 		}
 	}
-	if (current.length > 0) commands.push(current);
-	return { commands, substitutions };
+	if (current.length > 0) {
+		commands.push(current);
+		substitutedCommands.push(currentSubstituted);
+	}
+	return { commands, substitutedCommands, substitutions };
 }
 
 function basename(word: string): string {
@@ -354,6 +369,10 @@ const PROTECTED_BRANCHES = new Set(["main", "master"]);
 const PUSH_BULK_OPTIONS = new Set(["--all", "--branches", "--mirror", "--tags", "--follow-tags"]);
 const PUSH_DELETE_OPTIONS = new Set(["--delete", "--prune", "--mirror"]);
 const UNRESOLVED_DESTINATION = /[$`*()]/;
+const SSH_PORT = /^\d+$/;
+const SSH_USER = /^[A-Za-z0-9._][A-Za-z0-9._-]*$/;
+const SSH_DESTINATION = /^(?:[A-Za-z0-9._-]+@)?[A-Za-z0-9.-]+$/;
+const SSH_REMOTE_METACHARACTERS = /[;&|<>$`()'"\\\n*?[]/;
 const REVIEW_DESTINATION = /^refs\/for\/[^%]+(%.*)?$/;
 
 function pushFindings(rest: string[]): Finding[] {
@@ -587,11 +606,31 @@ function ghIsReadOnly(args: string[]): boolean {
 	return GH_GROUPS.has(first) && second !== undefined && GH_READ_ONLY_VERBS.has(second);
 }
 
+function sshIsGerritQuery(args: string[]): boolean {
+	let index = 0;
+	while (index < args.length && args[index].startsWith("-")) {
+		const option = args[index];
+		if (option === "-q" || option === "-T") {
+			index += 1;
+		} else if (option === "-p" && SSH_PORT.test(args[index + 1] ?? "")) {
+			index += 2;
+		} else if (option === "-l" && SSH_USER.test(args[index + 1] ?? "")) {
+			index += 2;
+		} else {
+			return false;
+		}
+	}
+	const [destination, command, subcommand, ...rest] = args.slice(index);
+	if (destination === undefined || !SSH_DESTINATION.test(destination)) return false;
+	if (command !== "gerrit" || subcommand !== "query") return false;
+	return ![command, subcommand, ...rest].some((word) => SSH_REMOTE_METACHARACTERS.test(word));
+}
+
 function isRemoteRsyncArgument(argument: string): boolean {
 	return !argument.startsWith("-") && (argument.startsWith("rsync://") || /^(?:[^\s/@:]+@)?[^\s/:]+:/.test(argument));
 }
 
-function commandFindings(name: string, args: string[]): Finding[] {
+function commandFindings(name: string, args: string[], hasSubstitution: boolean): Finding[] {
 	if (name.startsWith("mkfs")) return [risky(`${name} formats a filesystem`)];
 	switch (name) {
 		case "age":
@@ -688,8 +727,9 @@ function commandFindings(name: string, args: string[]): Finding[] {
 		case "socat":
 		case "scp":
 		case "sftp":
-		case "ssh":
 			return [risky(`${name} opens a network connection`)];
+		case "ssh":
+			return !hasSubstitution && sshIsGerritQuery(args) ? [childOnly("ssh runs a Gerrit query")] : [risky("ssh opens a network connection")];
 		case "rsync":
 			return args.some(isRemoteRsyncArgument) ? [risky("rsync transfers to or from a remote host")] : [];
 		case "git":
@@ -725,10 +765,10 @@ function analyzeBash(command: string): Finding[] {
 			return;
 		}
 		const lexed = lex(source);
-		for (const words of lexed.commands) visitWords(words, depth);
+		lexed.commands.forEach((words, position) => visitWords(words, depth, lexed.substitutedCommands[position]));
 		for (const substitution of lexed.substitutions) visitSource(substitution, depth + 1);
 	};
-	const visitWords = (words: string[], depth: number) => {
+	const visitWords = (words: string[], depth: number, hasSubstitution = false) => {
 		const secretReason = secretPathReason(words.join(" "));
 		if (secretReason) findings.push(secret(secretReason));
 		const command = unwrapPrefixes(words, findings);
@@ -744,7 +784,7 @@ function analyzeBash(command: string): Finding[] {
 				visitWords(execCommand, depth + 1);
 			}
 		}
-		findings.push(...commandFindings(name, args));
+		findings.push(...commandFindings(name, args, hasSubstitution));
 	};
 	const rawSecretReason = secretPathReason(command);
 	if (rawSecretReason) findings.push(secret(rawSecretReason));

@@ -429,6 +429,35 @@ const cases: Case[] = [
 	bash("rsync -a src/ user@host:dst", RISKY),
 	bash("rsync -a src/ dst/", "allow"),
 	bash("ssh host ls", RISKY),
+	bash("ssh -p 29418 evan@git.maybemaybe.lol gerrit query --format=JSON --current-patch-set change:90 OR change:91", CHILD_ONLY),
+	bash("ssh -p 29418 evan@git.maybemaybe.lol gerrit query --current-patch-set --comments change:90", CHILD_ONLY),
+	bash("ssh -q -T -l evan -p 29418 git.maybemaybe.lol gerrit query 'status:open project:maybe'", CHILD_ONLY),
+	bash("ssh -p 29418 evan@git.maybemaybe.lol gerrit query --format=JSON change:90 | jq -c .", CHILD_ONLY),
+	bash("ssh -p 29418 evan@git.maybemaybe.lol gerrit review --code-review +2 --submit 90,1", RISKY),
+	bash("ssh -p 29418 evan@git.maybemaybe.lol gerrit", RISKY),
+	bash("ssh -p 29418 evan@git.maybemaybe.lol gerrit query", CHILD_ONLY),
+	bash("ssh git.maybemaybe.lol 'gerrit query x; rm -rf ~'", RISKY),
+	bash("ssh git.maybemaybe.lol gerrit query 'x; rm -rf ~'", RISKY),
+	bash("ssh git.maybemaybe.lol gerrit query 'x && touch y'", RISKY),
+	bash("ssh git.maybemaybe.lol gerrit query \"\\$(id)\"", RISKY),
+	bash("ssh -o ProxyCommand=sh git.maybemaybe.lol gerrit query x", RISKY),
+	bash("ssh -p29418 git.maybemaybe.lol gerrit query x", RISKY),
+	bash("ssh -qT git.maybemaybe.lol gerrit query x", RISKY),
+	bash("ssh -p 29418x git.maybemaybe.lol gerrit query x", RISKY),
+	bash("ssh -i ~/.ssh/other git.maybemaybe.lol gerrit query x", RISKY),
+	bash("ssh ssh://git.maybemaybe.lol:29418 gerrit query x", RISKY),
+	bash("ssh h gerrit query \"$(printf %s ';rm -rf ~')\"", RISKY),
+	bash("ssh h gerrit query `printf ';rm'`", RISKY),
+	bash("ssh h gerrit query $(echo x)", RISKY),
+	bash("ssh h gerrit query \"$(echo x)\"", RISKY),
+	bash("ssh -l -o h gerrit query x", RISKY),
+	bash("ssh h gerrit query *", RISKY),
+	bash("ssh h gerrit query change:9?", RISKY),
+	bash("ssh h gerrit query [ab]", RISKY),
+	bash("ssh h gerrit query \"$HOME\"", RISKY),
+	bash("ssh git.maybemaybe.lol ls", RISKY),
+	bash("ssh git.maybemaybe.lol", RISKY),
+	bash("scp -O -p -P 29418 evan@git.maybemaybe.lol:hooks/commit-msg .git/hooks/", RISKY),
 	bash("ssh-keygen -l -f key.pub", "allow"),
 
 	tool("write", "/etc/hosts", RISKY),
@@ -547,4 +576,18 @@ test("classify_reviewDownloadByWorker_reasonNamesBranches", () => {
 	const decision = classify("bash", { command: "git review -d 90" }, "worker", { home: HOME });
 	assert.equal(decision.action, "block");
 	assert.equal(decision.reason, "git review changes branches");
+});
+
+test("classify_gerritQueryByWorker_reasonNamesQuery", () => {
+	const command = "ssh -p 29418 evan@git.maybemaybe.lol gerrit query --format=JSON --current-patch-set change:90 OR change:91";
+	const decision = classify("bash", { command }, "worker", { home: HOME });
+	assert.equal(decision.action, "block");
+	assert.equal(decision.reason, "ssh runs a Gerrit query");
+});
+
+test("classify_gerritReviewSubmitByMain_confirmsAsNetworkConnection", () => {
+	const command = "ssh -p 29418 evan@git.maybemaybe.lol gerrit review --code-review +2 --submit 90,1";
+	const decision = classify("bash", { command }, "main", { home: HOME });
+	assert.equal(decision.action, "confirm");
+	assert.equal(decision.reason, "ssh opens a network connection");
 });
