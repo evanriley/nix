@@ -9,6 +9,7 @@ let
       ${steps}
       - Rename `app` in the CI step keys and labels, the `app-source` target and the `app/ci.sh`
         path in `flake.nix`.
+      - Replace the description line in `AGENTS.md`.
       Then `direnv allow` loads the dev shell, and `nix build` builds `result/bin/`.
       `ci.sh fmt` and `ci.sh test` run CI's checks.
     '';

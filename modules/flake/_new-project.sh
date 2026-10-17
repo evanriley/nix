@@ -209,6 +209,29 @@ rename_flake() {
     flake.nix
 }
 
+project_summary() {
+  local summary=$description
+  case "$summary" in *.) ;; *) summary+=. ;; esac
+  printf '%s\n' "$summary"
+}
+
+fill_agents_md() {
+  local placeholder="One line saying what this project is." tmpfile
+  tmpfile=$(mktemp)
+  if ! NAME=$name SUMMARY=$(project_summary) awk -v placeholder="$placeholder" '
+    NR == 1 { print "# " ENVIRON["NAME"]; next }
+    !done && $0 == placeholder { print ENVIRON["SUMMARY"]; done = 1; next }
+    { print }
+    END { exit !done }
+  ' AGENTS.md >"$tmpfile"; then
+    rm -f "$tmpfile"
+    echo "No line '$placeholder' in $name/AGENTS.md; expected the template placeholder." >&2
+    return 1
+  fi
+  cat "$tmpfile" >AGENTS.md
+  rm -f "$tmpfile"
+}
+
 scaffold() {
   mkdir "$name"
   cd "$name"
@@ -258,6 +281,7 @@ scaffold() {
       return 1
       ;;
   esac
+  fill_agents_md
   cd "$root"
   git add "$name"
   (cd "$name" && nix flake lock)
@@ -271,9 +295,7 @@ register() {
   fi
   insert_before projects.json '^  \\{ "name": "nix"' "$entry"
   jq -e . projects.json >/dev/null
-  local summary=$description
-  case "$summary" in *.) ;; *) summary+=. ;; esac
-  insert_before AGENTS.md "^- \`\\\\.buildkite/\`" "- \`$name/\`: $summary"
+  insert_before AGENTS.md "^- \`\\\\.buildkite/\`" "- \`$name/\`: $(project_summary)"
   add_layout_row README.md "$name" "$description"
   git add projects.json AGENTS.md README.md
 }
