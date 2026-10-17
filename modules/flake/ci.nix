@@ -16,6 +16,7 @@ in
           ninetales = darwinConfigurations.ninetales.system;
         };
         extraSteps = [ ];
+        fullSteps = [ ];
       };
     };
 }
