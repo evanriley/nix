@@ -125,6 +125,7 @@ in
       users.users.evan = {
         openssh.authorizedKeys.keys = [
           "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKvrBtmYXCnEIYTTlf1PjSkwrUU47CeNFEgq4hQ10vWi"
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH3LxqQXhTWFxHLWjWfPgKsg79QAGBMdV+4DX/QBhV0X evan@ninetales"
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIDUa51ANhGFP945U5rpjwK4q4YSj9v79pcUJkn5zlu5sAAAABHNzaDo= evan@cinderance yubikey-20477782 auth"
           "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIK4PMbMXc6J5Vgah12OYp2jPRhAg47U0xssVS4kTphBAAAAABHNzaDo= evan@cinderance yubikey-20477902 auth"
         ];
