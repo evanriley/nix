@@ -14,8 +14,10 @@ in
     {
       # git-bug 0.11's repository browser cannot read bare repositories, so the
       # web UI runs on a clone of the monorepo. Issues are stored in the
-      # refs/bugs and refs/identities namespaces. git-bug pull and push sync them
-      # with the canonical Gerrit repository and merge diverged edits.
+      # refs/bugs and refs/identities namespaces. git-bug pull merges diverged
+      # edits from the canonical Gerrit repository; git-bug-sync pushes them back
+      # with the system git, because go-git's push reads the remote's JGit packs
+      # and fails.
       systemd.services.git-bug-webui = {
         description = "git-bug web UI";
         after = [ "network.target" ];
@@ -56,7 +58,6 @@ in
             ${gitBug}/bin/git-bug user adopt "$ID"
           fi
           ${gitBug}/bin/git-bug pull origin
-          ${gitBug}/bin/git-bug push origin
         '';
 
         serviceConfig = {
