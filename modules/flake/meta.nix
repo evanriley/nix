@@ -20,6 +20,7 @@
       path = ../../secrets;
       name = "secrets";
     };
+    gerritKnownHosts = "[git.maybemaybe.lol]:29418 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHGOzrLcNC9G05r/TC3Gldb+gKLK+OZwmLN0xKVE2RIO";
     location = {
       latitude = 36.08;
       longitude = -78.91;

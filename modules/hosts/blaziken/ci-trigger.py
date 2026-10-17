@@ -1,8 +1,11 @@
 import json
 import os
+import subprocess
 import sys
+import threading
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import NamedTuple
 
 PORT = int(os.environ.get("PORT", "8470"))
 API = os.environ.get(
@@ -11,6 +14,18 @@ API = os.environ.get(
     "riley-industries/pipelines/maybe/builds",
 )
 TOKEN_PATH = os.environ.get("BUILDKITE_REST_TOKEN_PATH")
+GERRIT_SSH_KEY_PATH = os.environ.get("GERRIT_SSH_KEY_PATH")
+GERRIT_KNOWN_HOSTS_PATH = os.environ.get("GERRIT_KNOWN_HOSTS_PATH")
+GERRIT_TIMEOUT_SECONDS = 60
+AUTOSUBMIT_QUERY = (
+    "project:maybe branch:main status:open label:Autosubmit=+1 is:submittable"
+)
+sweep_lock = threading.Lock()
+
+
+class SubmittableChange(NamedTuple):
+    number: int
+    patchset: int
 
 
 def trigger(commit: str, branch: str, message: str, env: dict) -> None:
@@ -34,6 +49,103 @@ def trigger(commit: str, branch: str, message: str, env: dict) -> None:
     with urllib.request.urlopen(req, timeout=30) as resp:
         number = json.load(resp)["number"]
         print(f"triggered build {number} for {message}", flush=True)
+
+
+def gerrit(*command: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            "ssh",
+            "-i",
+            GERRIT_SSH_KEY_PATH,
+            "-o",
+            "IdentitiesOnly=yes",
+            "-o",
+            f"UserKnownHostsFile={GERRIT_KNOWN_HOSTS_PATH}",
+            "-o",
+            "StrictHostKeyChecking=yes",
+            "-p",
+            "29418",
+            "buildkite@git.maybemaybe.lol",
+            "gerrit",
+            *command,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=GERRIT_TIMEOUT_SECONDS,
+        check=True,
+    )
+
+
+def parse_submittable(output: str) -> list[SubmittableChange]:
+    changes = []
+    for line in output.splitlines():
+        row = json.loads(line)
+        if not isinstance(row, dict) or row.get("type") == "stats":
+            continue
+        patch_set = row.get("currentPatchSet")
+        if not isinstance(patch_set, dict):
+            patch_set = {}
+        number = row.get("number")
+        patchset = patch_set.get("number")
+        if not isinstance(number, int) or not isinstance(patchset, int):
+            raise ValueError(f"expected a change with numbers, got {row!r}")
+        changes.append(SubmittableChange(number, patchset))
+    return sorted(changes)
+
+
+def submit(change: SubmittableChange) -> None:
+    target = f"{change.number},{change.patchset}"
+    try:
+        gerrit("review", "--project", "maybe", "--submit", target)
+    except subprocess.CalledProcessError as error:
+        print(
+            f"submitting change {change.number} patchset {change.patchset}"
+            f" failed with status {error.returncode}:"
+            f" {error.stderr.strip()}",
+            file=sys.stderr,
+            flush=True,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        print(
+            f"submitting change {change.number} patchset {change.patchset}"
+            f" failed: {error!r}",
+            file=sys.stderr,
+            flush=True,
+        )
+    else:
+        print(
+            f"submitted change {change.number} patchset {change.patchset}",
+            flush=True,
+        )
+
+
+def sweep_autosubmit() -> None:
+    with sweep_lock:
+        try:
+            result = gerrit(
+                "query",
+                "--format=JSON",
+                "--current-patch-set",
+                AUTOSUBMIT_QUERY,
+            )
+            changes = parse_submittable(result.stdout)
+        except subprocess.CalledProcessError as error:
+            print(
+                f"querying Gerrit for Autosubmit changes failed with status"
+                f" {error.returncode}: {error.stderr.strip()}",
+                file=sys.stderr,
+                flush=True,
+            )
+            return
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            print(
+                f"querying Gerrit for Autosubmit changes failed: {error!r}",
+                file=sys.stderr,
+                flush=True,
+            )
+            return
+        for change in changes:
+            submit(change)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -85,6 +197,13 @@ class Handler(BaseHTTPRequestHandler):
                     "BUILDKITE_REFSPEC": event["patchSet"]["ref"],
                 },
             )
+        elif kind == "comment-added":
+            change = event.get("change", {})
+            if change.get("project") != "maybe":
+                return
+            if change.get("branch") != "main":
+                return
+            sweep_autosubmit()
         elif kind == "ref-updated":
             update = event.get("refUpdate", {})
             if update.get("project") != "maybe":
@@ -103,10 +222,19 @@ class Handler(BaseHTTPRequestHandler):
                 # After a merge, HEAD is origin/main, so the default diff
                 # base would see no changes; diff against the previous tip.
                 env["BUILDKITE_GIT_DIFF_BASE"] = old
-            trigger(sha, "main", f"{sha[:12]} on main", env)
+            try:
+                trigger(sha, "main", f"{sha[:12]} on main", env)
+            finally:
+                sweep_autosubmit()
 
 
 def main() -> None:
+    if not GERRIT_SSH_KEY_PATH or not GERRIT_KNOWN_HOSTS_PATH:
+        sys.exit(
+            "GERRIT_SSH_KEY_PATH and GERRIT_KNOWN_HOSTS_PATH must be set;"
+            " ci-trigger submits Autosubmit changes over Gerrit SSH."
+            " Set them in the ci-trigger service environment"
+        )
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
 
 

@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.meta) secrets;
+  inherit (config.meta) secrets gerritKnownHosts;
   untrustedAgent = "buildkite-agent-blaziken";
   mainAgent = "buildkite-agent-main";
   agents = [
@@ -19,13 +19,11 @@ in
     let
       mainHome = config.services.buildkite-agents.main.dataDir;
       secretPath = name: config.age.secrets.${name}.path;
-      gerritKnownHosts = pkgs.writeText "gerrit-known-hosts" ''
-        [git.maybemaybe.lol]:29418 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHGOzrLcNC9G05r/TC3Gldb+gKLK+OZwmLN0xKVE2RIO
-      '';
+      gerritKnownHostsFile = pkgs.writeText "gerrit-known-hosts" "${gerritKnownHosts}\n";
       githubKnownHosts = pkgs.writeText "github-known-hosts" ''
         github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
       '';
-      gerritSsh = "ssh -i ${secretPath "gerrit-ci-key"} -o IdentitiesOnly=yes -o UserKnownHostsFile=${gerritKnownHosts} -o StrictHostKeyChecking=yes";
+      gerritSsh = "ssh -i ${secretPath "gerrit-ci-key"} -o IdentitiesOnly=yes -o UserKnownHostsFile=${gerritKnownHostsFile} -o StrictHostKeyChecking=yes";
 
       mainJob = pkgs.writeShellApplication {
         name = "buildkite-main-job";

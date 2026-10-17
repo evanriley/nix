@@ -1,7 +1,7 @@
-{
-  inputs,
-  ...
-}:
+{ config, ... }:
+let
+  inherit (config.meta) gerritKnownHosts;
+in
 {
   flake.modules.nixos.blaziken =
     { config, pkgs, ... }:
@@ -13,12 +13,17 @@
         description = "Gerrit to Buildkite webhook receiver";
         after = [ "network.target" ];
         wantedBy = [ "multi-user.target" ];
+        path = [ pkgs.openssh ];
         serviceConfig = {
           User = "buildkite-agent-main";
           Group = "buildkite-agent-main";
           Restart = "on-failure";
         };
-        environment.BUILDKITE_REST_TOKEN_PATH = config.age.secrets.buildkite-rest-token.path;
+        environment = {
+          BUILDKITE_REST_TOKEN_PATH = config.age.secrets.buildkite-rest-token.path;
+          GERRIT_SSH_KEY_PATH = config.age.secrets.gerrit-ci-key.path;
+          GERRIT_KNOWN_HOSTS_PATH = pkgs.writeText "gerrit-known-hosts" "${gerritKnownHosts}\n";
+        };
         script = "exec ${pkgs.python3}/bin/python ${receiver}";
       };
     };
