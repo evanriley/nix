@@ -20,5 +20,9 @@ standalone as `homeConfigurations."evan@<host>"`.
 - Deploying blaziken (`nix develop -c deploy .#blaziken`) is user-run, like
   system switches. Check it with
   `nix build .#nixosConfigurations.blaziken.config.system.build.toplevel`.
+- On blaziken over `ssh blaziken`, the login shell is fish and there is no
+  `rg` or `xxd`: wrap commands in `bash -c '...'` and use `grep` and `od`.
+  As evan, `journalctl -u <unit>` and `systemctl status` work;
+  `/var/lib/git-bug`, Gerrit's state and `/var/log/nginx` need `sudo`.
 - Secrets are agenix files under `secrets/`; editing them requires a YubiKey.
   Never expose decrypted values.
