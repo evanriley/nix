@@ -9,7 +9,12 @@ in
   flake.modules.nixos.blaziken =
     { config, pkgs, ... }:
     let
-      gitBug = pkgs.git-bug;
+      gitBug = pkgs.git-bug.overrideAttrs (old: {
+        src = pkgs.applyPatches {
+          inherit (old) src;
+          patches = [ ./git-bug-edit-comment.patch ];
+        };
+      });
     in
     {
       # git-bug 0.11's repository browser cannot read bare repositories, so the

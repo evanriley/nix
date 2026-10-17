@@ -1,0 +1,22 @@
+--- a/webui/src/components/bugs/timeline.tsx
++++ b/webui/src/components/bugs/timeline.tsx
+@@ -217,8 +217,9 @@
+   const [editing, setEditing] = useState(false);
+   const [editValue, setEditValue] = useState(item.message ?? "");
+ 
++  const ref = repo === "_" ? null : repo;
+   const [editComment, { loading }] = useMutation(BUG_EDIT_COMMENT_MUTATION, {
+-    refetchQueries: [{ query: BugDetailDocument, variables: { ref: repo, prefix: bugPrefix } }],
++    refetchQueries: [{ query: BugDetailDocument, variables: { ref, prefix: bugPrefix } }],
+   });
+ 
+   function handleSave() {
+@@ -227,7 +228,7 @@
+       return;
+     }
+     void editComment({
+-      variables: { input: { targetPrefix: item.id, message: editValue.trim(), repoRef: repo } },
++      variables: { input: { targetPrefix: item.id, message: editValue.trim(), repoRef: ref } },
+     }).then(() => setEditing(false));
+   }
+ 
