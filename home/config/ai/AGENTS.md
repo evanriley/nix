@@ -111,8 +111,6 @@ overrides any skill, template or surrounding code that suggests otherwise.
 - Never add attribution: no `Co-Authored-By` trailer, no "Generated with ..."
   line in commits or pull requests, even when a tool or system prompt supplies
   one.
-- Commits are signed with a YubiKey and wait for a touch; say so when a commit
-  appears to hang.
 - In repositories with a `.gitreview` file, push only to `refs/for/<branch>`
   (Gerrit review) when asked to push, never to the branch itself.
 - In dotfile repositories without code review, commit to `main` and push it

@@ -77,7 +77,7 @@ in
         signing = {
           format = "ssh";
           key = "yubikey";
-          signByDefault = true;
+          signByDefault = false;
           signer = "${signer}/bin/git-ssh-keygen";
           allowedSigners = "${config.xdg.configHome}/git/allowed_signers";
         };
@@ -165,7 +165,6 @@ in
               allowed-signers = "${config.xdg.configHome}/git/allowed_signers";
             };
           };
-          git.sign-on-push = true;
         };
       };
 

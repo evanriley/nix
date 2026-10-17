@@ -23,7 +23,7 @@ description: >
    describes (`git add <paths>` or `git add -p`). Compare the draft against
    `git diff --cached`; anything outside it goes in another commit.
 5. Scan the staged diff for secrets (see below). Stop and report if found.
-6. Commit. Signing waits for a YubiKey touch.
+6. Commit.
 7. Do not push unless asked.
 
 ## Message

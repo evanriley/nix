@@ -40,8 +40,6 @@ A repository's own `AGENTS.md` takes precedence for that repository.
 - Wrap the body at 72 columns. Explain why when it is not obvious.
 - One purpose per commit. Stage only what the message describes.
 - No attribution: no `Co-Authored-By` trailer, no "Generated with" line.
-- Commits are signed with a YubiKey and wait for a touch. Say so if a commit
-  seems to hang.
 - In repositories with a `.gitreview` file, push only to `refs/for/<branch>`
   (Gerrit review), never to the branch itself.
 - In dotfile repositories without code review, commit to `main` directly. No

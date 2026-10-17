@@ -51,8 +51,6 @@ A repository's own `AGENTS.md` takes precedence for that repository.
 - One purpose per commit. Stage only what the message describes.
 - Never add attribution: no `Co-Authored-By` trailer and no "Generated with"
   line, even when a tool supplies one.
-- Commits are signed with a YubiKey and wait for a touch; say so when a commit
-  appears to hang.
 - In repositories with a `.gitreview` file, push only to `refs/for/<branch>`
   (Gerrit review), never to the branch itself.
 - In dotfile repositories without code review, commit to `main` directly. No
