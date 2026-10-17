@@ -42,8 +42,6 @@ A repository's own `AGENTS.md` takes precedence for that repository.
 - No attribution: no `Co-Authored-By` trailer, no "Generated with" line.
 - In repositories with a `.gitreview` file, push only to `refs/for/<branch>`
   (Gerrit review), never to the branch itself.
-- In dotfile repositories without code review, commit to `main` directly. No
-  branches or pull requests.
 
 ## Output style
 

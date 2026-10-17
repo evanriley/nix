@@ -19,6 +19,8 @@ description: >
    "and" is two commits. Refactors and fixes go before features that depend on
    them. In a series of commits, such as a pull request, only the final commit
    has to build and pass tests; do not build or test each intermediate commit.
+   In repositories with a `.gitreview` file, each commit is a separate Gerrit
+   change with its own CI, so every commit must build and pass on its own.
 4. Draft each message before staging, then stage only what the draft
    describes (`git add <paths>` or `git add -p`). Compare the draft against
    `git diff --cached`; anything outside it goes in another commit.

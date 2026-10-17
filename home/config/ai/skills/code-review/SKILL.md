@@ -17,6 +17,10 @@ would catch, no speculative praise.
 - Branch: `git diff $(git merge-base HEAD main)...HEAD` and
   `git log main..HEAD`.
 - Pull request: `gh pr view <n>` and `gh pr diff <n>`.
+- Gerrit change: `git review -d <change>` checks it out, then `git show` (or
+  `git log -p origin/main..HEAD` for a chain). Existing comments:
+  `ssh -p <port> <user>@<host> gerrit query --current-patch-set --comments change:<change>`,
+  with host and port from `.gitreview`.
 
 Read each changed file in full around the diff, plus callers and tests of
 changed functions. A diff alone hides broken callers.
