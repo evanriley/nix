@@ -217,6 +217,7 @@ in
           remote=$FLAKE_UPDATE_REMOTE
           gerrit_destination=$FLAKE_UPDATE_GERRIT
           workdir=$FLAKE_UPDATE_WORKDIR
+          reviewer=$FLAKE_UPDATE_REVIEWER
           read -ra ssh_command <<<"$FLAKE_UPDATE_SSH"
           projects=(manta orca nix)
           export GIT_AUTHOR_NAME=Buildkite GIT_AUTHOR_EMAIL=buildkite@maybemaybe.lol
@@ -280,7 +281,7 @@ in
             updates=$(awk '/^• / { keep = 1; print; next } keep && /^ / { print; next } { keep = 0 }' <<<"$update_log")
             printf 'build(%s): update flake inputs\n\n%s\n\nChange-Id: %s\n' "$project" "$updates" "$change_id" \
               | git commit --quiet --file=- -- "$project/flake.lock"
-            refspecs+=("$(git rev-parse HEAD):refs/for/main%topic=flake-update-$project,l=Autosubmit+1")
+            refspecs+=("$(git rev-parse HEAD):refs/for/main%topic=flake-update-$project,l=Autosubmit+1,r=$reviewer")
           done
 
           if [ "''${#refspecs[@]}" -eq 0 ]; then
@@ -427,6 +428,7 @@ in
             FLAKE_UPDATE_GERRIT = "ssh://buildkite@git.maybemaybe.lol:29418";
             FLAKE_UPDATE_SSH = gerritSsh;
             FLAKE_UPDATE_WORKDIR = "${mainHome}/flake-update";
+            FLAKE_UPDATE_REVIEWER = "evan";
           };
           serviceConfig = {
             Type = "oneshot";
