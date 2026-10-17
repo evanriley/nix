@@ -354,6 +354,7 @@ const PROTECTED_BRANCHES = new Set(["main", "master"]);
 const PUSH_BULK_OPTIONS = new Set(["--all", "--branches", "--mirror", "--tags", "--follow-tags"]);
 const PUSH_DELETE_OPTIONS = new Set(["--delete", "--prune", "--mirror"]);
 const UNRESOLVED_DESTINATION = /[$`*()]/;
+const REVIEW_DESTINATION = /^refs\/for\/[^%]+(%.*)?$/;
 
 function pushFindings(rest: string[]): Finding[] {
 	const positionals: string[] = [];
@@ -395,7 +396,12 @@ function pushFindings(rest: string[]): Finding[] {
 	if (
 		rest.some((word) => PUSH_BULK_OPTIONS.has(word)) ||
 		refspecs.includes("tag") ||
-		destinations.some((destination) => destination.startsWith("refs/") && !destination.startsWith("refs/heads/"))
+		destinations.some(
+			(destination) =>
+				destination.startsWith("refs/") &&
+				!destination.startsWith("refs/heads/") &&
+				!REVIEW_DESTINATION.test(destination),
+		)
 	) {
 		findings.push(risky("git push publishes tags or every branch"));
 	}
@@ -416,7 +422,11 @@ function pushFindings(rest: string[]): Finding[] {
 		const branch = destination.replace(/^refs\/heads\//, "");
 		if (PROTECTED_BRANCHES.has(branch)) findings.push(risky(`git push publishes to ${destination}`));
 	}
-	return findings.length > 0 ? findings : [childOnly("git push publishes to a remote")];
+	if (findings.length > 0) return findings;
+	if (destinations.every((destination) => REVIEW_DESTINATION.test(destination))) {
+		return [childOnly("git push sends a change for review")];
+	}
+	return [childOnly("git push publishes to a remote")];
 }
 
 function gitFindings(args: string[]): Finding[] {

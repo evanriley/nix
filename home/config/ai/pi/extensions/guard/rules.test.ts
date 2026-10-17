@@ -309,6 +309,17 @@ const cases: Case[] = [
 	bash("git push --follow-tags origin fix/topic", RISKY),
 	bash("git push origin tag v1.0.0", RISKY),
 	bash("git push origin refs/tags/v1.0.0", RISKY),
+	bash("git push origin HEAD:refs/for/main", CHILD_ONLY),
+	bash("git push origin HEAD:refs/for/main%topic=x,wip", CHILD_ONLY),
+	bash("git push origin fix/topic:refs/for/main", CHILD_ONLY),
+	bash("git push origin HEAD:refs/for/fix/topic", CHILD_ONLY),
+	bash("git push origin +HEAD:refs/for/main", RISKY),
+	bash("git push --force origin HEAD:refs/for/main", RISKY),
+	bash("git push origin HEAD:refs/for/", RISKY),
+	bash("git push origin \"HEAD:refs/for/$branch\"", RISKY),
+	bash("git push origin HEAD:refs/changes/90", RISKY),
+	bash("git push origin HEAD:refs/meta/config", RISKY),
+	bash("git push origin HEAD:refs/for/main fix/topic:main", RISKY),
 	bash("git push origin \"$branch\"", RISKY),
 	bash("git push origin \"$(git branch --show-current)\"", RISKY),
 	bash("git push origin \"refs/heads/$(git branch --show-current)\"", RISKY),
@@ -486,4 +497,16 @@ test("bashTimeout_childRequested_clampsToMaximum", () => {
 test("bashTimeout_main_neverChanged", () => {
 	assert.equal(bashTimeout("main", undefined), undefined);
 	assert.equal(bashTimeout("main", 5000), undefined);
+});
+
+test("classify_reviewPushByWorker_reasonNamesReview", () => {
+	const decision = classify("bash", { command: "git push origin HEAD:refs/for/main" }, "worker", { home: HOME });
+	assert.equal(decision.action, "block");
+	assert.equal(decision.reason, "git push sends a change for review");
+});
+
+test("classify_forcedReviewPushByMain_reasonNamesForceNotTags", () => {
+	const decision = classify("bash", { command: "git push origin +HEAD:refs/for/main" }, "main", { home: HOME });
+	assert.ok(decision.reason?.includes("git push --force overwrites remote history"));
+	assert.ok(!decision.reason?.includes("tags"));
 });
