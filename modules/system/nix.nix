@@ -87,7 +87,7 @@ in
       environment.systemPackages = [
         pkgs.git
         pkgs.nh
-        # Apple's ssh lacks FIDO2 support; the YubiKey keys fetch private inputs.
+        # Apple's ssh lacks FIDO2 support for the YubiKey fallback keys.
         pkgs.openssh
       ];
       environment.variables.NH_FLAKE = "${config.users.users.${user.name}.home}/${repoDir}";

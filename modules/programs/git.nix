@@ -31,41 +31,6 @@ in
       pkgs,
       ...
     }:
-    let
-      # Commit signing uses whichever enrolled YubiKey is plugged in: "-f
-      # yubikey" becomes the non-resident handle for that key's serial. jj sends
-      # ~/.ssh/yubikey instead: it treats a bare "yubikey" as an inline key.
-      signer = pkgs.writeShellApplication {
-        name = "git-ssh-keygen";
-        runtimeInputs = [
-          pkgs.yubikey-manager
-          pkgs.openssh
-        ];
-        text = ''
-          args=("$@")
-          if [ "''${1:-}" = -Y ] && [ "''${2:-}" = sign ]; then
-            for i in "''${!args[@]}"; do
-              if [ "''${args[i]}" = -f ] && { [ "''${args[i + 1]:-}" = yubikey ] || [ "''${args[i + 1]:-}" = "$HOME/.ssh/yubikey" ]; }; then
-                key=
-                for serial in $(timeout 10 ykman list --serials); do
-                  candidate="$HOME/.ssh/id_ed25519_sk_sign_$serial"
-                  if [ -f "$candidate" ]; then
-                    key=$candidate
-                    break
-                  fi
-                done
-                if [ -z "$key" ]; then
-                  echo "Connect an enrolled YubiKey to sign this Git operation." >&2
-                  exit 1
-                fi
-                args[i + 1]=$key
-              fi
-            done
-          fi
-          exec ssh-keygen "''${args[@]}"
-        '';
-      };
-    in
     {
       home.packages = [
         pkgs.git-review
@@ -74,13 +39,6 @@ in
 
       programs.git = {
         enable = true;
-        signing = {
-          format = "ssh";
-          key = "yubikey";
-          signByDefault = false;
-          signer = "${signer}/bin/git-ssh-keygen";
-          allowedSigners = "${config.xdg.configHome}/git/allowed_signers";
-        };
         ignores = [
           "**/.claude/settings.local.json"
           ".direnv/"
@@ -155,37 +113,28 @@ in
             name = user.fullName;
             inherit (user) email;
           };
-          # jj rewrites commits constantly; signing each one would need a YubiKey touch every time.
-          signing = {
-            behavior = "drop";
-            backend = "ssh";
-            key = "~/.ssh/yubikey";
-            backends.ssh = {
-              program = "${signer}/bin/git-ssh-keygen";
-              allowed-signers = "${config.xdg.configHome}/git/allowed_signers";
-            };
-          };
         };
       };
-
-      xdg.configFile."git/allowed_signers".text = ''
-        ${user.email} namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKvrBtmYXCnEIYTTlf1PjSkwrUU47CeNFEgq4hQ10vWi
-        ${user.email} namespaces="git" sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIG4/+5iiwTb2yMz0zKuXGvnsiVAeFPm9jupcupEpBj9TAAAABHNzaDo= yubikey-20477902 sign
-        ${user.email} namespaces="git" sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIC+8RZtgIbwq4UtSo+ggi6+NGfS1ZfMfudDYHlCUzbJJAAAABHNzaDo= yubikey-20477782 sign
-      '';
 
       programs.ssh = {
         enable = true;
         enableDefaultConfig = false;
-        settings."github.com" = {
-          # The keyring agent offers keys in its own order (backup first); read the files in this order instead.
-          IdentityAgent = "none";
-          IdentitiesOnly = "yes";
-          IdentityFile = [
-            "~/.ssh/id_ed25519_sk_auth_20477902"
-            "~/.ssh/id_ed25519_sk_auth_20477782"
-          ];
-        };
+        settings =
+          lib.genAttrs
+            [
+              "github.com"
+              "git.maybemaybe.lol"
+            ]
+            (_: {
+              # The keyring agent offers keys in its own order; read the files in this order instead.
+              IdentityAgent = "none";
+              IdentitiesOnly = "yes";
+              IdentityFile = [
+                "~/.ssh/id_ed25519"
+                "~/.ssh/id_ed25519_sk_auth_20477902"
+                "~/.ssh/id_ed25519_sk_auth_20477782"
+              ];
+            });
       };
     };
 }

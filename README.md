@@ -201,10 +201,13 @@ Profiles in `modules/profiles/`:
 ### ninetales
 
 1. Install [Lix](https://lix.systems/install/) and [Homebrew](https://brew.sh).
-2. Clone with Nix's OpenSSH (Apple's lacks FIDO2 for the YubiKey):
+2. Create the host's SSH key, add `~/.ssh/id_ed25519.pub` to GitHub, to
+   Gerrit (Settings → SSH Keys) and to `users.users.evan` in
+   `modules/hosts/blaziken/configuration.nix`, then clone:
 
    ```sh
-   nix shell nixpkgs#openssh -c git clone ssh://evan@git.maybemaybe.lol:29418/maybe ~/maybe
+   ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -C evan@ninetales
+   git clone ssh://evan@git.maybemaybe.lol:29418/maybe ~/maybe
    ```
 
 3. Apply the system, then home:
