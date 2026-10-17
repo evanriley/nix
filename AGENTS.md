@@ -26,3 +26,6 @@ standalone as `homeConfigurations."evan@<host>"`.
   `/var/lib/git-bug`, Gerrit's state and `/var/log/nginx` need `sudo`.
 - Secrets are agenix files under `secrets/`; editing them requires a YubiKey.
   Never expose decrypted values.
+- A service that reads an agenix secret only at start needs
+  `restartTriggers = [ (builtins.hashFile "sha256" config.age.secrets.<name>.file) ]`;
+  the decrypted path never changes, so nothing else restarts it.
