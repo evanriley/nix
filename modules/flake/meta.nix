@@ -1,7 +1,7 @@
 { lib, ... }:
 {
   options.meta = lib.mkOption {
-    type = lib.types.attrsOf lib.types.anything;
+    type = lib.types.lazyAttrsOf lib.types.anything;
     description = "Values shared by every configuration in this flake.";
   };
 
@@ -20,6 +20,21 @@
       path = ../../secrets;
       name = "secrets";
     };
+    projects =
+      let
+        registry = ../../../projects.json;
+      in
+      if builtins.pathExists registry then
+        builtins.fromJSON (
+          builtins.readFile (
+            builtins.path {
+              path = registry;
+              name = "projects.json";
+            }
+          )
+        )
+      else
+        throw "meta.projects reads projects.json at the maybe monorepo root, which this checkout lacks. Evaluate the flake from the monorepo (ssh://evan@git.maybemaybe.lol:29418/maybe), not the GitHub nix mirror";
     gerritKnownHosts = "[git.maybemaybe.lol]:29418 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHGOzrLcNC9G05r/TC3Gldb+gKLK+OZwmLN0xKVE2RIO";
     location = {
       latitude = 36.08;

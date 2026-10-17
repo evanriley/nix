@@ -1,6 +1,8 @@
 { config, ... }:
 let
-  inherit (config.meta) secrets gerritKnownHosts;
+  inherit (config.meta) secrets gerritKnownHosts projects;
+  mirroredProjects = builtins.filter (project: project ? mirror) projects;
+  mirrorKeySecret = project: "${project.name}-mirror-key";
   untrustedAgent = "buildkite-agent-blaziken";
   mainAgent = "buildkite-agent-main";
   agents = [
@@ -19,6 +21,9 @@ in
     let
       mainHome = config.services.buildkite-agents.main.dataDir;
       secretPath = name: config.age.secrets.${name}.path;
+      mirrorKeyExports = lib.concatMapStringsSep "\n" (
+        project: "export ${lib.toUpper project.name}_MIRROR_KEY=${secretPath (mirrorKeySecret project)}"
+      ) mirroredProjects;
       gerritKnownHostsFile = pkgs.writeText "gerrit-known-hosts" "${gerritKnownHosts}\n";
       githubKnownHosts = pkgs.writeText "github-known-hosts" ''
         github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
@@ -93,9 +98,7 @@ in
             CACHIX_AUTH_TOKEN=$(<${secretPath "cachix-token"})
             ORCA_CACHIX_TOKEN=$(<${secretPath "orca-cachix-token"})
             export CACHIX_AUTH_TOKEN ORCA_CACHIX_TOKEN
-            export ORCA_MIRROR_KEY=${secretPath "orca-mirror-key"}
-            export MANTA_MIRROR_KEY=${secretPath "manta-mirror-key"}
-            export NIX_MIRROR_KEY=${secretPath "nix-mirror-key"}
+            ${mirrorKeyExports}
             export GITHUB_KNOWN_HOSTS=${githubKnownHosts}
             exec .buildkite/ci.sh publish
           }
@@ -219,7 +222,7 @@ in
           workdir=$FLAKE_UPDATE_WORKDIR
           reviewer=$FLAKE_UPDATE_REVIEWER
           read -ra ssh_command <<<"$FLAKE_UPDATE_SSH"
-          projects=(manta orca nix)
+          projects=(${lib.escapeShellArgs (map (project: project.name) projects)})
           export GIT_AUTHOR_NAME=Buildkite GIT_AUTHOR_EMAIL=buildkite@maybemaybe.lol
           export GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
 
@@ -469,46 +472,38 @@ in
         cores = 4;
       };
 
-      age.secrets.buildkite-token = {
-        file = secrets + "/blaziken/buildkite-token.age";
-        owner = mainAgent;
-        group = untrustedAgent;
-        mode = "0440";
-      };
+      age.secrets =
+        lib.genAttrs (map mirrorKeySecret mirroredProjects) (name: {
+          file = secrets + "/blaziken/${name}.age";
+          owner = mainAgent;
+        })
+        // {
+          buildkite-token = {
+            file = secrets + "/blaziken/buildkite-token.age";
+            owner = mainAgent;
+            group = untrustedAgent;
+            mode = "0440";
+          };
 
-      age.secrets.cachix-token = {
-        file = secrets + "/blaziken/cachix-token.age";
-        owner = mainAgent;
-      };
+          cachix-token = {
+            file = secrets + "/blaziken/cachix-token.age";
+            owner = mainAgent;
+          };
 
-      age.secrets.buildkite-rest-token = {
-        file = secrets + "/blaziken/buildkite-rest-token.age";
-        owner = mainAgent;
-      };
+          buildkite-rest-token = {
+            file = secrets + "/blaziken/buildkite-rest-token.age";
+            owner = mainAgent;
+          };
 
-      age.secrets.gerrit-ci-key = {
-        file = secrets + "/blaziken/gerrit-ci-key.age";
-        owner = mainAgent;
-      };
+          gerrit-ci-key = {
+            file = secrets + "/blaziken/gerrit-ci-key.age";
+            owner = mainAgent;
+          };
 
-      age.secrets.orca-mirror-key = {
-        file = secrets + "/blaziken/orca-mirror-key.age";
-        owner = mainAgent;
-      };
-
-      age.secrets.manta-mirror-key = {
-        file = secrets + "/blaziken/manta-mirror-key.age";
-        owner = mainAgent;
-      };
-
-      age.secrets.nix-mirror-key = {
-        file = secrets + "/blaziken/nix-mirror-key.age";
-        owner = mainAgent;
-      };
-
-      age.secrets.orca-cachix-token = {
-        file = secrets + "/blaziken/orca-cachix-token.age";
-        owner = mainAgent;
-      };
+          orca-cachix-token = {
+            file = secrets + "/blaziken/orca-cachix-token.age";
+            owner = mainAgent;
+          };
+        };
     };
 }

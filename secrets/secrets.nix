@@ -28,6 +28,12 @@ let
         value.publicKeys = admins ++ [ hosts.${host} ];
       }) names
     );
+
+  mirrorKeys = map (project: "${project.name}-mirror-key.age") (
+    builtins.filter (project: project ? mirror) (
+      builtins.fromJSON (builtins.readFile ../../projects.json)
+    )
+  );
 in
 shared [ "cinderace" "blaziken" ] "evan-password.age"
 // shared [ "cinderace" ] "listenbrainz-token.age"
@@ -57,9 +63,6 @@ shared [ "cinderace" "blaziken" ] "evan-password.age"
   "cachix-token.age"
   "buildkite-rest-token.age"
   "gerrit-ci-key.age"
-  "orca-mirror-key.age"
-  "manta-mirror-key.age"
-  "nix-mirror-key.age"
   "orca-cachix-token.age"
   "mailgun-smtp.age"
   "borg-ssh-key.age"
@@ -69,6 +72,7 @@ shared [ "cinderace" "blaziken" ] "evan-password.age"
   "healthchecks-disks.age"
   "anubis-key.age"
 ]
+// hostSecrets "blaziken" mirrorKeys
 // hostSecrets "ninetales" [
   "borg-passphrase.age"
   "borg-ssh-key.age"
