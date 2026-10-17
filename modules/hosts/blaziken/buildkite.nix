@@ -143,6 +143,68 @@ in
         '';
       };
 
+      nightlyBuild = pkgs.writeShellApplication {
+        name = "ci-nightly";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.curl
+          pkgs.git
+          pkgs.jq
+          pkgs.openssh
+        ];
+        text = ''
+          builds_url=https://api.buildkite.com/v2/organizations/riley-industries/pipelines/maybe/builds
+          poll_seconds=60
+
+          buildkite() {
+            printf 'Authorization: Bearer %s\n' "$(<${secretPath "buildkite-rest-token"})" \
+              | curl -fsS -H @- "$@"
+          }
+
+          if ! refs=$(GIT_SSH_COMMAND="${gerritSsh}" git ls-remote \
+            ssh://buildkite@git.maybemaybe.lol:29418/maybe refs/heads/main); then
+            echo "reading refs/heads/main from Gerrit failed; the nightly build needs main's commit. Check gerrit-ci-key and git.maybemaybe.lol:29418, then start ci-nightly.service again" >&2
+            exit 1
+          fi
+          commit=$(cut -f1 <<<"$refs")
+          if ! [[ $commit =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Gerrit returned '$commit' for refs/heads/main, expected a full 40-character sha. Check that refs/heads/main exists in the maybe project, then start ci-nightly.service again" >&2
+            exit 1
+          fi
+
+          body=$(jq -n --arg commit "$commit" \
+            '{commit: $commit, branch: "main", message: "nightly \($commit[:12])", env: {CI_FULL: "1"}}')
+          if ! build=$(buildkite -X POST -H 'Content-Type: application/json' --data-binary "$body" "$builds_url"); then
+            echo "creating a nightly build of $commit through the Buildkite REST API failed. Check buildkite-rest-token and api.buildkite.com, then start ci-nightly.service again" >&2
+            exit 1
+          fi
+          number=$(jq -r '.number // ""' <<<"$build")
+          if ! [[ $number =~ ^[0-9]+$ ]]; then
+            echo "Buildkite answered the build request for $commit with build number '$number', expected a number. Check the pipeline's builds on buildkite.com before starting ci-nightly.service again" >&2
+            exit 1
+          fi
+          echo "started nightly build $number of $commit: $(jq -r '.web_url' <<<"$build")"
+
+          while true; do
+            sleep "$poll_seconds"
+            if ! build=$(buildkite --retry 3 "$builds_url/$number"); then
+              echo "fetching nightly build $number from the Buildkite REST API failed; the build may still be running. Check buildkite-rest-token and api.buildkite.com, then read the build on buildkite.com" >&2
+              exit 1
+            fi
+            [ -z "$(jq -r '.finished_at // ""' <<<"$build")" ] || break
+          done
+
+          state=$(jq -r '.state' <<<"$build")
+          if [ "$state" = passed ]; then
+            echo "nightly build $number of $commit passed"
+            exit 0
+          fi
+          echo "nightly build $number of $commit finished $state, expected passed. Failed jobs:" >&2
+          jq -r '.jobs[] | select(.retried != true and (.state | IN("failed", "canceled", "timed_out", "expired", "broken"))) | "  \(.name // .id): \(.state)"' <<<"$build" >&2
+          exit 1
+        '';
+      };
+
       gracefulReload = agent: {
         # Restarting on activation kills the running job; SIGTERM lets it finish first.
         reloadIfChanged = true;
@@ -250,7 +312,28 @@ in
         };
       };
 
-      systemd.services = lib.genAttrs agents gracefulReload;
+      systemd.services = lib.genAttrs agents gracefulReload // {
+        ci-nightly = {
+          description = "Run a full Buildkite build of Gerrit main";
+          wants = [ "network-online.target" ];
+          after = [ "network-online.target" ];
+          serviceConfig = {
+            Type = "oneshot";
+            User = mainAgent;
+            Group = mainAgent;
+            ExecStart = "${nightlyBuild}/bin/ci-nightly";
+            TimeoutStartSec = "6h";
+          };
+        };
+      };
+
+      systemd.timers.ci-nightly = {
+        wantedBy = [ "timers.target" ];
+        timerConfig = {
+          OnCalendar = "*-*-* 03:00";
+          Persistent = true;
+        };
+      };
 
       networking.firewall = {
         extraCommands = lib.concatMapStrings (
