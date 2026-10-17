@@ -73,6 +73,21 @@ in
         };
       };
 
+      networking.firewall =
+        let
+          loopbackServicePorts = "6070,8080,8081,8082,8083,8470";
+          blockAgentRule = "OUTPUT -o lo -p tcp -m multiport --dports ${loopbackServicePorts} -m owner --uid-owner ${agent} -j REJECT --reject-with tcp-reset";
+        in
+        {
+          extraCommands = ''
+            iptables -w -D ${blockAgentRule} 2>/dev/null || true
+            iptables -w -I ${blockAgentRule}
+          '';
+          extraStopCommands = ''
+            iptables -w -D ${blockAgentRule} 2>/dev/null || true
+          '';
+        };
+
       nix.settings = {
         max-jobs = 2;
         cores = 4;
