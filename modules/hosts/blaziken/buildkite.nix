@@ -104,7 +104,7 @@ in
 
           report() {
             local failed_jobs verdict icon vote build_source patchset branch
-            failed_jobs=$(jq -r --arg job "$job_id" '.jobs[] | select(.id != $job and .retried != true and (.state == "failed" or .state == "canceled")) | "\(.name // .id): \(.state)"' <<<"$build")
+            failed_jobs=$(jq -r --arg job "$job_id" '.jobs[] | select(.id != $job and .retried != true and (.state | IN("failed", "canceled", "timed_out", "expired", "broken"))) | "\(.name // .id): \(.state)"' <<<"$build")
             if [ -z "$failed_jobs" ]; then
               verdict=passed icon=✅ vote=1
             else
