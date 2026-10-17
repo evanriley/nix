@@ -14,6 +14,7 @@ in
         name: _:
         lib.nameValuePair "anubis-${name}" {
           serviceConfig.LoadCredential = "key:${config.age.secrets.anubis-key.path}";
+          restartTriggers = [ (builtins.hashFile "sha256" config.age.secrets.anubis-key.file) ];
         }
       ) config.services.anubis.instances;
     };

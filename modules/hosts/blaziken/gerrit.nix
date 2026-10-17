@@ -31,6 +31,9 @@ in
       systemd.services.gerrit.preStart = ''
         install -Dm600 ${config.age.secrets.mailgun-smtp.path} /var/lib/gerrit/etc/secure.config
       '';
+      systemd.services.gerrit.restartTriggers = [
+        (builtins.hashFile "sha256" config.age.secrets.mailgun-smtp.file)
+      ];
 
       age.secrets.mailgun-smtp = {
         file = secrets + "/blaziken/mailgun-smtp.age";

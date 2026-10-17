@@ -301,6 +301,7 @@ in
       gracefulReload = agent: {
         # Restarting on activation kills the running job; SIGTERM lets it finish first.
         reloadIfChanged = true;
+        restartTriggers = [ (builtins.hashFile "sha256" config.age.secrets.buildkite-token.file) ];
         serviceConfig = {
           Restart = lib.mkForce "always";
           RuntimeDirectory = agent;
