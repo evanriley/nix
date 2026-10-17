@@ -28,7 +28,7 @@ class SubmittableChange(NamedTuple):
     patchset: int
 
 
-def trigger(commit: str, branch: str, message: str, env: dict) -> None:
+def trigger(commit: str, branch: str, message: str, env: dict) -> str:
     body = {
         "commit": commit,
         "branch": branch,
@@ -47,11 +47,14 @@ def trigger(commit: str, branch: str, message: str, env: dict) -> None:
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
-        number = json.load(resp)["number"]
-        print(f"triggered build {number} for {message}", flush=True)
+        build = json.load(resp)
+    print(f"triggered build {build['number']} for {message}", flush=True)
+    return build["web_url"]
 
 
-def gerrit(*command: str) -> subprocess.CompletedProcess[str]:
+def gerrit(
+    *command: str, input: str | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
             "ssh",
@@ -69,6 +72,7 @@ def gerrit(*command: str) -> subprocess.CompletedProcess[str]:
             "gerrit",
             *command,
         ],
+        input=input,
         capture_output=True,
         text=True,
         timeout=GERRIT_TIMEOUT_SECONDS,
@@ -115,6 +119,43 @@ def submit(change: SubmittableChange) -> None:
     else:
         print(
             f"submitted change {change.number} patchset {change.patchset}",
+            flush=True,
+        )
+
+
+def announce(number: int, patchset: int, build_url: str) -> None:
+    review = {
+        "message": f"CI: started ⏳ {build_url}",
+        "reviewers": [{"reviewer": "buildkite"}],
+        "notify": "NONE",
+    }
+    try:
+        gerrit(
+            "review",
+            "--project",
+            "maybe",
+            "--json",
+            f"{number},{patchset}",
+            input=json.dumps(review),
+        )
+    except subprocess.CalledProcessError as error:
+        print(
+            f"announcing build for change {number} patchset {patchset}"
+            f" failed with status {error.returncode}:"
+            f" {error.stderr.strip()}",
+            file=sys.stderr,
+            flush=True,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        print(
+            f"announcing build for change {number} patchset {patchset}"
+            f" failed: {error!r}",
+            file=sys.stderr,
+            flush=True,
+        )
+    else:
+        print(
+            f"announced build for change {number} patchset {patchset}",
             flush=True,
         )
 
@@ -187,7 +228,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             number = change["number"]
             patchset = event["patchSet"]["number"]
-            trigger(
+            build_url = trigger(
                 event["patchSet"]["revision"],
                 f"cl/{number}",
                 f"Gerrit change {number} patchset {patchset}",
@@ -197,6 +238,7 @@ class Handler(BaseHTTPRequestHandler):
                     "BUILDKITE_REFSPEC": event["patchSet"]["ref"],
                 },
             )
+            announce(number, patchset, build_url)
         elif kind == "comment-added":
             change = event.get("change", {})
             if change.get("project") != "maybe":
