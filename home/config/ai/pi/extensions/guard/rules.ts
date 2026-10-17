@@ -429,6 +429,20 @@ function pushFindings(rest: string[]): Finding[] {
 	return [childOnly("git push publishes to a remote")];
 }
 
+const REVIEW_INFO_LONG_FLAGS = ["--help", "--version"];
+const REVIEW_BRANCH_LONG_FLAGS = ["--download", "--cherrypick", "--cherrypickindicate", "--cherrypickonly", "--compare"];
+const REVIEW_BRANCH_SHORT_FLAGS = ["d", "x", "X", "N", "m"];
+
+function reviewFindings(args: string[]): Finding[] {
+	const hasLongFlag = (flags: string[]) =>
+		args.some((argument) => flags.some((flag) => argument === flag || argument.startsWith(`${flag}=`)));
+	if (hasLongFlag(REVIEW_INFO_LONG_FLAGS) || args.includes("-h")) return [];
+	if (hasLongFlag(REVIEW_BRANCH_LONG_FLAGS) || REVIEW_BRANCH_SHORT_FLAGS.some((letter) => hasShortFlag(args, letter)))
+		return [childOnly("git review changes branches")];
+	if (hasLongFlag(["--list"]) || args.some((argument) => /^-l+$/.test(argument))) return [];
+	return [childOnly("git review sends changes for review")];
+}
+
 function gitFindings(args: string[]): Finding[] {
 	const start = skipOptions(args, 0, GIT_GLOBAL_OPTIONS);
 	const subcommand = args[start];
@@ -466,6 +480,8 @@ function gitFindings(args: string[]): Finding[] {
 		}
 		case "push":
 			return pushFindings(rest);
+		case "review":
+			return reviewFindings(rest);
 		case "commit":
 			return rest.includes("--amend")
 				? [risky("git commit --amend rewrites history")]
@@ -588,6 +604,8 @@ function commandFindings(name: string, args: string[]): Finding[] {
 			if (args[0] === "auth" && (args.includes("--show-token") || hasShortFlag(args, "t")))
 				return [secret("gh auth --show-token prints a credential")];
 			return ghIsReadOnly(args) ? [] : [childOnly(`${["gh", ...args.slice(0, 2)].join(" ")} may change GitHub state`)];
+		case "git-review":
+			return reviewFindings(args);
 		case "security":
 			return ["find-generic-password", "find-internet-password", "dump-keychain"].includes(args[0])
 				? [secret(`security ${args[0]} reads the keychain`)]

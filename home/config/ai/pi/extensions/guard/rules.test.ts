@@ -320,6 +320,32 @@ const cases: Case[] = [
 	bash("git push origin HEAD:refs/changes/90", RISKY),
 	bash("git push origin HEAD:refs/meta/config", RISKY),
 	bash("git push origin HEAD:refs/for/main fix/topic:main", RISKY),
+	bash("git review", CHILD_ONLY),
+	bash("git review main", CHILD_ONLY),
+	bash("git review -t topic", CHILD_ONLY),
+	bash("git review -R -y", CHILD_ONLY),
+	bash("git review -s", CHILD_ONLY),
+	bash("git review -d 90", CHILD_ONLY),
+	bash("git review --download=90", CHILD_ONLY),
+	bash("git review -x 90", CHILD_ONLY),
+	bash("git review -X 90", CHILD_ONLY),
+	bash("git review -N 90", CHILD_ONLY),
+	bash("git review -m 90,1-2", CHILD_ONLY),
+	bash("git -c core.pager=cat review", CHILD_ONLY),
+	bash("git-review", CHILD_ONLY),
+	bash("git-review -d 90", CHILD_ONLY),
+	bash("git review -l", "allow"),
+	bash("git review --list", "allow"),
+	bash("git review -ll", "allow"),
+	bash("git review --version", "allow"),
+	bash("git review -h", "allow"),
+	bash("git-review -l", "allow"),
+	bash("git review -l -d 90", CHILD_ONLY),
+	bash("git review -d 90 -l", CHILD_ONLY),
+	bash("git review -tl", CHILD_ONLY),
+	bash("git review -Rl", CHILD_ONLY),
+	bash("git review -lll", "allow"),
+	bash("git review --help", "allow"),
 	bash("git push origin \"$branch\"", RISKY),
 	bash("git push origin \"$(git branch --show-current)\"", RISKY),
 	bash("git push origin \"refs/heads/$(git branch --show-current)\"", RISKY),
@@ -509,4 +535,16 @@ test("classify_forcedReviewPushByMain_reasonNamesForceNotTags", () => {
 	const decision = classify("bash", { command: "git push origin +HEAD:refs/for/main" }, "main", { home: HOME });
 	assert.ok(decision.reason?.includes("git push --force overwrites remote history"));
 	assert.ok(!decision.reason?.includes("tags"));
+});
+
+test("classify_reviewByWorker_reasonNamesReview", () => {
+	const decision = classify("bash", { command: "git review" }, "worker", { home: HOME });
+	assert.equal(decision.action, "block");
+	assert.equal(decision.reason, "git review sends changes for review");
+});
+
+test("classify_reviewDownloadByWorker_reasonNamesBranches", () => {
+	const decision = classify("bash", { command: "git review -d 90" }, "worker", { home: HOME });
+	assert.equal(decision.action, "block");
+	assert.equal(decision.reason, "git review changes branches");
 });
