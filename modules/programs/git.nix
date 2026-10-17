@@ -43,7 +43,19 @@ in
           "**/.claude/settings.local.json"
           ".direnv/"
         ];
-        includes = [ { path = "${config.xdg.configHome}/theme/delta.gitconfig"; } ];
+        includes = [
+          { path = "${config.xdg.configHome}/theme/delta.gitconfig"; }
+          {
+            condition = "gitdir:~/maybe/";
+            contents = {
+              branch.main = {
+                remote = "origin";
+                merge = "refs/heads/main";
+              };
+              remote.origin.push = "HEAD:refs/for/main";
+            };
+          }
+        ];
         settings = {
           user = {
             name = user.fullName;
