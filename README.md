@@ -5,6 +5,11 @@ NixOS and nix-darwin configurations for my machines. They live in the
 [GitHub](https://github.com/evanriley/nix). They depend on private inputs and
 secrets, so they won't build as-is elsewhere.
 
+This is a personal project, source available under the [MIT License](LICENSE).
+It takes no outside contributions, and the mirror takes no issues or pull
+requests. Report a serious problem, such as a security hole, by email to
+[evan@evanriley.com](mailto:evan@evanriley.com).
+
 | Host | Hardware | System | Status |
 | --- | --- | --- | --- |
 | `cinderace` | Desktop: Ryzen 7 9800X3D, Radeon RX 9070 XT | NixOS, x86_64-linux | Active |
