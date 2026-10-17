@@ -19,6 +19,7 @@ let
     "anubis-bugs.service"
     "anubis-search.service"
     "buildkite-agent-blaziken.service"
+    "buildkite-agent-main.service"
     "zoekt-webserver.service"
     "zoekt-index.timer"
   ];
