@@ -1,6 +1,6 @@
 # Worker role
 
-You are the implementation worker. The main thread wrote a spec and the user approved it. Each message you receive is a task brief that names the spec file and the section or fix to implement. Later messages in this session are fix passes on the same feature.
+You are the implementation worker. The main thread wrote a spec and the user approved it. Each message you receive is a task brief that names the spec file and the section or fix to implement. A brief may be a fix pass on earlier work; when it names `git diff refs/pi/<feature>/1`, that shows the earlier changes.
 
 ## Rules
 

@@ -49,6 +49,7 @@ interface ChildConfig {
 	maxTurns: number;
 	maxMinutes: number;
 	maxCost: number;
+	maxResumeTokens?: number;
 }
 
 const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
@@ -61,6 +62,7 @@ const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 		maxTurns: 500,
 		maxMinutes: 120,
 		maxCost: 3,
+		maxResumeTokens: 200_000,
 	},
 	reviewer: {
 		role: "reviewer",
@@ -323,6 +325,78 @@ function nextReviewNumber(featureDir: string): number {
 
 function previousReviewPaths(featureDir: string): string[] {
 	return reviewNumbers(featureDir, /^review-(\d+)\.md$/).map((number) => path.join(featureDir, `review-${number}.md`));
+}
+
+function workerSessionNumbers(featureDir: string): number[] {
+	const numbers = reviewNumbers(featureDir, /^worker(?:-(\d+))?\.jsonl$/);
+	return fs.existsSync(path.join(featureDir, "worker.jsonl")) ? [0, ...numbers] : numbers;
+}
+
+function workerSessionPath(featureDir: string, number: number): string {
+	return path.join(featureDir, number === 0 ? "worker.jsonl" : `worker-${number}.jsonl`);
+}
+
+function lastContextTokens(file: string): number {
+	if (!fs.existsSync(file)) return 0;
+	let tokens = 0;
+	for (const line of fs.readFileSync(file, "utf-8").split("\n")) {
+		if (!line.includes('"usage"')) continue;
+		try {
+			const entry = JSON.parse(line);
+			const usage = entry?.message?.role === "assistant" ? entry.message.usage : undefined;
+			if (usage) tokens = (usage.input ?? 0) + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
+		} catch {}
+	}
+	return tokens;
+}
+
+interface WorkerSession {
+	file: string;
+	resumed: boolean;
+	notice?: string;
+	hasEarlierWork: boolean;
+}
+
+function chooseWorkerSession(featureDir: string, resume: boolean, maxResumeTokens: number): WorkerSession {
+	const newest = workerSessionNumbers(featureDir).at(-1);
+	const fresh = workerSessionPath(featureDir, (newest ?? 0) + 1);
+	const freshName = path.basename(fresh, ".jsonl");
+	const hasEarlierWork = newest !== undefined;
+	if (!resume) return { file: fresh, resumed: false, hasEarlierWork };
+	if (newest === undefined) {
+		return { file: fresh, resumed: false, hasEarlierWork, notice: `nothing to resume; started ${freshName}` };
+	}
+	const newestFile = workerSessionPath(featureDir, newest);
+	const tokens = lastContextTokens(newestFile);
+	if (tokens > maxResumeTokens) {
+		return {
+			file: fresh,
+			resumed: false,
+			hasEarlierWork,
+			notice: `resume refused: previous session at ${Math.round(tokens / 1000)}k tokens; started ${freshName}`,
+		};
+	}
+	return { file: newestFile, resumed: true, hasEarlierWork };
+}
+
+async function workerMessage(
+	repoRoot: string | undefined,
+	feature: string,
+	featureDir: string,
+	specPath: string,
+	task: string,
+	session: WorkerSession,
+): Promise<string> {
+	const lines = [`Spec: ${specPath}`];
+	if (!session.resumed && session.hasEarlierWork) {
+		const ref = `refs/pi/${feature}/1`;
+		if (repoRoot && (await gitText(repoRoot, ["rev-parse", "--verify", "--quiet", ref]))) {
+			lines.push(`Earlier work: run \`git diff ${ref}\` to see the changes from earlier passes.`);
+		}
+		const reviews = previousReviewPaths(featureDir);
+		if (reviews.length > 0) lines.push(`Previous reviews:\n${reviews.join("\n")}`);
+	}
+	return `${lines.join("\n")}\n\n${task}`;
 }
 
 function runGit(cwd: string, args: string[], input?: Buffer, env?: NodeJS.ProcessEnv): Promise<Buffer> {
@@ -847,7 +921,7 @@ export default function (pi: ExtensionAPI) {
 		label: "Worker",
 		description: [
 			"Dispatch the implementation worker (DeepSeek V4.1 Flash) for a feature whose spec.md exists.",
-			"Each dispatch needs the user's /approve; one approval allows exactly one call. The worker keeps one session per feature, so later calls are fix passes that see earlier work.",
+			"Each dispatch needs the user's /approve; one approval allows exactly one call. Each dispatch starts a fresh worker by default. Pass resume: true only for a small follow-up that builds directly on the previous pass, where the previous worker's context matters; resume is refused above 200k context tokens and a fresh worker starts instead.",
 			"From the repository's default branch, a dispatch first switches to a branch named after the feature.",
 			"Each dispatch saves the tree before it runs as refs/pi/<feature>/<n>; `git diff <ref>` shows that pass.",
 			"Only one worker or reviewer runs at a time. Returns the worker's report.",
@@ -858,6 +932,12 @@ export default function (pi: ExtensionAPI) {
 				description:
 					"Task brief: which spec section or which review fixes to implement, and anything the worker must know",
 			}),
+			resume: Type.Optional(
+				Type.Boolean({
+					description:
+						"Continue the newest worker session instead of starting a fresh one; only for a small follow-up that builds directly on the previous pass",
+				}),
+			),
 		}),
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
@@ -882,11 +962,12 @@ export default function (pi: ExtensionAPI) {
 						: undefined;
 					consumeApproval(pi, params.feature);
 					if (switchedFrom) ctx.ui.notify(`Switched to branch ${params.feature}`, "info");
-					const sessionFile = path.join(featureDir, "worker.jsonl");
-					const transcript = { file: sessionFile, fromLine: countLines(sessionFile) };
+					const session = chooseWorkerSession(featureDir, params.resume === true, ROLE_CONFIG.worker.maxResumeTokens ?? 0);
+					const sessionFile = session.file;
+					const transcript = { file: sessionFile, fromLine: session.resumed ? countLines(sessionFile) : 0 };
 					const result = await runChild(
 						{ ...ROLE_CONFIG.worker, model: modelFor("worker", ctx), sessionFile },
-						`Spec: ${specPath}\n\n${params.task}`,
+						await workerMessage(repoRoot, params.feature, featureDir, specPath, params.task, session),
 						ctx.cwd,
 						signal,
 						progressReporter("worker", params.feature, transcript, onUpdate),
@@ -904,7 +985,7 @@ export default function (pi: ExtensionAPI) {
 						content: [
 							{
 								type: "text",
-								text: `${result.finalText || "(no output)"}\n\nsession: ${sessionFile}${checkpoint ? `\ncheckpoint: ${checkpoint}` : ""}${switchedFrom ? `\nbranch: ${params.feature} (from ${switchedFrom})` : ""}`,
+								text: `${result.finalText || "(no output)"}\n\nsession: ${sessionFile} (${session.resumed ? "resumed" : "fresh"})${session.notice ? `\n${session.notice}` : ""}${checkpoint ? `\ncheckpoint: ${checkpoint}` : ""}${switchedFrom ? `\nbranch: ${params.feature} (from ${switchedFrom})` : ""}`,
 							},
 						],
 						details,
