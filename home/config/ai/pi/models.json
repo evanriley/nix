@@ -17,6 +17,20 @@
             }
           }
         },
+        "z-ai/glm-5.3-flash": {
+          "contextWindow": 1048576,
+          "maxTokens": 131072,
+          "compat": {
+            "openRouterRouting": {
+              "order": ["near-ai", "novita", "inceptron", "morph", "baseten", "siliconflow", "z-ai"],
+              "only": ["baseten", "inceptron", "morph", "near-ai", "novita", "siliconflow", "z-ai"],
+              "allow_fallbacks": false,
+              "quantizations": ["fp8"],
+              "data_collection": "deny",
+              "zdr": true
+            }
+          }
+        },
         "deepseek/deepseek-v4.1-flash": {
           "contextWindow": 1048576,
           "maxTokens": 393216,
@@ -40,16 +54,6 @@
       "compat": { "supportsLongCacheRetention": true },
       "apiKey": "!cat /run/agenix/coralbricks-key",
       "models": [
-        {
-          "id": "glm-5.3-fast",
-          "name": "GLM 5.3",
-          "reasoning": true,
-          "contextWindow": 1048576,
-          "maxTokens": 131072,
-          "cost": { "input": 1.12, "output": 4.4, "cacheRead": 0, "cacheWrite": 1.68 },
-          "promptCache": { "short": 3600, "long": 3600 },
-          "samplingParams": { "prompt_cache_options": { "ttl": "60m" } }
-        },
         {
           "id": "deepseek-v4.1-flash-fast",
           "name": "DeepSeek V4.1 Flash",

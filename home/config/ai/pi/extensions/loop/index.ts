@@ -66,7 +66,7 @@ const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 	},
 	reviewer: {
 		role: "reviewer",
-		model: "coralbricks/glm-5.3-fast",
+		model: "openrouter/z-ai/glm-5.3-flash",
 		thinking: "high",
 		tools: ["read", "grep", "find", "ls", "bash"],
 		promptFile: path.join(EXTENSION_DIR, "reviewer.md"),
@@ -78,7 +78,7 @@ const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 
 const OPENROUTER_MODELS: Record<Role, string> = {
 	worker: "openrouter/deepseek/deepseek-v4.1-flash",
-	reviewer: "openrouter/z-ai/glm-5.3",
+	reviewer: "openrouter/z-ai/glm-5.3-flash",
 };
 
 function modelFor(role: Role, ctx: Pick<ExtensionContext, "model">): string {
@@ -1008,7 +1008,7 @@ export default function (pi: ExtensionAPI) {
 		name: "reviewer",
 		label: "Reviewer",
 		description: [
-			"Run a fresh read-only reviewer (GLM 5.3) on the uncommitted changes against the feature's spec.md.",
+			"Run a fresh read-only reviewer (GLM 5.3 Flash) on the uncommitted changes against the feature's spec.md.",
 			"Writes the verdict to review-<n>.md next to the spec and returns it.",
 			"Only one worker or reviewer runs at a time.",
 		].join(" "),
