@@ -3,7 +3,7 @@ monitorDwindleOverrides = []
 monitorGapOverrides = []
 monitorNiriOverrides = []
 monitorOrientationOverrides = []
-schemaVersion = 3
+schemaVersion = 4
 
 [appearance]
 mode = "automatic"
@@ -21,6 +21,7 @@ red = 0.08458520228437894
 
 [clipboard]
 historyEnabled = false
+ignoredTypes = []
 maxItemBytes = 8388608
 maxItems = 200
 maxTotalBytes = 67108864
@@ -97,11 +98,13 @@ alwaysCenterSingleColumn = false
 centerFocusedColumn = "never"
 containerPrimarySpanPresets = [0.25, 0.5, 1.0]
 defaultContainerPrimarySpan = 1.0
+edgeGaps = true
 infiniteLoop = false
 singleWindowFit = "fill"
 visibleContainerCount = 2
 
 [overview]
+enabled = true
 invertScrollDirection = false
 matchFocusBorder = true
 mouseScrollSpeed = 1.0
@@ -166,6 +169,7 @@ excludedBundleIDs = []
 height = 24.0
 hideEmptyWorkspaces = false
 hideInNativeFullscreen = false
+hoverPreviewsEnabled = true
 notchActiveZoneWidth = 180.0
 notchMode = "moveBelowMenuBar"
 position = "overlappingMenuBar"
@@ -266,16 +270,15 @@ id = "552FB77D-BF0E-4737-90A6-B5BC6986C579"
 minHeight = 320.0
 minWidth = 660.0
 
-
 [[appRules]]
 assignToWorkspace = "1"
 bundleId = "net.imput.helium"
 id = "D35C881E-D8C9-44CE-B7C6-2E11E65B7724"
 
 [[appRules]]
-layout = "float"
 bundleId = "io.mpv"
 id = "26D8DE4F-8EF4-4752-8FC9-AFB9FB90176F"
+layout = "float"
 
 [[hotkeys]]
 binding = "Unassigned"
@@ -1004,6 +1007,14 @@ id = "closeFocusedWindow"
 [[hotkeys]]
 binding = "Control+Option+M"
 id = "openMenuAnywhere"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "setWindowMark"
+
+[[hotkeys]]
+binding = "Unassigned"
+id = "removeWindowMark"
 
 [[hotkeys]]
 binding = "Unassigned"
