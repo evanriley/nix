@@ -10,7 +10,14 @@
       name = "evan";
       fullName = "Evan Riley";
       email = "evan@evanriley.com";
+      sshKeys = [
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKvrBtmYXCnEIYTTlf1PjSkwrUU47CeNFEgq4hQ10vWi"
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH3LxqQXhTWFxHLWjWfPgKsg79QAGBMdV+4DX/QBhV0X evan@ninetales"
+        "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIDUa51ANhGFP945U5rpjwK4q4YSj9v79pcUJkn5zlu5sAAAABHNzaDo= evan@cinderance yubikey-20477782 auth"
+        "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIK4PMbMXc6J5Vgah12OYp2jPRhAg47U0xssVS4kTphBAAAAABHNzaDo= evan@cinderance yubikey-20477902 auth"
+      ];
     };
+    hostKeys.cinderace = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIDES4qGRr0cZtmy1BQ0aO+5Ti1O+7Pyzk7O6XJnfuAI";
     # Checkout location of the nix configuration flake, relative to the
     # home directory (/home/evan or /Users/evan).
     repoDir = "maybe/nix";

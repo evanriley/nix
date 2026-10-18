@@ -19,6 +19,7 @@ in
       dispatcharr
       backup
       syncthing
+      remote
     ];
 
     networking.hostName = "cinderace";

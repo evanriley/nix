@@ -20,6 +20,7 @@ in
         nextdns
         backup
         omniwm
+        remote
       ];
 
       nixpkgs.hostPlatform = "aarch64-darwin";
@@ -171,6 +172,7 @@ in
         ghostty
         syncthing
         omniwm
+        remote
       ];
 
       home.stateVersion = "26.05";

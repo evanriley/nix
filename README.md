@@ -67,6 +67,24 @@ git -C ~/maybe checkout HEAD~1 -- nix/flake.lock
 `nh home switch` needs GitHub SSH access to fetch the private
 `evanriley/berkeley-mono` input; `orca` and `manta` live in the monorepo.
 
+### Remote work
+
+ninetales works on cinderace over the tailnet. cinderace runs sshd (key-only,
+ed25519 host key) and Eternal Terminal on port 2022, both opened on
+`tailscale0` only. Tailscale SSH is off (`--ssh=false`). ninetales pins
+cinderace's host key from `meta.hostKeys.cinderace` in
+`/etc/ssh/ssh_known_hosts`.
+
+`ssh cinderace` shares one connection for 10 minutes after the last session
+closes (ControlMaster). Close it early:
+
+```sh
+ssh -O exit cinderace
+```
+
+`et cinderace` opens a session that survives sleep and network changes; `t`
+then attaches tmux.
+
 ### Secrets
 
 Secrets are [agenix](https://github.com/ryantm/agenix) files in `secrets/`,
@@ -202,8 +220,8 @@ Profiles in `modules/profiles/`:
 
 1. Install [Lix](https://lix.systems/install/) and [Homebrew](https://brew.sh).
 2. Create the host's SSH key, add `~/.ssh/id_ed25519.pub` to GitHub, to
-   Gerrit (Settings → SSH Keys) and to `users.users.evan` in
-   `modules/hosts/blaziken/configuration.nix`, then clone:
+   Gerrit (Settings → SSH Keys) and to `meta.user.sshKeys` in
+   `modules/flake/meta.nix` (blaziken and cinderace both read it), then clone:
 
    ```sh
    ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -C evan@ninetales
