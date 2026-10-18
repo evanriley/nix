@@ -58,7 +58,6 @@ shared [ "cinderace" "blaziken" ] "evan-password.age"
 ]
 // hostSecrets "blaziken" [
   "cloudflare-dns.age"
-  "gerrit-htpasswd.age"
   "buildkite-token.age"
   "cachix-token.age"
   "buildkite-rest-token.age"

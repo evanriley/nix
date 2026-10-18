@@ -239,12 +239,5 @@ in
           locations."/".return = "404";
         };
       };
-
-      age.secrets.gerrit-htpasswd = {
-        file = secrets + "/blaziken/gerrit-htpasswd.age";
-        owner = "nginx";
-        group = "nginx";
-        mode = "440";
-      };
     };
 }

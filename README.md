@@ -187,12 +187,12 @@ The Access page in the web UI edits the same files.
 
 Pocket ID is the OIDC identity provider at `id.maybemaybe.lol`. Its
 encryption key is `secrets/blaziken/pocket-id-key.age`; users, passkeys and
-OIDC clients live in its SQLite database, not in this flake. After the first
-deploy, create the admin user and passkey at
-[the setup page](https://id.maybemaybe.lol/setup). Its signup request
-(`/api/signup/setup`) takes the htpasswd login in
-`secrets/blaziken/gerrit-htpasswd.age`, because until the first user exists it
-makes any caller an admin.
+OIDC clients live in its SQLite database, not in this flake. nginx answers
+404 to its first-run signup request (`/api/signup/setup`), because until the
+first user exists that request makes any caller an admin. To set up an empty
+database, remove that location in `pocket-id.nix`, deploy, create the admin
+user and passkey at [the setup page](https://id.maybemaybe.lol/setup) at once,
+then restore the location and deploy again.
 
 Gerrit logs in through a Pocket ID OIDC client with callback URL
 `https://git.maybemaybe.lol/oauth`. `gerrit.nix` sets the client ID; the client

@@ -33,10 +33,7 @@ in
         useACMEHost = domain;
         locations."/".proxyPass = "http://127.0.0.1:${toString port}";
         # Until the first user exists, this endpoint makes anyone who calls it an admin.
-        locations."= /api/signup/setup" = {
-          proxyPass = "http://127.0.0.1:${toString port}";
-          basicAuthFile = config.age.secrets.gerrit-htpasswd.path;
-        };
+        locations."= /api/signup/setup".return = "404";
       };
     };
 }
