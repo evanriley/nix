@@ -36,11 +36,6 @@ in
     }:
     let
       isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
-      # The hand-edited tmux config copies through wl-copy/wl-paste.
-      macClipboard = [
-        (pkgs.writeShellScriptBin "wl-copy" "exec /usr/bin/pbcopy")
-        (pkgs.writeShellScriptBin "wl-paste" "exec /usr/bin/pbpaste")
-      ];
       # Boots the tmux server at login so the mail session exists after
       # reboots. tmux.conf creates the mail session when the server starts;
       # the throwaway __autostart session only forces a fresh server up, and
@@ -171,13 +166,10 @@ in
       };
 
       home.packages =
-        lib.optionals isDarwin (
-          macClipboard
-          ++ [
-            # GNU ls for the aliases above.
-            pkgs.coreutils
-          ]
-        )
+        lib.optionals isDarwin [
+          # GNU ls for the aliases above.
+          pkgs.coreutils
+        ]
         ++ (with pkgs; [
           bat
           devenv

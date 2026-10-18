@@ -85,6 +85,11 @@ ssh -O exit cinderace
 `et cinderace` opens a session that survives sleep and network changes; `t`
 then attaches tmux.
 
+Copying in tmux (copy mode `y`) or in nvim inside tmux goes to the clipboard
+of the attached terminal through OSC 52. nvim's `p` inside tmux reads that
+clipboard; Ghostty allows the read without a prompt
+(`clipboard-read = allow`).
+
 ### Secrets
 
 Secrets are [agenix](https://github.com/ryantm/agenix) files in `secrets/`,

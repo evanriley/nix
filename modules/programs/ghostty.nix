@@ -30,6 +30,7 @@ in
           window-padding-x = 6;
           window-padding-y = 6;
           macos-option-as-alt = true;
+          clipboard-read = "allow";
         };
       };
     };

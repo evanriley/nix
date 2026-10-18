@@ -2,6 +2,8 @@ vim.opt.complete = { 'o', '.', 'w', 'b' }
 vim.opt.listchars = { tab = '  ', trail = '.', nbsp = '+' }
 vim.opt.jumpoptions:append('view')
 
+if vim.env.TMUX then vim.g.clipboard = 'tmux' end
+
 -- Colors follow the desktop: ~/.config/theme/mode is generated per
 -- light/dark generation, and apply-theme sends SIGUSR1 after switching.
 local function desktop_mode()
