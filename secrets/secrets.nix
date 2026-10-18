@@ -71,6 +71,7 @@ shared [ "cinderace" "blaziken" ] "evan-password.age"
   "healthchecks-heartbeat.age"
   "healthchecks-disks.age"
   "anubis-key.age"
+  "pocket-id-key.age"
 ]
 // hostSecrets "blaziken" mirrorKeys
 // hostSecrets "ninetales" [

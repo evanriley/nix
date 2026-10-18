@@ -13,6 +13,7 @@ let
     "nginx.service"
     "gerrit.service"
     "git-bug-webui.service"
+    "pocket-id.service"
     "ci-trigger.service"
     "anubis-homepage.service"
     "anubis-code.service"
@@ -30,6 +31,7 @@ let
     "code.${domain}"
     "bugs.${domain}"
     "cs.${domain}"
+    "id.${domain}/.well-known/openid-configuration"
   ];
 in
 {
@@ -107,11 +109,12 @@ in
           done
 
           for site in ${lib.escapeShellArgs sites}; do
+            host="''${site%%/*}"
             code="$(curl -sS -o /dev/null -m 15 -w '%{http_code}' \
-              --resolve "$site:443:127.0.0.1" "https://$site/")" || code=000
+              --resolve "$host:443:127.0.0.1" "https://$site")" || code=000
             case "$code" in
               2?? | 3?? | 401) ;;
-              *) failures+=("https://$site/ returned $code") ;;
+              *) failures+=("https://$site returned $code") ;;
             esac
           done
 

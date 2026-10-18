@@ -143,6 +143,7 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 | cgit behind Anubis | `code.maybemaybe.lol` | `gerrit.nix` |
 | zoekt code search behind Anubis | `cs.maybemaybe.lol` | `code-search.nix` |
 | git-bug web UI, Gerrit login | `bugs.maybemaybe.lol` | `git-bug.nix` |
+| Pocket ID (OIDC provider) | `id.maybemaybe.lol` | `pocket-id.nix` |
 | Change short links | `cl.maybemaybe.lol/<n>` | `gerrit.nix` |
 | Bug short links | `b.maybemaybe.lol/<id>` | `git-bug.nix` |
 | Other subdomains redirect home | `*.maybemaybe.lol` | `nginx.nix` |
@@ -180,6 +181,16 @@ git push ssh://evan@git.maybemaybe.lol:29418/<project> HEAD:refs/for/refs/meta/c
 ```
 
 The Access page in the web UI edits the same files.
+
+### Pocket ID setup
+
+Pocket ID is the OIDC identity provider at `id.maybemaybe.lol`. Its
+encryption key is `secrets/blaziken/pocket-id-key.age`; users, passkeys and
+OIDC clients live in its SQLite database, not in this flake. After the first
+deploy, create the admin user and passkey at
+[the setup page](https://id.maybemaybe.lol/setup). Its signup request
+(`/api/signup/setup`) takes the Gerrit htpasswd login, because until the
+first user exists it makes any caller an admin.
 
 ## Adding a host
 
@@ -319,6 +330,24 @@ NoteDb), bugs (`refs/bugs/*`), accounts (All-Users) and access rules
    sudo -u gerrit $(systemctl show -P ExecStart gerrit | grep -oE '/nix/store/[^ ]+/bin/gerrit' | head -1) reindex -d /var/lib/gerrit
    sudo systemctl start gerrit
    ```
+
+### Pocket ID
+
+blaziken backs up `/var/lib/pocket-id` with a borgmatic SQLite dump of
+`data/pocket-id.db` in place of the live database file.
+
+1. Stop Pocket ID: `sudo systemctl stop pocket-id`.
+2. Extract the data directory, restore the dump and give it back to
+   `pocket-id`:
+
+   ```sh
+   sudo borgmatic extract --archive latest --path var/lib/pocket-id --destination /
+   sudo rm -f /var/lib/pocket-id/data/pocket-id.db-wal /var/lib/pocket-id/data/pocket-id.db-shm
+   sudo borgmatic restore --archive latest --database pocket-id
+   sudo chown pocket-id:pocket-id /var/lib/pocket-id/data/pocket-id.db
+   ```
+
+3. Start Pocket ID: `sudo systemctl start pocket-id`.
 
 ## Inspiration and resources
 

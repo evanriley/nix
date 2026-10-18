@@ -11,6 +11,7 @@ in
     }:
     let
       ping = config.age.secrets.healthchecks-ping.path;
+      pocketIdDirectory = config.services.pocket-id.dataDir;
       bundleDirectory = "/var/backup/gerrit";
       bundleRepositories = pkgs.writeShellScript "bundle-gerrit-repositories" ''
         set -euo pipefail
@@ -35,7 +36,15 @@ in
           "/var/lib/gerrit"
           "/var/lib/git-bug"
           "/var/backup"
+          pocketIdDirectory
         ];
+        sqlite_databases = [
+          {
+            name = "pocket-id";
+            path = "${pocketIdDirectory}/data/pocket-id.db";
+          }
+        ];
+        exclude_patterns = [ "sh:${pocketIdDirectory}/data/pocket-id.db*" ];
         commands = [
           {
             before = "action";
