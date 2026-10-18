@@ -44,7 +44,10 @@ in
             path = "${pocketIdDirectory}/data/pocket-id.db";
           }
         ];
-        exclude_patterns = [ "sh:${pocketIdDirectory}/data/pocket-id.db*" ];
+        exclude_patterns = [
+          "sh:${pocketIdDirectory}/data/pocket-id.db*"
+          "sh:/var/lib/git-bug/public"
+        ];
         commands = [
           {
             before = "action";

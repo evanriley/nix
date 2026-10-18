@@ -325,7 +325,7 @@ in
         };
       };
 
-      loopbackServicePorts = "1411,1414,6070,8080,8081,8082,8083,8470";
+      loopbackServicePorts = "1411,1414,4180,6070,8080,8081,8082,8083,8084,8470";
       blockLoopbackRules = map (
         agent:
         "OUTPUT -o lo -p tcp -m multiport --dports ${loopbackServicePorts} -m owner --uid-owner ${agent} -j REJECT --reject-with tcp-reset"

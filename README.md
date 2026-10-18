@@ -142,7 +142,8 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 | Gerrit behind Anubis, Pocket ID login | `git.maybemaybe.lol` | `gerrit.nix` |
 | cgit behind Anubis | `code.maybemaybe.lol` | `gerrit.nix` |
 | zoekt code search behind Anubis | `cs.maybemaybe.lol` | `code-search.nix` |
-| git-bug web UI, Gerrit login | `bugs.maybemaybe.lol` | `git-bug.nix` |
+| git-bug read-only web UI behind Anubis | `bugs.maybemaybe.lol` | `git-bug.nix` |
+| git-bug web UI behind Anubis, Pocket ID login | `bugs-edit.maybemaybe.lol` | `git-bug.nix` |
 | Pocket ID (OIDC provider) | `id.maybemaybe.lol` | `pocket-id.nix` |
 | Change short links | `cl.maybemaybe.lol/<n>` | `gerrit.nix` |
 | Bug short links | `b.maybemaybe.lol/<id>` | `git-bug.nix` |
@@ -206,6 +207,15 @@ The login runs on the gerrit-oauth-provider plugin, vendored as
 because no release of its OIDC discovery provider loads on Gerrit 3.14. When
 nixpkgs ships Gerrit 3.15, replace it with the release `oauth-discovery.jar`
 for that version and update the hash in `gerrit.nix`.
+
+git-bug editing at `bugs-edit.maybemaybe.lol` sits behind oauth2-proxy, which
+logs in through a second Pocket ID OIDC client with callback URL
+`https://bugs-edit.maybemaybe.lol/oauth2/callback`. `git-bug.nix` sets the
+client ID and admits only `evan@evanriley.com`, whose email must be marked
+verified in Pocket ID. The client secret is
+`secrets/blaziken/git-bug-oidc-secret.age` and the cookie secret is
+`secrets/blaziken/oauth2-proxy-cookie-secret.age`. The read-only instance at
+`bugs.maybemaybe.lol` restarts after each sync that pushes new bug refs.
 
 ## Adding a host
 

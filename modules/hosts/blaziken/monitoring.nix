@@ -13,12 +13,15 @@ let
     "nginx.service"
     "gerrit.service"
     "git-bug-webui.service"
+    "git-bug-webui-public.service"
+    "oauth2-proxy.service"
     "pocket-id.service"
     "ci-trigger.service"
     "anubis-homepage.service"
     "anubis-code.service"
     "anubis-git.service"
     "anubis-bugs.service"
+    "anubis-bugs-public.service"
     "anubis-search.service"
     "buildkite-agent-blaziken.service"
     "buildkite-agent-main.service"
@@ -41,7 +44,11 @@ let
     }
     {
       url = "bugs.${domain}";
-      expect = 401;
+      expect = 200;
+    }
+    {
+      url = "bugs-edit.${domain}";
+      expect = 307;
     }
     {
       url = "cs.${domain}";
