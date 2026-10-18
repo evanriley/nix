@@ -126,8 +126,11 @@ in
         scanPath = "/var/lib/gerrit/git";
         gitHttpBackend.checkExportOkFiles = false;
         settings = {
-          root-title = "maybemaybe";
-          root-desc = "personal monorepo";
+          root-title = "maybe";
+          root-desc = "maybe monorepo";
+          readme = ":README.md";
+          about-filter = "${config.services.cgit.code.package}/lib/cgit/filters/about-formatting.sh";
+          logo = "/maybe-logo.svg";
           clone-url = [
             "https://code.${domain}/\$GIT_URL"
             "ssh://git.${domain}:29418/\$GIT_URL"
@@ -149,6 +152,11 @@ in
           priority = 100;
           return = "404";
         };
+        locations."= /maybe-logo.svg".alias = pkgs.writeText "maybe-logo.svg" ''
+          <svg xmlns="http://www.w3.org/2000/svg" width="110" height="44" viewBox="0 0 110 44">
+            <text x="55" y="31" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="26" font-weight="bold" fill="#333">maybe</text>
+          </svg>
+        '';
       };
 
       services.anubis.instances.git = {
@@ -192,8 +200,8 @@ in
 
       # All-Projects and All-Users are Gerrit bookkeeping, not projects;
       # cgit ignores them via per-repo git config.
-      systemd.services.cgit-hide-gerrit-meta = {
-        description = "Hide Gerrit meta repositories from cgit";
+      systemd.services.cgit-repo-config = {
+        description = "Set cgit options in Gerrit's repositories";
         after = [ "gerrit.service" ];
         wantedBy = [ "multi-user.target" ];
         path = [ pkgs.git ];
@@ -206,6 +214,7 @@ in
           for repo in All-Projects All-Users; do
             git -C /var/lib/gerrit/git/$repo.git config cgit.ignore 1
           done
+          git -C /var/lib/gerrit/git/maybe.git config cgit.name maybe
         '';
       };
 
@@ -225,7 +234,7 @@ in
         virtualHosts."code.${domain}" = {
           forceSSL = true;
           useACMEHost = domain;
-          locations."= /".return = "302 /maybe.git/";
+          locations."= /".return = "302 /maybe.git/about/";
           locations."/" = {
             proxyPass = "http://unix:/run/anubis/anubis-code/anubis.sock";
           };
