@@ -128,11 +128,20 @@ in
             failures+=("failed units: $failed")
           fi
 
+          inactive=()
           for unit in ${lib.escapeShellArgs units}; do
             if ! systemctl is-active --quiet "$unit"; then
-              failures+=("$unit is not active")
+              inactive+=("$unit")
             fi
           done
+          if [ "''${#inactive[@]}" -gt 0 ]; then
+            sleep 60
+            for unit in "''${inactive[@]}"; do
+              if ! systemctl is-active --quiet "$unit"; then
+                failures+=("$unit is not active")
+              fi
+            done
+          fi
 
           check_site() {
             local site="$1" expected="$2" host code
