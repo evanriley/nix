@@ -4,6 +4,8 @@ let
 in
 let
   domain = "maybemaybe.lol";
+  changesQuery = "q/status:open+-is:wip";
+  oauthProviderSection = "gerrit-oauth-provider-discovery-oauth";
 in
 {
   flake.modules.nixos.blaziken =
@@ -28,15 +30,44 @@ in
         Group = "gerrit";
       };
 
-      systemd.services.gerrit.preStart = ''
-        install -Dm600 ${config.age.secrets.mailgun-smtp.path} /var/lib/gerrit/etc/secure.config
-      '';
-      systemd.services.gerrit.restartTriggers = [
-        (builtins.hashFile "sha256" config.age.secrets.mailgun-smtp.file)
-      ];
+      systemd.services.gerrit = {
+        after = [
+          "network-online.target"
+          "nginx.service"
+          "pocket-id.service"
+        ];
+        wants = [
+          "network-online.target"
+          "nginx.service"
+          "pocket-id.service"
+        ];
+        preStart = ''
+          secure_config=/var/lib/gerrit/etc/secure.config
+          oidc_secret="$(< ${config.age.secrets.gerrit-oidc-secret.path})"
+          if [[ ! "$oidc_secret" =~ ^[A-Za-z0-9]+$ ]]; then
+            echo "${config.age.secrets.gerrit-oidc-secret.path} is not an alphanumeric client secret; expected the secret Pocket ID shows for the Gerrit client. Re-encrypt gerrit-oidc-secret.age with it." >&2
+            exit 1
+          fi
+          umask 077
+          {
+            cat ${config.age.secrets.mailgun-smtp.path}
+            printf '\n[plugin "${oauthProviderSection}"]\n\tclient-secret = %s\n' "$oidc_secret"
+          } > "$secure_config.tmp"
+          mv "$secure_config.tmp" "$secure_config"
+        '';
+        restartTriggers = [
+          (builtins.hashFile "sha256" config.age.secrets.mailgun-smtp.file)
+          (builtins.hashFile "sha256" config.age.secrets.gerrit-oidc-secret.file)
+        ];
+      };
 
       age.secrets.mailgun-smtp = {
         file = secrets + "/blaziken/mailgun-smtp.age";
+        owner = "gerrit";
+      };
+
+      age.secrets.gerrit-oidc-secret = {
+        file = secrets + "/blaziken/gerrit-oidc-secret.age";
         owner = "gerrit";
       };
 
@@ -46,14 +77,29 @@ in
         jvmHeapLimit = "4g";
         listenAddress = "127.0.0.1:8082";
         builtinPlugins = [ "webhooks" ];
+        plugins = [
+          (builtins.path {
+            name = "gerrit-oauth-provider.jar";
+            path = ./gerrit-oauth-provider.jar;
+            recursive = false;
+            sha256 = "sha256-R6IahUTXS294nnxXB1WI4gREg5sqUn6sahtKfvaNfZI=";
+          })
+        ];
         settings = {
           gerrit = {
             canonicalWebUrl = "https://git.${domain}/";
             defaultBranch = "refs/heads/main";
           };
           user.email = "gerrit@news.${domain}";
-          auth.type = "HTTP";
-          # proxy-https makes Gerrit trust the proxy's REMOTE_USER header.
+          auth = {
+            type = "OAUTH";
+            gitBasicAuthPolicy = "HTTP";
+            logoutUrl = "https://git.${domain}/${changesQuery}";
+          };
+          plugin.${oauthProviderSection} = {
+            root-url = "https://id.${domain}";
+            client-id = "d80c9963-1eb8-464a-9f5f-c1afa18c2c91";
+          };
           httpd.listenUrl = "proxy-https://127.0.0.1:8082";
           sshd = {
             listenAddress = "*:29418";
@@ -105,6 +151,28 @@ in
         };
       };
 
+      services.anubis.instances.git = {
+        group = "nginx";
+        settings.TARGET = "http://127.0.0.1:8082";
+        policy.extraBots = [
+          {
+            name = "git";
+            user_agent_regex = "^git/";
+            action = "ALLOW";
+          }
+          {
+            name = "jgit";
+            user_agent_regex = "^JGit/";
+            action = "ALLOW";
+          }
+          {
+            name = "libgit2";
+            user_agent_regex = "^libgit2";
+            action = "ALLOW";
+          }
+        ];
+      };
+
       services.anubis.instances.code = {
         group = "nginx";
         settings.TARGET = "http://127.0.0.1:8081";
@@ -145,14 +213,13 @@ in
         virtualHosts."git.${domain}" = {
           forceSSL = true;
           useACMEHost = domain;
-          basicAuthFile = config.age.secrets.gerrit-htpasswd.path;
-          locations."/" = {
+          locations = {
+            "= /".return = "302 /${changesQuery}";
+            "/".proxyPass = "http://unix:/run/anubis/anubis-git/anubis.sock";
+          }
+          // lib.genAttrs [ "/login" "/logout" "/oauth" "/a/" ] (_: {
             proxyPass = "http://127.0.0.1:8082";
-            # Gerrit trusts the basic-auth user from this header.
-            extraConfig = ''
-              proxy_set_header REMOTE_USER $remote_user;
-            '';
-          };
+          });
         };
 
         virtualHosts."code.${domain}" = {
@@ -167,7 +234,7 @@ in
         virtualHosts."cl.${domain}" = {
           forceSSL = true;
           useACMEHost = domain;
-          locations."= /".return = "302 https://git.${domain}/q/status:open";
+          locations."= /".return = "302 https://git.${domain}/${changesQuery}";
           locations."~ ^/([0-9]+(/[0-9]+)?)/?$".return = "302 https://git.${domain}/c/maybe/+/$1";
           locations."/".return = "404";
         };

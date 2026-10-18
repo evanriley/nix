@@ -17,6 +17,7 @@ let
     "ci-trigger.service"
     "anubis-homepage.service"
     "anubis-code.service"
+    "anubis-git.service"
     "anubis-bugs.service"
     "anubis-search.service"
     "buildkite-agent-blaziken.service"
@@ -26,12 +27,30 @@ let
   ];
 
   sites = [
-    domain
-    "git.${domain}"
-    "code.${domain}"
-    "bugs.${domain}"
-    "cs.${domain}"
-    "id.${domain}/.well-known/openid-configuration"
+    {
+      url = domain;
+      expect = 200;
+    }
+    {
+      url = "git.${domain}/config/server/version";
+      expect = 200;
+    }
+    {
+      url = "code.${domain}";
+      expect = 302;
+    }
+    {
+      url = "bugs.${domain}";
+      expect = 401;
+    }
+    {
+      url = "cs.${domain}";
+      expect = 200;
+    }
+    {
+      url = "id.${domain}/.well-known/openid-configuration";
+      expect = 200;
+    }
   ];
 in
 {
@@ -108,15 +127,18 @@ in
             fi
           done
 
-          for site in ${lib.escapeShellArgs sites}; do
+          check_site() {
+            local site="$1" expected="$2" host code
             host="''${site%%/*}"
             code="$(curl -sS -o /dev/null -m 15 -w '%{http_code}' \
               --resolve "$host:443:127.0.0.1" "https://$site")" || code=000
-            case "$code" in
-              2?? | 3?? | 401) ;;
-              *) failures+=("https://$site returned $code") ;;
-            esac
-          done
+            if [ "$code" != "$expected" ]; then
+              failures+=("https://$site returned $code, expected $expected")
+            fi
+          }
+          ${lib.concatMapStrings (
+            site: "check_site ${lib.escapeShellArg site.url} ${toString site.expect}\n"
+          ) sites}
 
           ${report "${heartbeatPing}/bin/healthchecks-heartbeat-ping"}
         '';

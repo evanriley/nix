@@ -139,7 +139,7 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 | --- | --- | --- |
 | nginx, wildcard ACME cert | `*.maybemaybe.lol` | `nginx.nix` |
 | Homepage behind Anubis | `maybemaybe.lol` | `homepage/` |
-| Gerrit | `git.maybemaybe.lol` | `gerrit.nix` |
+| Gerrit behind Anubis, Pocket ID login | `git.maybemaybe.lol` | `gerrit.nix` |
 | cgit behind Anubis | `code.maybemaybe.lol` | `gerrit.nix` |
 | zoekt code search behind Anubis | `cs.maybemaybe.lol` | `code-search.nix` |
 | git-bug web UI, Gerrit login | `bugs.maybemaybe.lol` | `git-bug.nix` |
@@ -189,8 +189,23 @@ encryption key is `secrets/blaziken/pocket-id-key.age`; users, passkeys and
 OIDC clients live in its SQLite database, not in this flake. After the first
 deploy, create the admin user and passkey at
 [the setup page](https://id.maybemaybe.lol/setup). Its signup request
-(`/api/signup/setup`) takes the Gerrit htpasswd login, because until the
-first user exists it makes any caller an admin.
+(`/api/signup/setup`) takes the htpasswd login in
+`secrets/blaziken/gerrit-htpasswd.age`, because until the first user exists it
+makes any caller an admin.
+
+Gerrit logs in through a Pocket ID OIDC client with callback URL
+`https://git.maybemaybe.lol/oauth`. `gerrit.nix` sets the client ID; the client
+secret is `secrets/blaziken/gerrit-oidc-secret.age`, which Gerrit's `preStart`
+writes into `etc/secure.config`. A Pocket ID login maps to a Gerrit account by
+the external ID `discovery-oauth:<Pocket ID user ID>`; an account created
+before the switch needs that external ID added to `refs/meta/external-ids` in
+All-Users before its first Pocket ID login.
+
+The login runs on the gerrit-oauth-provider plugin, vendored as
+`modules/hosts/blaziken/gerrit-oauth-provider.jar`: a `stable-3.14` CI build,
+because no release of its OIDC discovery provider loads on Gerrit 3.14. When
+nixpkgs ships Gerrit 3.15, replace it with the release `oauth-discovery.jar`
+for that version and update the hash in `gerrit.nix`.
 
 ## Adding a host
 
