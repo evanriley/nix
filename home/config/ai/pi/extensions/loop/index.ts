@@ -921,7 +921,7 @@ export default function (pi: ExtensionAPI) {
 		label: "Worker",
 		description: [
 			"Dispatch the implementation worker (DeepSeek V4.1 Flash) for a feature whose spec.md exists.",
-			"Each dispatch needs the user's /approve; one approval allows exactly one call. Each dispatch starts a fresh worker by default. Pass resume: true only for a small follow-up that builds directly on the previous pass, where the previous worker's context matters; resume is refused above 200k context tokens and a fresh worker starts instead.",
+			"Each dispatch needs the user's /approve; one approval allows exactly one call. Each dispatch starts a fresh worker by default; prefer that. Pass resume: true only when the previous worker stopped before finishing its task (limit, failure, abort) or on a question the user has since answered, never just to apply review findings; resume is refused above 200k context tokens and a fresh worker starts instead.",
 			"From the repository's default branch, a dispatch first switches to a branch named after the feature.",
 			"Each dispatch saves the tree before it runs as refs/pi/<feature>/<n>; `git diff <ref>` shows that pass.",
 			"Only one worker or reviewer runs at a time. Returns the worker's report.",
@@ -935,7 +935,7 @@ export default function (pi: ExtensionAPI) {
 			resume: Type.Optional(
 				Type.Boolean({
 					description:
-						"Continue the newest worker session instead of starting a fresh one; only for a small follow-up that builds directly on the previous pass",
+						"Continue the newest worker session instead of starting a fresh one; only when that worker stopped before finishing or on a question the user has since answered",
 				}),
 			),
 		}),
