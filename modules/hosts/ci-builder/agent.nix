@@ -4,6 +4,11 @@ let
   inherit (config.meta) buildkiteJobPackages;
 in
 {
+  meta.ciBuilderStartupScript = builtins.path {
+    path = ./startup-script.sh;
+    name = "ci-builder-startup-script.sh";
+  };
+
   flake.modules.nixos.ci-builder-agent =
     {
       config,
@@ -83,14 +88,17 @@ in
       };
 
       systemd.services.${agent} = {
-        unitConfig.ConditionPathExists = "${runtimeDir}/agent-token";
+        unitConfig = {
+          ConditionPathExists = "${runtimeDir}/agent-token";
+          SuccessAction = "poweroff";
+          FailureAction = "poweroff";
+        };
         serviceConfig = {
           LoadCredential = [
             "agent-token:${runtimeDir}/agent-token"
             "agent-name:${runtimeDir}/agent-name"
           ];
           Restart = lib.mkForce "no";
-          ExecStopPost = "+${config.systemd.package}/bin/systemctl --no-block poweroff";
         };
       };
 

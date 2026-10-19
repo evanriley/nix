@@ -1,6 +1,7 @@
 { config, inputs, ... }:
 let
   nixos = config.flake.modules.nixos;
+  inherit (config.meta) ciBuilderStartupScript;
 in
 {
   perSystem =
@@ -11,13 +12,24 @@ in
           metadataIPv4 = "169.254.169.254";
           metadataIPv6 = "fd20:ce::254";
           instanceName = "ci-builder-test";
+          agentToken = "dummy-agent-token";
           probeAddress = "192.0.2.1";
+          metadataState = "/srv/metadata";
           metadataRoot = pkgs.runCommand "metadata-root" { } ''
             mkdir -p $out/computeMetadata/v1/instance/attributes
             echo -n ${instanceName} >$out/computeMetadata/v1/instance/name
-            cat >$out/computeMetadata/v1/instance/attributes/startup-script <<'EOF'
-            echo ran >/run/ci-builder/startup-script-ran
-            EOF
+            cp ${ciBuilderStartupScript} $out/computeMetadata/v1/instance/attributes/startup-script
+            echo -n ${agentToken} >$out/computeMetadata/v1/instance/attributes/buildkite-agent-token
+          '';
+          systemWithoutSwitch = pkgs.runCommand "nixos-system-without-switch" { } "mkdir -p $out/bin";
+          observeAgentStart = pkgs.writeShellScript "observe-agent-start" ''
+            state=idle
+            if ! ${pkgs.util-linux}/bin/flock --nonblock /run/nixos/switch-to-configuration.lock true; then
+              state=switching
+            fi
+            ${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 10 \
+              --header 'Metadata-Flavor: Google' --request PUT --data "$state" \
+              http://${metadataIPv4}/computeMetadata/v1/instance/guest-attributes/test/agent-start
           '';
           fixedOutputProbe = pkgs.writeText "fixed-output-probe.nix" ''
             derivation {
@@ -80,12 +92,42 @@ in
                 address = "/probe.test/${probeAddress}";
               };
             };
+            systemd.tmpfiles.rules = [
+              "d ${metadataState} 0755 root root -"
+              "d ${metadataState}/guest-attributes 0750 nginx nginx -"
+            ];
+            systemd.services.nginx.serviceConfig.ReadWritePaths = [ "${metadataState}/guest-attributes" ];
             services.nginx = {
               enable = true;
+              commonHttpConfig = "log_format metadata '$request_method $uri $status';";
               virtualHosts.metadata = {
                 default = true;
                 root = metadataRoot;
-                extraConfig = "default_type text/plain;";
+                extraConfig = ''
+                  default_type text/plain;
+                  access_log /var/log/nginx/metadata.log metadata;
+                '';
+                locations = {
+                  "= /computeMetadata/v1/instance/attributes/ci-builder-system".alias =
+                    "${metadataState}/ci-builder-system";
+                  "/computeMetadata/v1/instance/guest-attributes/" = {
+                    alias = "${metadataState}/guest-attributes/";
+                    extraConfig = ''
+                      dav_methods PUT;
+                      create_full_put_path on;
+                    '';
+                  };
+                  "= /computeMetadata/v1/instance/guest-attributes/ci-builder/ready" = {
+                    alias = "${metadataState}/guest-attributes/ci-builder/ready";
+                    extraConfig = ''
+                      if (-f ${metadataState}/refuse-ready) {
+                        return 403;
+                      }
+                      dav_methods PUT;
+                      create_full_put_path on;
+                    '';
+                  };
+                };
               };
             };
           };
@@ -111,61 +153,234 @@ in
               pkgs.curl
               pkgs.dnsutils
             ];
+            boot.loader.grub.enable = false;
+            virtualisation.additionalPaths = [ systemWithoutSwitch ];
+            systemd.services.register-nix-paths.environment.NIX_REMOTE = "local";
+            systemd.services.buildkite-agent-ci-builder.serviceConfig.ExecStartPost = "+${observeAgentStart}";
+            specialisation.published.configuration = {
+              systemd.services.ci-builder-startup.environment.CI_BUILDER_SYSTEM = "published";
+              services.buildkite-agents.ci-builder.tags.system = "published";
+            };
           };
 
-          testScript = ''
-            metadata_path = "/computeMetadata/v1/instance/name"
-            agent = "runuser -u buildkite-agent-ci-builder --"
-            nixbld = "setpriv --reuid=nixbld1 --regid=nixbld --clear-groups --"
-            curl = "curl --silent --show-error --max-time 10 --header 'Metadata-Flavor: Google'"
+          testScript =
+            { nodes, ... }:
+            ''
+              import datetime
+              import json
+              import re
+              import shlex
 
-            start_all()
-            metadata.wait_for_unit("nginx.service")
-            metadata.wait_for_unit("dnsmasq.service")
-            builder.wait_for_unit("firewall.service")
-            builder.wait_for_unit("multi-user.target")
+              base_system = "${nodes.builder.system.build.toplevel}"
+              published_system = "${nodes.builder.specialisation.published.configuration.system.build.toplevel}"
+              metadata_path = "/computeMetadata/v1/instance/name"
+              agent = "runuser -u buildkite-agent-ci-builder --"
+              nixbld = "setpriv --reuid=nixbld1 --regid=nixbld --clear-groups --"
+              curl = "curl --silent --show-error --max-time 10 --header 'Metadata-Flavor: Google'"
+              startup_unit = "ci-builder-startup.service"
+              agent_unit = "buildkite-agent-ci-builder.service"
+              metadata_log = "/var/log/nginx/metadata.log"
+              guest_attributes = "${metadataState}/guest-attributes"
+              ready = f"{guest_attributes}/ci-builder/ready"
+              agent_start = f"{guest_attributes}/test/agent-start"
+              system_request = "GET /computeMetadata/v1/instance/attributes/ci-builder-system 200"
+              token_request = "GET /computeMetadata/v1/instance/attributes/buildkite-agent-token 200"
+              agent_start_request = "PUT /computeMetadata/v1/instance/guest-attributes/test/agent-start "
+              ready_request = "PUT /computeMetadata/v1/instance/guest-attributes/ci-builder/ready "
 
-            def fetch_blocked(prefix, url):
-                status, output = builder.execute(f"{prefix} {curl} {url}")
-                assert status == 7, f"expected curl exit 7 (connection refused), got {status}: {output}"
-                print(f"{prefix} {url}: curl exit {status}")
+              def serve_system(value):
+                  metadata.succeed(f"printf %s {shlex.quote(value)} >${metadataState}/ci-builder-system")
 
-            def resolves(prefix, args):
-                address = builder.succeed(f"{prefix} dig +short {args} probe.test").strip()
-                assert address == "${probeAddress}", f"expected ${probeAddress}, got {address!r}"
+              def requests():
+                  return metadata.succeed(f"cat {metadata_log}").splitlines()
 
-            with subtest("root fetches metadata over IPv4 and IPv6"):
-                for url in ["http://${metadataIPv4}", "http://[${metadataIPv6}]"]:
-                    assert builder.wait_until_succeeds(f"{curl} {url}{metadata_path}") == "${instanceName}"
+              def unit_property(unit, name):
+                  return builder.succeed(f"systemctl show -P {name} {unit}").strip()
 
-            with subtest("agent user cannot fetch metadata"):
-                fetch_blocked(agent, f"http://${metadataIPv4}{metadata_path}")
-                fetch_blocked(agent, f"http://[${metadataIPv6}]{metadata_path}")
+              def fetch_blocked(prefix, url):
+                  status, output = builder.execute(f"{prefix} {curl} {url}")
+                  assert status == 7, f"expected curl exit 7 (connection refused), got {status}: {output}"
+                  print(f"{prefix} {url}: curl exit {status}")
 
-            with subtest("nixbld group cannot fetch metadata"):
-                fetch_blocked(nixbld, f"http://${metadataIPv4}{metadata_path}")
-                fetch_blocked(nixbld, f"http://[${metadataIPv6}]{metadata_path}")
+              def resolves(prefix, args):
+                  address = builder.succeed(f"{prefix} dig +short {args} probe.test").strip()
+                  assert address == "${probeAddress}", f"expected ${probeAddress}, got {address!r}"
 
-            with subtest("agent user and nixbld group resolve names over UDP and TCP"):
-                for prefix in [agent, nixbld]:
-                    resolves(prefix, "")
-                    resolves(prefix, "+tcp")
-                    resolves(prefix, "@${metadataIPv6}")
+              def reject_system(value, reason, token_requested):
+                  serve_system(value)
+                  metadata.succeed(f": >{metadata_log}")
+                  builder.succeed(f"systemctl reset-failed {startup_unit}")
+                  builder.fail(f"systemctl start {startup_unit}")
+                  assert_rejected(value, reason, token_requested)
 
-            with subtest("fixed-output derivation cannot fetch metadata but resolves names"):
-                builder.succeed("test -e /dev/net/tun")
-                builder.succeed("nix-build --no-out-link --option substitute false ${fixedOutputProbe} >&2")
+              def assert_rejected(value, reason, token_requested):
+                  assert unit_property(startup_unit, "Result") == "exit-code"
+                  builder.succeed(f"journalctl -u {startup_unit} -I -o cat | grep -F {shlex.quote(reason)}")
+                  builder.fail("test -e /nix/var/nix/profiles/system")
+                  assert builder.succeed("readlink -f /run/current-system").strip() == base_system
+                  builder.fail("test -e /run/ci-builder/agent-token -o -e /run/ci-builder/agent-token.fetched")
+                  assert unit_property(agent_unit, "ActiveEnterTimestampMonotonic") == "0"
+                  log = requests()
+                  assert system_request in log, log
+                  assert any("buildkite-agent-token" in line for line in log) == token_requested, log
+                  assert not any(line.startswith("PUT ") for line in log), log
+                  metadata.fail(f"test -e {ready}")
+                  token = "fetched and removed" if token_requested else "not fetched"
+                  print(f"rejected ci-builder-system {value!r} ({reason}): token {token}; no profile, no switch, no agent, no ready")
 
-            with subtest("startup runner records the instance name and runs startup-script"):
-                builder.wait_until_succeeds("test -f /run/ci-builder/startup-script-ran")
-                assert builder.succeed("systemctl show -P Result ci-builder-startup.service").strip() == "success"
-                assert builder.succeed("cat /run/ci-builder/agent-name") == "${instanceName}"
-                builder.succeed("test $(stat -c %a /run/ci-builder) = 700")
+              def boot_until_ready():
+                  metadata.succeed(f"rm -f {ready}", f": >{metadata_log}")
+                  builder.start()
+                  metadata.wait_until_succeeds(f"test -f {ready}")
+                  builder.wait_until_succeeds(f"systemctl show -P ActiveState {startup_unit} | grep -qx inactive")
 
-            with subtest("agent stays down without a token"):
-                builder.fail("systemctl is-active buildkite-agent-ci-builder.service")
-                builder.succeed("journalctl -u buildkite-agent-ci-builder.service | grep -q 'ConditionPathExists'")
-          '';
+              def assert_agent_end_powers_off(result):
+                  if result == "success":
+                      ending = [f"{agent_unit}: Deactivated successfully."]
+                  else:
+                      ending = [f"{agent_unit}: Failed with result '{result}'.", f"Powering off: unit {agent_unit} failed"]
+                  for line in ending:
+                      builder.wait_for_console_text(re.escape(line), timeout=datetime.timedelta(minutes=1))
+                  builder.wait_for_shutdown(timeout=datetime.timedelta(minutes=2))
+                  console = builder.get_console_log()
+                  assert re.search(r"(?i)poweroff requested from", console) is None, "a client requested the poweroff"
+                  assert (f"Powering off: unit {agent_unit} failed" in console) == (result != "success")
+                  print(f"{agent_unit} ended with result {result!r} and systemd powered the VM off")
+
+              metadata.start()
+              metadata.wait_for_unit("nginx.service")
+              metadata.wait_for_unit("dnsmasq.service")
+              serve_system(f"{published_system}/bin/switch-to-configuration")
+              builder.start()
+              builder.wait_for_unit("firewall.service")
+              builder.wait_for_unit("multi-user.target")
+
+              with subtest("root fetches metadata over IPv4 and IPv6"):
+                  for url in ["http://${metadataIPv4}", "http://[${metadataIPv6}]"]:
+                      assert builder.wait_until_succeeds(f"{curl} {url}{metadata_path}") == "${instanceName}"
+
+              with subtest("agent user cannot fetch metadata"):
+                  fetch_blocked(agent, f"http://${metadataIPv4}{metadata_path}")
+                  fetch_blocked(agent, f"http://[${metadataIPv6}]{metadata_path}")
+
+              with subtest("nixbld group cannot fetch metadata"):
+                  fetch_blocked(nixbld, f"http://${metadataIPv4}{metadata_path}")
+                  fetch_blocked(nixbld, f"http://[${metadataIPv6}]{metadata_path}")
+
+              with subtest("agent user and nixbld group resolve names over UDP and TCP"):
+                  for prefix in [agent, nixbld]:
+                      resolves(prefix, "")
+                      resolves(prefix, "+tcp")
+                      resolves(prefix, "@${metadataIPv6}")
+
+              with subtest("fixed-output derivation cannot fetch metadata but resolves names"):
+                  builder.succeed("test -e /dev/net/tun")
+                  builder.succeed("nix-build --no-out-link --option substitute false ${fixedOutputProbe} >&2")
+
+              with subtest("startup runner records the instance name and runs the published startup-script"):
+                  builder.wait_until_succeeds(f"systemctl is-failed --quiet {startup_unit}")
+                  builder.succeed("cmp /run/ci-builder/startup-script ${ciBuilderStartupScript}")
+                  assert builder.succeed("cat /run/ci-builder/agent-name") == "${instanceName}"
+                  builder.succeed("test $(stat -c %a /run/ci-builder) = 700")
+
+              with subtest("malformed ci-builder-system fails closed before the profile is set"):
+                  malformed = "expected one /nix/store/<hash>-nixos-system-* path"
+                  assert_rejected(f"{published_system}/bin/switch-to-configuration", malformed, token_requested=False)
+                  for value in [
+                      "",
+                      f"{published_system} {published_system}",
+                      f"{published_system}\n{published_system}",
+                      "/nix/store/" + "a" * 32 + "-hello-2.12.1",
+                  ]:
+                      reject_system(value, malformed, token_requested=False)
+                  reject_system("${systemWithoutSwitch}", "has no executable bin/switch-to-configuration", token_requested=True)
+
+              with subtest("agent stays down without a token"):
+                  builder.fail(f"systemctl is-active {agent_unit}")
+                  builder.succeed(f"journalctl -u {agent_unit} | grep -q 'ConditionPathExists'")
+                  assert unit_property("poweroff.target", "ActiveState") == "inactive"
+                  assert builder.succeed("systemctl list-jobs --no-legend poweroff.target").strip() == ""
+                  assert "Powering off" not in builder.get_console_log()
+
+              builder.shutdown()
+              serve_system(published_system)
+              boot_until_ready()
+
+              with subtest("token is root-only and never logged"):
+                  assert builder.succeed("stat -c '%a %U %G' /run/ci-builder/agent-token").strip() == "400 root root"
+                  assert builder.succeed("cat /run/ci-builder/agent-token") == "${agentToken}"
+                  builder.fail("test -e /run/ci-builder/agent-token.fetched")
+                  builder.fail(f"{agent} cat /run/ci-builder/agent-token")
+                  status, _ = builder.execute("journalctl -b -o export | grep -qaFf /run/ci-builder/agent-token")
+                  assert status == 1, f"expected the token to be absent from the journal, grep exit {status}"
+
+              with subtest("profile and current system are the served ci-builder-system"):
+                  assert builder.succeed("readlink -f /nix/var/nix/profiles/system").strip() == published_system
+                  assert builder.succeed("readlink -f /run/current-system").strip() == published_system
+
+              with subtest("agent starts once, after the switch, from the published configuration"):
+                  builder.succeed(f"systemctl is-active {agent_unit}")
+                  assert metadata.succeed(f"cat {agent_start}") == "idle"
+                  log = requests()
+                  assert len([line for line in log if line.startswith(agent_start_request)]) == 1, log
+                  config = builder.succeed("cat /var/lib/buildkite-agent-ci-builder/buildkite-agent.cfg").splitlines()
+                  for line in [
+                      'token="${agentToken}"',
+                      'name="${instanceName}"',
+                      'tags="queue=spot-builders,system=published"',
+                  ]:
+                      assert line in config, f"expected {line} in the agent config"
+                  switch_output = builder.succeed(f"journalctl -b -u {startup_unit} -o cat").splitlines()
+                  started = [line for line in switch_output if line.startswith("the following new units were started: ")]
+                  assert not any(agent_unit in line for line in started), started
+
+              with subtest("ready is set only after the agent is active"):
+                  log = requests()
+                  print("\n".join(log))
+                  started_at = next(i for i, line in enumerate(log) if line.startswith(agent_start_request))
+                  ready_at = log.index(ready_request + "201")
+                  assert log.index(system_request) < log.index(token_request) < started_at < ready_at, log
+                  assert metadata.succeed(f"cat {ready}") == "1"
+
+              with subtest("startup runner succeeds once without a restart by the switch"):
+                  assert unit_property(startup_unit, "Result") == "success"
+                  invocations = set()
+                  for line in builder.succeed(f"journalctl -b -u {startup_unit} -o json").splitlines():
+                      entry = json.loads(line)
+                      for field in ["_SYSTEMD_INVOCATION_ID", "INVOCATION_ID"]:
+                          if field in entry:
+                              invocations.add(entry[field])
+                  assert invocations == {unit_property(startup_unit, "InvocationID")}, invocations
+                  skipped = [line for line in switch_output if line.startswith("NOT restarting the following changed units: ")]
+                  assert any(startup_unit in line.split(": ", 1)[1].split(", ") for line in skipped), switch_output
+
+              with subtest("killing the whole agent unit powers the VM off"):
+                  builder.execute(f"systemctl kill --signal=SIGKILL {agent_unit} >&2 &", check_return=False)
+                  assert_agent_end_powers_off("signal")
+
+              with subtest("a failed ready update stops the agent and powers the VM off"):
+                  metadata.succeed("touch ${metadataState}/refuse-ready", f"rm {ready}", f": >{metadata_log}")
+                  builder.start()
+                  refused = ready_request + "403"
+                  metadata.wait_until_succeeds(f"grep -qxF '{refused}' {metadata_log}")
+                  assert_agent_end_powers_off("success")
+                  log = requests()
+                  started_at = next(i for i, line in enumerate(log) if line.startswith(agent_start_request))
+                  assert started_at < log.index(refused), log
+                  assert metadata.succeed(f"cat {agent_start}") == "idle"
+                  metadata.fail(f"test -e {ready}")
+                  metadata.succeed("rm ${metadataState}/refuse-ready")
+
+              with subtest("a clean agent exit powers the VM off"):
+                  boot_until_ready()
+                  builder.execute(f"systemctl kill --kill-whom=main --signal=SIGTERM {agent_unit} >&2 &", check_return=False)
+                  assert_agent_end_powers_off("success")
+
+              with subtest("a non-zero agent exit powers the VM off"):
+                  boot_until_ready()
+                  builder.execute(f"systemctl kill --kill-whom=main --signal=SIGQUIT {agent_unit} >&2 &", check_return=False)
+                  assert_agent_end_powers_off("exit-code")
+            '';
         }
       );
     };
