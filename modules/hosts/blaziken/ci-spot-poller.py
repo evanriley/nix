@@ -40,6 +40,7 @@ PROJECT_PATTERN = re.compile(r"[a-z][a-z0-9-]{4,28}[a-z0-9]")
 ZONE_PATTERN = re.compile(re.escape(REGION) + r"-[a-z]")
 NAME_PATTERN = re.compile(r"[a-z]([-a-z0-9]{0,61}[a-z0-9])?")
 OPERATION_PATTERN = re.compile(r"[-a-zA-Z0-9_]{1,128}")
+QUOTA_PATTERN = re.compile(r"QUOTA_EXCEEDED|Quota '[A-Z0-9_]+' exceeded")
 
 INTERVAL = 30.0
 REQUEST_TIMEOUT = 30.0
@@ -264,6 +265,7 @@ class Readiness(Enum):
 class Outcome(Enum):
     LAUNCHED = "launched"
     FAILED = "failed"
+    QUOTA = "quota"
     UNDETERMINED = "undetermined"
 
 
@@ -987,6 +989,12 @@ class Poller:
                 outcome = self._insert(
                     account, shape, zone, metadata, deadline
                 )
+                if outcome is Outcome.QUOTA:
+                    launches.failures += 1
+                    failed.update(
+                        (shape, other) for other in self._config.zones
+                    )
+                    continue
                 if outcome is Outcome.FAILED:
                     launches.failures += 1
                     failed.add((shape, zone))
@@ -1024,22 +1032,14 @@ class Poller:
             )
             return Outcome.UNDETERMINED
         except ApiError as error:
-            self._log(
-                f"inserting {shape} in {zone} failed: {error}; trying the "
-                "next zone or shape"
-            )
-            return Outcome.FAILED
+            return self._insert_failed(shape, zone, str(error))
         self._launching[name] = self._clock.time()
         while True:
             if operation.get("status") == "DONE":
                 errors = operation_errors(operation)
                 if errors is not None:
                     self._launching.pop(name, None)
-                    self._log(
-                        f"inserting {shape} in {zone} failed: {errors}; "
-                        "trying the next zone or shape"
-                    )
-                    return Outcome.FAILED
+                    return self._insert_failed(shape, zone, errors)
                 self._log(f"launched {name} ({shape} in {zone})")
                 return Outcome.LAUNCHED
             remaining = deadline - self._clock.monotonic()
@@ -1066,6 +1066,19 @@ class Poller:
                     f"{error}; it counts as starting until it is listed"
                 )
                 return Outcome.UNDETERMINED
+
+    def _insert_failed(self, shape: str, zone: str, error: str) -> Outcome:
+        if QUOTA_PATTERN.search(error):
+            self._log(
+                f"inserting {shape} in {zone} failed: {error}; the quota "
+                "covers the region, so trying the next shape"
+            )
+            return Outcome.QUOTA
+        self._log(
+            f"inserting {shape} in {zone} failed: {error}; trying the next "
+            "zone or shape"
+        )
+        return Outcome.FAILED
 
     def _decide_fallback(
         self,

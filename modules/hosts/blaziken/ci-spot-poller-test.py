@@ -21,6 +21,9 @@ STARTUP_SCRIPT = "#!/usr/bin/env bash\necho start\n"
 ZONES = ("us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f")
 C4D = "c4d-highcpu-32"
 C3D = "c3d-highcpu-30"
+QUOTA_MESSAGE = (
+    "Quota 'CPUS_PER_VM_FAMILY' exceeded.  Limit: 50.0 in region us-central1."
+)
 PACIFIC = timezone(timedelta(hours=-7))
 KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 PEM = KEY.private_bytes(
@@ -285,12 +288,27 @@ class FakeCloud:
                 403,
                 {"error": {"message": f"Quota exceeded {self.echo}"}},
             )
+        if mode == "quota-http":
+            return reply(
+                403,
+                {"error": {"message": QUOTA_MESSAGE}},
+            )
         if mode == "unreachable":
             if not self.hide_unanswered_inserts:
                 self.add(name, status="PROVISIONING", age=0, zone=zone)
             raise poller.TransportError("timed out")
         operation = f"operation-{len(self.operations)}"
-        if mode == "operation":
+        if mode == "quota":
+            self.operations[operation] = {
+                "name": operation,
+                "status": "DONE",
+                "error": {
+                    "errors": [
+                        {"code": "QUOTA_EXCEEDED", "message": QUOTA_MESSAGE}
+                    ]
+                },
+            }
+        elif mode == "operation":
             self.operations[operation] = {
                 "name": operation,
                 "status": "DONE",
@@ -569,6 +587,25 @@ def test_cycle_operation_error_tries_next_zone_then_shape(
         (C3D, "us-central1-a"),
     ]
     assert len(live(harness.cloud)) == 2
+    assert not harness.take_request()
+
+
+@pytest.mark.parametrize("mode", ["quota", "quota-http"])
+def test_cycle_quota_error_skips_the_shape_in_other_zones(
+    harness: Harness, mode: str
+) -> None:
+    harness.cloud.scheduled = 2
+    harness.cloud.insert_errors[(C4D, "us-central1-a")] = mode
+
+    harness.cycle()
+
+    assert harness.cloud.attempts == [
+        (C4D, "us-central1-a"),
+        (C3D, "us-central1-a"),
+        (C3D, "us-central1-a"),
+    ]
+    assert len(live(harness.cloud)) == 2
+    assert "the quota covers the region" in harness.log
     assert not harness.take_request()
 
 
