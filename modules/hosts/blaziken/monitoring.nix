@@ -17,6 +17,7 @@ let
     "oauth2-proxy.service"
     "pocket-id.service"
     "ci-trigger.service"
+    "ci-spot-poller.service"
     "anubis-homepage.service"
     "anubis-code.service"
     "anubis-git.service"

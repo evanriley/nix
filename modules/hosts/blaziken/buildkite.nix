@@ -10,6 +10,7 @@ let
   mirrorKeySecret = project: "${project.name}-mirror-key";
   untrustedAgent = "buildkite-agent-blaziken";
   mainAgent = "buildkite-agent-main";
+  fallbackAgent = "buildkite-agent-spot-fallback";
   agents = [
     untrustedAgent
     mainAgent
@@ -312,7 +313,6 @@ in
         reloadIfChanged = true;
         restartTriggers = [ (builtins.hashFile "sha256" config.age.secrets.buildkite-token.file) ];
         serviceConfig = {
-          Restart = lib.mkForce "always";
           RuntimeDirectory = agent;
           ExecReload = "${
             pkgs.writeShellApplication {
@@ -337,20 +337,44 @@ in
         "OUTPUT -o lo -p tcp -m multiport --dports ${loopbackServicePorts} -m owner --uid-owner ${agent} -j REJECT --reject-with tcp-reset"
       ) agents;
       deleteRule = rule: "iptables -w -D ${rule} 2>/dev/null || true\n";
+
+      untrustedAgentSettings = {
+        tokenPath = config.age.secrets.buildkite-token.path;
+        extraGroups = [ ];
+        runtimePackages = buildkiteJobPackages pkgs config.nix.package;
+      };
+      untrustedService = {
+        environment.CMAKE_BUILD_PARALLEL_LEVEL = "4";
+        serviceConfig = {
+          CPUWeight = 20;
+          OOMScoreAdjust = 500;
+        };
+      };
     in
     {
-      services.buildkite-agents.blaziken = {
-        tokenPath = config.age.secrets.buildkite-token.path;
+      services.buildkite-agents.blaziken = untrustedAgentSettings // {
         name = "%hostname-%spawn";
         extraConfig = "spawn=2";
-        extraGroups = [ ];
         # The monorepo is public; pipelines clone over https without credentials.
         tags = {
           queue = "blaziken";
           host = "blaziken";
         };
-        runtimePackages = buildkiteJobPackages pkgs config.nix.package;
       };
+
+      services.buildkite-agents.spot-fallback = untrustedAgentSettings // {
+        name = "%hostname-spot-fallback";
+        extraConfig = ''
+          spawn=1
+          disconnect-after-idle-timeout=300
+        '';
+        tags = {
+          queue = "spot-builders";
+          host = "blaziken";
+        };
+      };
+
+      users.users.${fallbackAgent}.enable = false;
 
       services.buildkite-agents.main = {
         tokenPath = config.age.secrets.buildkite-token.path;
@@ -408,15 +432,26 @@ in
       };
 
       systemd.services = lib.mkMerge [
-        (lib.genAttrs agents gracefulReload)
+        (lib.genAttrs (agents ++ [ fallbackAgent ]) gracefulReload)
+        (lib.genAttrs agents (_: {
+          serviceConfig.Restart = lib.mkForce "always";
+        }))
         {
-          ${untrustedAgent} = {
-            environment.CMAKE_BUILD_PARALLEL_LEVEL = "4";
-            serviceConfig = {
-              CPUWeight = 20;
-              OOMScoreAdjust = 500;
-            };
-          };
+          ${untrustedAgent} = untrustedService;
+
+          ${fallbackAgent} = lib.mkMerge [
+            untrustedService
+            {
+              wantedBy = lib.mkForce [ ];
+              serviceConfig = {
+                User = lib.mkForce untrustedAgent;
+                Group = untrustedAgent;
+                StateDirectory = fallbackAgent;
+                StateDirectoryMode = "0700";
+                Restart = lib.mkForce "no";
+              };
+            }
+          ];
 
           nix-daemon.serviceConfig.CPUWeight = 20;
         }
@@ -514,6 +549,11 @@ in
 
           orca-cachix-token = {
             file = secrets + "/blaziken/orca-cachix-token.age";
+            owner = mainAgent;
+          };
+
+          gcp-ci-key = {
+            file = secrets + "/blaziken/gcp-ci-key.age";
             owner = mainAgent;
           };
         };

@@ -151,6 +151,8 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 | Other subdomains redirect home | `*.maybemaybe.lol` | `nginx.nix` |
 | Buildkite agents (two) | queue `blaziken` | `buildkite.nix` |
 | Gerrit-to-Buildkite webhook | local | `ci-trigger.nix` |
+| Spot builder launcher | GCE, queue `spot-builders` | `ci-spot-poller.nix` |
+| Fallback Buildkite agent, on demand | queue `spot-builders` | `buildkite.nix` |
 | Borg backups | BorgBase | `backup.nix` |
 | RAID, disk and service alerts | healthchecks.io | `monitoring.nix` |
 
@@ -217,6 +219,69 @@ verified in Pocket ID. The client secret is
 `secrets/blaziken/git-bug-oidc-secret.age` and the cookie secret is
 `secrets/blaziken/oauth2-proxy-cookie-secret.age`. The read-only instance at
 `bugs.maybemaybe.lol` restarts after each sync that pushes new bug refs.
+
+### Spot builders
+
+The `spot-builders` Buildkite queue runs on GCE Spot VMs booted from the
+`ci-builder` image. `.buildkite/pipeline.sh` sends big-parallel steps there
+when `CI_HEAVY_QUEUE=spot-builders`.
+
+- `ci-spot-poller.service` on blaziken (`ci-spot-poller.nix`) runs as
+  `buildkite-agent-main`. Every 30 seconds it:
+  - reads the queue's scheduled jobs and idle agents from the Buildkite agent
+    metrics API;
+  - launches one VM per unserved job, `c4d-highcpu-32` first and then
+    `c3d-highcpu-30`, in `us-central1-a`, `-b`, `-c` and `-f`, keeping at most
+    `CI_SPOT_MAX_INSTANCES` (default 3) VMs labelled `maybe-ci=true`;
+  - deletes labelled VMs that are stopped, not ready after 15 minutes, or older
+    than 6 hours 15 minutes.
+- Each VM receives the ci-builder toplevel that `ci.sh publish` last recorded
+  in `/var/lib/buildkite-agent-main/ci-builder-system`. Its startup script
+  switches to that system, starts one agent and sets the guest attribute
+  `ci-builder/ready`. The agent exits after 5 idle minutes and the VM powers
+  off; GCE deletes any VM after 6 hours.
+- `buildkite-agent-spot-fallback.service` on blaziken serves the same queue as
+  the untrusted `buildkite-agent-blaziken` user and never starts at boot.
+  While jobs are queued, the poller starts it through `ci-spot-fallback.path`
+  when every launch failed with no VM alive, when the ci-builder system file
+  is missing or invalid, or when no VM has been ready for 5 minutes. It exits
+  after 5 idle minutes.
+
+The poller logs each launch, deletion and fallback request; read them with
+`journalctl -u ci-spot-poller`. Until `secrets/blaziken/gcp-ci-key.age` holds
+a service-account key, it logs the error and queued jobs run on the fallback
+agent.
+
+One-time setup, in a shell with gcloud (`nix shell nixpkgs#google-cloud-sdk`):
+
+1. Create the network, firewall, custom role and service account in a gcloud
+   project:
+
+   ```sh
+   gcloud config set project <project>
+   ~/maybe/nix/gcp/ci-spot.sh
+   ```
+
+   The firewall allows egress to TCP 80 and 443 only, and no ingress. Traffic
+   to the metadata server at 169.254.169.254, including DNS, is not subject to
+   VPC firewall rules.
+2. Run the commands the script prints. They create a key for `maybe-ci-spot`,
+   encrypt it into `secrets/blaziken/gcp-ci-key.age` and shred the plaintext.
+3. Build the image and add it to the `ci-builder` family through a Cloud
+   Storage bucket in the project:
+
+   ```sh
+   nix build ~/maybe/nix#nixosConfigurations.ci-builder.config.system.build.googleComputeImage -o ci-builder-image
+   gcloud storage cp ci-builder-image/*.raw.tar.gz gs://<bucket>/ci-builder.raw.tar.gz
+   gcloud compute images create ci-builder-<yyyymmdd> --source-uri=gs://<bucket>/ci-builder.raw.tar.gz --family=ci-builder --guest-os-features=UEFI_COMPATIBLE,GVNIC --storage-location=us-central1
+   gcloud storage rm gs://<bucket>/ci-builder.raw.tar.gz
+   rm ci-builder-image
+   ```
+
+   VMs boot the newest image in the family and then switch to the published
+   system, so the image needs a rebuild only when its boot path changes.
+4. Create the `spot-builders` queue in the Buildkite cluster.
+5. Commit the key and deploy blaziken.
 
 ## Adding a host
 
