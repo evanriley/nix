@@ -223,8 +223,8 @@ verified in Pocket ID. The client secret is
 ### Spot builders
 
 The `spot-builders` Buildkite queue runs on GCE Spot VMs booted from the
-`ci-builder` image. `.buildkite/pipeline.sh` sends big-parallel steps there
-when `CI_HEAVY_QUEUE=spot-builders`.
+`ci-builder` image. `.buildkite/pipeline.sh` sends big-parallel steps there;
+`CI_HEAVY_QUEUE=blaziken` on a manual build keeps them on blaziken.
 
 - `ci-spot-poller.service` on blaziken (`ci-spot-poller.nix`) runs as
   `buildkite-agent-main`. Every 30 seconds it:
