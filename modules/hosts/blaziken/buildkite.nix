@@ -409,40 +409,54 @@ in
         };
       };
 
-      systemd.services = lib.genAttrs agents gracefulReload // {
-        ci-nightly = {
-          description = "Run a full Buildkite build of Gerrit main";
-          wants = [ "network-online.target" ];
-          after = [ "network-online.target" ];
-          serviceConfig = {
-            Type = "oneshot";
-            User = mainAgent;
-            Group = mainAgent;
-            ExecStart = "${nightlyBuild}/bin/ci-nightly";
-            TimeoutStartSec = "6h";
+      systemd.services = lib.mkMerge [
+        (lib.genAttrs agents gracefulReload)
+        {
+          ${untrustedAgent} = {
+            environment.CMAKE_BUILD_PARALLEL_LEVEL = "4";
+            serviceConfig = {
+              CPUWeight = 20;
+              OOMScoreAdjust = 500;
+            };
           };
-        };
 
-        ci-flake-update = {
-          description = "Open Gerrit changes that update the flake.lock files";
-          wants = [ "network-online.target" ];
-          after = [ "network-online.target" ];
-          environment = {
-            FLAKE_UPDATE_REMOTE = "ssh://buildkite@git.maybemaybe.lol:29418/maybe";
-            FLAKE_UPDATE_GERRIT = "ssh://buildkite@git.maybemaybe.lol:29418";
-            FLAKE_UPDATE_SSH = gerritSsh;
-            FLAKE_UPDATE_WORKDIR = "${mainHome}/flake-update";
-            FLAKE_UPDATE_REVIEWER = "evan";
+          nix-daemon.serviceConfig.CPUWeight = 20;
+        }
+        {
+          ci-nightly = {
+            description = "Run a full Buildkite build of Gerrit main";
+            wants = [ "network-online.target" ];
+            after = [ "network-online.target" ];
+            serviceConfig = {
+              Type = "oneshot";
+              User = mainAgent;
+              Group = mainAgent;
+              ExecStart = "${nightlyBuild}/bin/ci-nightly";
+              TimeoutStartSec = "6h";
+            };
           };
-          serviceConfig = {
-            Type = "oneshot";
-            User = mainAgent;
-            Group = mainAgent;
-            ExecStart = "${flakeUpdate}/bin/ci-flake-update";
-            TimeoutStartSec = "2h";
+
+          ci-flake-update = {
+            description = "Open Gerrit changes that update the flake.lock files";
+            wants = [ "network-online.target" ];
+            after = [ "network-online.target" ];
+            environment = {
+              FLAKE_UPDATE_REMOTE = "ssh://buildkite@git.maybemaybe.lol:29418/maybe";
+              FLAKE_UPDATE_GERRIT = "ssh://buildkite@git.maybemaybe.lol:29418";
+              FLAKE_UPDATE_SSH = gerritSsh;
+              FLAKE_UPDATE_WORKDIR = "${mainHome}/flake-update";
+              FLAKE_UPDATE_REVIEWER = "evan";
+            };
+            serviceConfig = {
+              Type = "oneshot";
+              User = mainAgent;
+              Group = mainAgent;
+              ExecStart = "${flakeUpdate}/bin/ci-flake-update";
+              TimeoutStartSec = "2h";
+            };
           };
-        };
-      };
+        }
+      ];
 
       systemd.timers.ci-nightly = {
         wantedBy = [ "timers.target" ];
@@ -468,7 +482,7 @@ in
       };
 
       nix.settings = {
-        max-jobs = 2;
+        max-jobs = 1;
         cores = 4;
       };
 
