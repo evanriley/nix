@@ -15,6 +15,7 @@ requests. Report a serious problem, such as a security hole, by email to
 | `cinderace` | Desktop: Ryzen 7 9800X3D, Radeon RX 9070 XT | NixOS, x86_64-linux | Active |
 | `ninetales` | MacBook Pro, M1 Pro | nix-darwin, aarch64-darwin | Active |
 | `blaziken` | Server: OVH KS-5, Xeon E3-1270 v6, 32 GB | NixOS, x86_64-linux | Active |
+| `ci-builder` | GCE Spot VM, c4d-highcpu-32 or c3d-highcpu-30 | NixOS, x86_64-linux | Active |
 
 ## Usage
 
@@ -53,10 +54,10 @@ Update inputs with `nix flake update --flake ~/maybe/nix`; `berkeley-mono`,
 
 CI runs on [Buildkite](https://buildkite.com/riley-industries/maybe) on the
 `blaziken` agents and builds what changed in `legacyPackages.x86_64-linux.ci`
-([how the pipeline works](../README.md#ci)): the flake checks, the cinderace
-and blaziken toplevels, and an evaluation of the home configurations and of
-ninetales, which cannot be built on x86_64-linux. The cinderace toplevel is
-pushed to the `evanriley` cachix so local switches substitute from it.
+([how the pipeline works](../README.md#ci)): the flake checks, the
+cinderace, blaziken and ci-builder toplevels, and an evaluation of the home
+configurations and of ninetales, which cannot be built on x86_64-linux. The
+toplevels are pushed to the `evanriley` cachix so switches substitute from it.
 
 After a bad update, restore the previous lock and switch again:
 

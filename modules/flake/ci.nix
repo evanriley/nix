@@ -4,6 +4,16 @@ let
   toplevel = host: nixosConfigurations.${host}.config.system.build.toplevel;
 in
 {
+  meta.buildkiteJobPackages = pkgs: nix: [
+    pkgs.bash
+    pkgs.git
+    pkgs.curl
+    pkgs.jq
+    pkgs.josh
+    pkgs.openssh
+    nix
+  ];
+
   perSystem =
     { config, system, ... }:
     lib.mkIf (system == "x86_64-linux") {
@@ -11,6 +21,7 @@ in
         targets = lib.mapAttrs' (name: lib.nameValuePair "checks.${name}") config.checks // {
           cinderace = toplevel "cinderace";
           blaziken = toplevel "blaziken";
+          ci-builder = toplevel "ci-builder";
         };
         evalOnly = lib.mapAttrs (_: home: home.activationPackage) homeConfigurations // {
           ninetales = darwinConfigurations.ninetales.system;

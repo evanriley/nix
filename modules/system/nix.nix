@@ -1,6 +1,7 @@
 { config, ... }:
 let
   inherit (config.meta) user repoDir;
+  nixos = config.flake.modules.nixos;
 
   # Temporary: nixpkgs 55bfb4d builds lix 2.95.4 with -Dmimalloc, which
   # meson rejects on lix < 2.96 (fixed upstream in 982cb88083). Until the
@@ -34,8 +35,8 @@ let
   };
 in
 {
-  flake.modules.nixos.nix =
-    { config, pkgs, ... }:
+  flake.modules.nixos.nix-core =
+    { pkgs, ... }:
     {
       nixpkgs.overlays = [ lixOverlay ];
       nix.package = pkgs.lix;
@@ -48,6 +49,12 @@ in
           "@wheel"
         ];
       };
+    };
+
+  flake.modules.nixos.nix =
+    { config, ... }:
+    {
+      imports = [ nixos.nix-core ];
 
       nixpkgs.config.allowUnfree = true;
 

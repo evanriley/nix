@@ -1,8 +1,9 @@
 # Repository instructions
 
 This public flake lives in the `maybe` monorepo at `nix/` and configures
-`cinderace` (NixOS, x86_64-linux), `ninetales` (nix-darwin, aarch64-darwin)
-and `blaziken` (NixOS server, x86_64-linux, no Home Manager). Home Manager is
+`cinderace` (NixOS, x86_64-linux), `ninetales` (nix-darwin, aarch64-darwin),
+`blaziken` (NixOS server, x86_64-linux, no Home Manager) and `ci-builder`
+(GCE Spot Buildkite agent, x86_64-linux, no Home Manager). Home Manager is
 standalone as `homeConfigurations."evan@<host>"`.
 
 - Load `nix-environment` for reusable Nix, dotfile, build and process

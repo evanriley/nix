@@ -1,6 +1,11 @@
 { config, ... }:
 let
-  inherit (config.meta) secrets gerritKnownHosts projects;
+  inherit (config.meta)
+    secrets
+    gerritKnownHosts
+    projects
+    buildkiteJobPackages
+    ;
   mirroredProjects = builtins.filter (project: project ? mirror) projects;
   mirrorKeySecret = project: "${project.name}-mirror-key";
   untrustedAgent = "buildkite-agent-blaziken";
@@ -100,6 +105,7 @@ in
             export CACHIX_AUTH_TOKEN ORCA_CACHIX_TOKEN
             ${mirrorKeyExports}
             export GITHUB_KNOWN_HOSTS=${githubKnownHosts}
+            export CI_BUILDER_SYSTEM_FILE=${mainHome}/ci-builder-system
             exec .buildkite/ci.sh publish
           }
 
@@ -343,15 +349,7 @@ in
           queue = "blaziken";
           host = "blaziken";
         };
-        runtimePackages = [
-          pkgs.bash
-          pkgs.git
-          pkgs.curl
-          pkgs.jq
-          pkgs.josh
-          pkgs.openssh
-          config.nix.package
-        ];
+        runtimePackages = buildkiteJobPackages pkgs config.nix.package;
       };
 
       services.buildkite-agents.main = {
