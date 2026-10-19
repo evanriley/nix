@@ -384,7 +384,7 @@ in
           no-plugins=true
           no-local-hooks=true
           enable-environment-variable-allowlist=true
-          allowed-environment-variables=^GERRIT_MERGE$,^GERRIT_PATCHSET$,^CI_FULL$,^CI_EVAL_JOBS$
+          allowed-environment-variables=^GERRIT_MERGE$,^GERRIT_PATCHSET$,^CI_FULL$,^CI_EVAL_JOBS$,^CI_HEAVY_QUEUE$
         '';
         extraGroups = [ ];
         tags = {
