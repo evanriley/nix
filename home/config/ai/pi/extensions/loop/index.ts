@@ -57,7 +57,7 @@ const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 		role: "worker",
 		model: "coralbricks/deepseek-v4.1-flash-fast",
 		thinking: "high",
-		tools: ["read", "bash", "edit", "write", "mcp__grep_app__searchGitHub"],
+		tools: ["read", "bash", "edit", "write", "mcp__grep_app__searchGitHub", "mcp__kagi__kagi_search_fetch"],
 		promptFile: path.join(EXTENSION_DIR, "worker.md"),
 		maxTurns: 500,
 		maxMinutes: 120,
@@ -66,24 +66,15 @@ const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 	},
 	reviewer: {
 		role: "reviewer",
-		model: "openrouter/z-ai/glm-5.3-flash",
+		model: "openrouter/openai/gpt-6.1-sol",
 		thinking: "high",
-		tools: ["read", "grep", "find", "ls", "bash"],
+		tools: ["read", "grep", "find", "ls", "bash", "mcp__kagi__kagi_search_fetch"],
 		promptFile: path.join(EXTENSION_DIR, "reviewer.md"),
 		maxTurns: 200,
 		maxMinutes: 60,
 		maxCost: 3,
 	},
 };
-
-const OPENROUTER_MODELS: Record<Role, string> = {
-	worker: "openrouter/deepseek/deepseek-v4.1-flash",
-	reviewer: "openrouter/z-ai/glm-5.3-flash",
-};
-
-function modelFor(role: Role, ctx: Pick<ExtensionContext, "model">): string {
-	return ctx.model?.provider === "openrouter" ? OPENROUTER_MODELS[role] : ROLE_CONFIG[role].model;
-}
 
 interface LimitHit {
 	kind: "turn" | "time" | "cost";
@@ -966,7 +957,7 @@ export default function (pi: ExtensionAPI) {
 					const sessionFile = session.file;
 					const transcript = { file: sessionFile, fromLine: session.resumed ? countLines(sessionFile) : 0 };
 					const result = await runChild(
-						{ ...ROLE_CONFIG.worker, model: modelFor("worker", ctx), sessionFile },
+						{ ...ROLE_CONFIG.worker, sessionFile },
 						await workerMessage(repoRoot, params.feature, featureDir, specPath, params.task, session),
 						ctx.cwd,
 						signal,
@@ -1008,7 +999,7 @@ export default function (pi: ExtensionAPI) {
 		name: "reviewer",
 		label: "Reviewer",
 		description: [
-			"Run a fresh read-only reviewer (GLM 5.3 Flash) on the uncommitted changes against the feature's spec.md.",
+			"Run a fresh read-only reviewer (GPT-6.1 Sol) on the uncommitted changes against the feature's spec.md.",
 			"Writes the verdict to review-<n>.md next to the spec and returns it.",
 			"Only one worker or reviewer runs at a time.",
 		].join(" "),
@@ -1061,7 +1052,7 @@ export default function (pi: ExtensionAPI) {
 					.join("\n\n");
 				const transcript = { file: path.join(featureDir, `review-${reviewNumber}.jsonl`), fromLine: 0 };
 				const result = await runChild(
-					{ ...ROLE_CONFIG.reviewer, model: modelFor("reviewer", ctx), sessionFile: transcript.file, scratch },
+					{ ...ROLE_CONFIG.reviewer, sessionFile: transcript.file, scratch },
 					message,
 					ctx.cwd,
 					signal,

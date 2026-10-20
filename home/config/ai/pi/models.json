@@ -3,29 +3,18 @@
     "openrouter": {
       "apiKey": "!cat /run/agenix/openrouter-key",
       "modelOverrides": {
-        "z-ai/glm-5.3": {
-          "contextWindow": 1048576,
-          "maxTokens": 131072,
-          "compat": {
-            "openRouterRouting": {
-              "order": ["morph", "novita", "sail-research", "akashml", "siliconflow", "parasail", "z-ai", "baseten"],
-              "only": ["akashml", "baseten", "morph", "novita", "parasail", "sail-research", "siliconflow", "z-ai"],
-              "allow_fallbacks": false,
-              "quantizations": ["fp8"],
-              "data_collection": "deny",
-              "zdr": true
-            }
-          }
+        "anthropic/claude-sonnet-5.5": {
+          "contextWindow": 1000000,
+          "maxTokens": 128000
         },
-        "z-ai/glm-5.3-flash": {
-          "contextWindow": 1048576,
-          "maxTokens": 131072,
+        "openai/gpt-6.1-sol": {
+          "contextWindow": 1050000,
+          "maxTokens": 128000,
           "compat": {
             "openRouterRouting": {
-              "order": ["near-ai", "novita", "inceptron", "morph", "baseten", "siliconflow", "z-ai"],
-              "only": ["baseten", "inceptron", "morph", "near-ai", "novita", "siliconflow", "z-ai"],
+              "order": ["azure", "azure/us", "azure/eu"],
+              "only": ["azure", "azure/us", "azure/eu"],
               "allow_fallbacks": false,
-              "quantizations": ["fp8"],
               "data_collection": "deny",
               "zdr": true
             }

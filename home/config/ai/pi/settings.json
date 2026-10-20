@@ -1,7 +1,7 @@
 {
-  "defaultProvider": "coralbricks",
-  "defaultModel": "deepseek-v4.1-flash-fast",
-  "enabledModels": ["coralbricks/deepseek-v4.1-flash-fast", "openrouter/z-ai/glm-5.3-flash", "openrouter/z-ai/glm-5.3", "openrouter/deepseek/deepseek-v4.1-flash"],
+  "defaultProvider": "openrouter",
+  "defaultModel": "anthropic/claude-sonnet-5.5",
+  "enabledModels": ["openrouter/anthropic/claude-sonnet-5.5", "coralbricks/deepseek-v4.1-flash-fast", "openrouter/openai/gpt-6.1-sol"],
   "defaultThinkingLevel": "high",
   "compaction": { "enabled": false },
   "cacheWarming": "idle",
