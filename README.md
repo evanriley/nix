@@ -261,6 +261,11 @@ The `spot-builders` Buildkite queue runs on GCE Spot VMs booted from the
   - `ci-remote-builder release <job-id>` deletes the VM and succeeds when it is
     already gone.
   - The poller ignores these VMs. GCE deletes each one after 2 hours.
+  - `ci.sh publish` leases one when `CI_REMOTE_BUILDER=1` (set by the main
+    agent) and `nix build --dry-run` lists derivations to build that require
+    only `big-parallel`. It builds the other targets while the lease starts,
+    builds those with the VM as a builder, rebuilds a target that failed on it
+    locally, and releases it on every exit. A failed lease builds locally.
 
 The poller logs each launch, deletion and fallback request; read them with
 `journalctl -u ci-spot-poller`. Until `secrets/blaziken/gcp-ci-key.age` holds

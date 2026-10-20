@@ -41,6 +41,7 @@ in
         runtimeInputs = [
           pkgs.coreutils
           pkgs.curl
+          pkgs.gawk
           pkgs.git
           pkgs.jq
           pkgs.openssh
@@ -108,6 +109,7 @@ in
             export GITHUB_KNOWN_HOSTS=${githubKnownHosts}
             export CI_BUILDER_SYSTEM_FILE=${mainHome}/ci-builder-system
             export CI_REMOTE_BUILDER_SYSTEM_FILE=${mainHome}/ci-remote-builder-system
+            export CI_REMOTE_BUILDER=1
             exec .buildkite/ci.sh publish
           }
 
