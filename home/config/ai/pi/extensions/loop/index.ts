@@ -26,6 +26,27 @@ import {
 	visibleWidth,
 } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
+import {
+	type CheckRun,
+	commitMessage,
+	commitTask,
+	featureCost,
+	findTask,
+	nextNumber,
+	parseChecks,
+	parseVerdict,
+	readTaskRecord,
+	runChecks,
+	type SpecTask,
+	type TaskRecord,
+	tailLines,
+	taskRecordPath,
+	trackedChanges,
+	untrackedPaths,
+	type Verdict,
+	withoutPaths,
+	writeTaskRecord,
+} from "./pipeline.ts";
 
 const EXTENSION_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PLANS_DIR = path.join(os.homedir(), ".pi", "plans");
@@ -35,8 +56,17 @@ const COLLAPSED_REPORT_LINES = 10;
 const TRANSCRIPT_BLOCK_LINES = 20;
 const APPROVAL_ENTRY = "loop-approval";
 const STATUS_KEY = "loop";
+const FEATURE_MAX_COST = 15;
+const CHECK_TIMEOUT_MINUTES = 30;
+const MAX_CHECK_RETRIES = 2;
+const MAX_FIX_PASSES = 2;
+const REASON_LINES = 40;
+const REVIEW_SCOPE =
+	"Review the uncommitted changes in this repository against the spec: run `git status`, `git diff` and `git diff --cached`, and read every file listed by `git ls-files --others --exclude-standard`.";
 
 type Role = "worker" | "reviewer";
+type Stage = "worker" | "checks" | "review" | "commit";
+type BlockedStage = "budget" | "checks" | "review" | "commit" | "worker" | "aborted";
 
 interface ChildConfig {
 	role: Role;
@@ -100,7 +130,7 @@ interface TranscriptRef {
 }
 
 interface LoopDetails {
-	role: Role;
+	stage: Stage;
 	feature: string;
 	turns: number;
 	toolCalls: number;
@@ -108,6 +138,7 @@ interface LoopDetails {
 	transcript?: TranscriptRef;
 	reviewPath?: string;
 	thinkingLine?: string;
+	command?: string;
 }
 
 interface TranscriptCache {
@@ -115,7 +146,8 @@ interface TranscriptCache {
 	messages: Message[] | undefined;
 }
 
-let runningRole: Role | undefined;
+let taskRunning = false;
+let runningStage: Stage | undefined;
 let lastTouchedFeature: string | undefined;
 const approvals = new Map<string, string>();
 
@@ -193,10 +225,6 @@ function checkApproval(feature: string, specPath: string): void {
 	}
 }
 
-function consumeApproval(pi: ExtensionAPI, feature: string): void {
-	recordApproval(pi, feature, null);
-}
-
 function touchFeature(pi: ExtensionAPI, feature: string): void {
 	lastTouchedFeature = feature;
 	if (!pi.getSessionName()) pi.setSessionName(feature);
@@ -235,7 +263,7 @@ function latestVerdict(featureDir: string): string | undefined {
 }
 
 function loopState(feature: string, featureDir: string): string {
-	if (runningRole) return `${runningRole} running`;
+	if (runningStage) return `${runningStage} running`;
 	if (approvals.has(feature)) return "approved";
 	const verdict = latestVerdict(featureDir);
 	return verdict ? `review: ${verdict}` : "spec";
@@ -314,10 +342,6 @@ function nextReviewNumber(featureDir: string): number {
 	return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
 }
 
-function previousReviewPaths(featureDir: string): string[] {
-	return reviewNumbers(featureDir, /^review-(\d+)\.md$/).map((number) => path.join(featureDir, `review-${number}.md`));
-}
-
 function workerSessionNumbers(featureDir: string): number[] {
 	const numbers = reviewNumbers(featureDir, /^worker(?:-(\d+))?\.jsonl$/);
 	return fs.existsSync(path.join(featureDir, "worker.jsonl")) ? [0, ...numbers] : numbers;
@@ -345,17 +369,15 @@ interface WorkerSession {
 	file: string;
 	resumed: boolean;
 	notice?: string;
-	hasEarlierWork: boolean;
 }
 
 function chooseWorkerSession(featureDir: string, resume: boolean, maxResumeTokens: number): WorkerSession {
 	const newest = workerSessionNumbers(featureDir).at(-1);
 	const fresh = workerSessionPath(featureDir, (newest ?? 0) + 1);
 	const freshName = path.basename(fresh, ".jsonl");
-	const hasEarlierWork = newest !== undefined;
-	if (!resume) return { file: fresh, resumed: false, hasEarlierWork };
+	if (!resume) return { file: fresh, resumed: false };
 	if (newest === undefined) {
-		return { file: fresh, resumed: false, hasEarlierWork, notice: `nothing to resume; started ${freshName}` };
+		return { file: fresh, resumed: false, notice: `nothing to resume; started ${freshName}` };
 	}
 	const newestFile = workerSessionPath(featureDir, newest);
 	const tokens = lastContextTokens(newestFile);
@@ -363,31 +385,10 @@ function chooseWorkerSession(featureDir: string, resume: boolean, maxResumeToken
 		return {
 			file: fresh,
 			resumed: false,
-			hasEarlierWork,
 			notice: `resume refused: previous session at ${Math.round(tokens / 1000)}k tokens; started ${freshName}`,
 		};
 	}
-	return { file: newestFile, resumed: true, hasEarlierWork };
-}
-
-async function workerMessage(
-	repoRoot: string | undefined,
-	feature: string,
-	featureDir: string,
-	specPath: string,
-	task: string,
-	session: WorkerSession,
-): Promise<string> {
-	const lines = [`Spec: ${specPath}`];
-	if (!session.resumed && session.hasEarlierWork) {
-		const ref = `refs/pi/${feature}/1`;
-		if (repoRoot && (await gitText(repoRoot, ["rev-parse", "--verify", "--quiet", ref]))) {
-			lines.push(`Earlier work: run \`git diff ${ref}\` to see the changes from earlier passes.`);
-		}
-		const reviews = previousReviewPaths(featureDir);
-		if (reviews.length > 0) lines.push(`Previous reviews:\n${reviews.join("\n")}`);
-	}
-	return `${lines.join("\n")}\n\n${task}`;
+	return { file: newestFile, resumed: true };
 }
 
 function runGit(cwd: string, args: string[], input?: Buffer, env?: NodeJS.ProcessEnv): Promise<Buffer> {
@@ -479,17 +480,6 @@ async function ensureFeatureBranch(repoRoot: string, feature: string): Promise<s
 	const args = (await branchExists(repoRoot, feature)) ? ["switch", feature] : ["switch", "-c", feature];
 	await runGit(repoRoot, args);
 	return base;
-}
-
-async function reviewScope(repoRoot: string | undefined, feature: string): Promise<string> {
-	const uncommitted =
-		"Review the uncommitted changes in this repository against the spec: run `git status`, `git diff` and `git diff --cached`, and read every file listed by `git ls-files --others --exclude-standard`.";
-	if (!repoRoot || (await currentBranch(repoRoot)) !== feature) return uncommitted;
-	const base = await defaultBranch(repoRoot);
-	const ref = (await branchExists(repoRoot, base)) ? base : `origin/${base}`;
-	const mergeBase = await gitText(repoRoot, ["merge-base", "HEAD", ref]);
-	if (!mergeBase) return uncommitted;
-	return `Review the changes on this branch against the spec: run \`git status\`, \`git log --oneline ${mergeBase}..HEAD\` and \`git diff ${mergeBase}\`, and read every file listed by \`git ls-files --others --exclude-standard\`.`;
 }
 
 async function removeScratch(repoRoot: string, scratchDir: string): Promise<void> {
@@ -711,14 +701,14 @@ function failureText(role: Role, result: ChildResult): string {
 }
 
 function makeDetails(
-	role: Role,
+	stage: Stage,
 	feature: string,
 	result: ChildResult,
 	transcript: TranscriptRef,
 	reviewPath?: string,
 ): LoopDetails {
 	return {
-		role,
+		stage,
 		feature,
 		turns: result.turns,
 		toolCalls: result.toolCalls,
@@ -728,34 +718,35 @@ function makeDetails(
 	};
 }
 
-async function withLock<T>(role: Role, onChange: () => Promise<void>, run: () => Promise<T>): Promise<T> {
-	if (runningRole) {
-		throw new Error(`The ${runningRole} is already running; wait for it to finish before dispatching the ${role}.`);
+async function withLock<T>(onChange: () => Promise<void>, run: () => Promise<T>): Promise<T> {
+	if (taskRunning) {
+		throw new Error("A task is already running; wait for it to finish before starting another.");
 	}
-	runningRole = role;
+	taskRunning = true;
 	try {
-		await onChange();
 		return await run();
 	} finally {
-		runningRole = undefined;
+		taskRunning = false;
+		runningStage = undefined;
 		await onChange();
 	}
 }
 
 type OnUpdate = ((partial: AgentToolResult<LoopDetails>) => void) | undefined;
 
-function progressHeader(details: Pick<LoopDetails, "role" | "turns" | "toolCalls">): string {
-	return `${details.role} running: ${details.turns} turns, ${details.toolCalls} tool calls`;
+function progressHeader(details: Pick<LoopDetails, "stage" | "turns" | "toolCalls" | "command">): string {
+	if (details.stage === "checks") return `checks running: ${details.command ?? ""}`;
+	return `${details.stage} running: ${details.turns} turns, ${details.toolCalls} tool calls`;
 }
 
 function progressReporter(
-	role: Role,
+	stage: Stage,
 	feature: string,
 	transcript: TranscriptRef,
 	onUpdate: OnUpdate,
 ): (result: ChildResult) => void {
 	return (result) => {
-		const details = { ...makeDetails(role, feature, result, transcript), thinkingLine: result.thinkingLine };
+		const details = { ...makeDetails(stage, feature, result, transcript), thinkingLine: result.thinkingLine };
 		const thinkText = result.thinkingLine ? `\nthink: ${result.thinkingLine}` : "";
 		onUpdate?.({
 			content: [{ type: "text", text: `${progressHeader(details)}${thinkText}` }],
@@ -881,8 +872,8 @@ function transcriptView(messages: Message[], theme: Theme): Component {
 	return container;
 }
 
-function callView(role: Role, feature: string | undefined, brief: string | undefined, theme: Theme): Component {
-	const header = `${theme.fg("toolTitle", theme.bold(role))} ${theme.fg("accent", feature ?? "...")}`;
+function callView(label: string, feature: string | undefined, brief: string | undefined, theme: Theme): Component {
+	const header = `${theme.fg("toolTitle", theme.bold(label))} ${theme.fg("accent", feature ?? "...")}`;
 	return new TruncatedText(brief ? `${header} ${theme.fg("muted", brief.replace(/\s+/g, " "))}` : header, 0, 0);
 }
 
@@ -902,190 +893,434 @@ function resultView(
 	return reportView(resultText(result), options.expanded, theme);
 }
 
+class TaskBlocked extends Error {
+	stage: BlockedStage;
+
+	constructor(stage: BlockedStage, reason: string) {
+		super(reason);
+		this.stage = stage;
+	}
+}
+
+function blocked(stage: BlockedStage, reason: string): never {
+	throw new TaskBlocked(stage, reason);
+}
+
+interface TaskRun {
+	pi: ExtensionAPI;
+	ctx: ExtensionContext;
+	signal: AbortSignal | undefined;
+	onUpdate: OnUpdate;
+	feature: string;
+	featureDir: string;
+	specPath: string;
+	repoRoot: string;
+	task: SpecTask;
+	brief: string;
+	checks: string[];
+	preexisting: string[];
+	earlierReviews: string[];
+	record: TaskRecord;
+	usage: Usage;
+	turns: number;
+	toolCalls: number;
+	notices: string[];
+}
+
+async function enterStage(run: TaskRun, stage: Stage): Promise<void> {
+	runningStage = stage;
+	await refreshStatus(run.pi, run.ctx);
+}
+
+function checkAborted(run: TaskRun): void {
+	if (run.signal?.aborted) blocked("aborted", "The task was aborted.");
+}
+
+function checkBudget(run: TaskRun): void {
+	const cost = featureCost(run.featureDir);
+	if (cost >= FEATURE_MAX_COST) {
+		blocked(
+			"budget",
+			`The feature has spent $${cost.toFixed(2)} of its $${FEATURE_MAX_COST.toFixed(2)} budget; ask the user before spending more.`,
+		);
+	}
+}
+
+function addChildResult(run: TaskRun, result: ChildResult): void {
+	addUsage(run.usage, result.usage);
+	run.turns += result.turns;
+	run.toolCalls += result.toolCalls;
+}
+
+function taskHeader(run: TaskRun): string {
+	return `Spec: ${run.specPath}\nTask ${run.task.number}: ${run.task.subject}`;
+}
+
+async function runWorker(run: TaskRun, session: WorkerSession, message: string): Promise<string> {
+	checkAborted(run);
+	checkBudget(run);
+	await enterStage(run, "worker");
+	if (session.notice) run.notices.push(session.notice);
+	if (!run.record.workers.includes(session.file)) run.record.workers.push(session.file);
+	const transcript = { file: session.file, fromLine: session.resumed ? countLines(session.file) : 0 };
+	const result = await runChild(
+		{ ...ROLE_CONFIG.worker, sessionFile: session.file },
+		message,
+		run.ctx.cwd,
+		run.signal,
+		progressReporter("worker", run.feature, transcript, run.onUpdate),
+	);
+	addChildResult(run, result);
+	checkAborted(run);
+	if (isFailed(result)) blocked("worker", failureText("worker", result));
+	return result.finalText;
+}
+
+function freshWorkerSession(run: TaskRun): WorkerSession {
+	return chooseWorkerSession(run.featureDir, false, ROLE_CONFIG.worker.maxResumeTokens ?? 0);
+}
+
+function checkFailureText(failure: Extract<CheckRun, { ok: false }>, logPath: string): string {
+	const outcome = failure.timedOut
+		? `timed out after ${CHECK_TIMEOUT_MINUTES} min`
+		: `exit ${failure.exitCode ?? "signal"}`;
+	return `\`${failure.command}\` failed (${outcome}); log: ${logPath}\n\n${failure.tail}`;
+}
+
+function checkFailureMessage(
+	run: TaskRun,
+	session: WorkerSession,
+	failure: Extract<CheckRun, { ok: false }>,
+	logPath: string,
+) {
+	const outcome = failure.timedOut
+		? `timed out after ${CHECK_TIMEOUT_MINUTES} min`
+		: `exited with ${failure.exitCode ?? "a signal"}`;
+	const lines = [
+		"The spec's Checks failed after your report.",
+		`Command: ${failure.command}`,
+		`Result: ${outcome}`,
+		`Log: ${logPath}`,
+		"Last lines of its output:",
+		`~~~~\n${failure.tail}\n~~~~`,
+		"Fix the cause, run the Checks yourself, and report again.",
+	];
+	const intro = session.resumed ? "" : `${taskHeader(run)}\n\n${run.brief}\n\n`;
+	return `${intro}${lines.join("\n")}`;
+}
+
+async function passChecks(run: TaskRun, report: string): Promise<string> {
+	for (let retries = 0; ; retries++) {
+		checkAborted(run);
+		await enterStage(run, "checks");
+		const logPath = path.join(run.featureDir, `checks-${nextNumber(run.featureDir, /^checks-(\d+)\.log$/)}.log`);
+		run.record.checks.push(logPath);
+		const result = await runChecks(
+			run.repoRoot,
+			run.checks,
+			CHECK_TIMEOUT_MINUTES * 60_000,
+			logPath,
+			run.signal,
+			(command) =>
+				run.onUpdate?.({
+					content: [{ type: "text", text: `checks running: ${command}` }],
+					details: { stage: "checks", feature: run.feature, turns: 0, toolCalls: 0, usage: emptyUsage(), command },
+				}),
+		);
+		checkAborted(run);
+		if (result.ok) return report;
+		if (retries >= MAX_CHECK_RETRIES) blocked("checks", checkFailureText(result, logPath));
+		const session = chooseWorkerSession(run.featureDir, true, ROLE_CONFIG.worker.maxResumeTokens ?? 0);
+		report = await runWorker(run, session, checkFailureMessage(run, session, result, logPath));
+	}
+}
+
+async function reviewTask(
+	run: TaskRun,
+): Promise<{ verdict: Exclude<Verdict, { kind: "missing" }>; reviewPath: string }> {
+	checkAborted(run);
+	checkBudget(run);
+	await enterStage(run, "review");
+	const reviewNumber = nextReviewNumber(run.featureDir);
+	const previousReviews = [...run.earlierReviews, ...run.record.reviews];
+	const scratchDir = path.join(run.featureDir, `scratch-${reviewNumber}`);
+	let scratch: string | undefined;
+	try {
+		await createScratch(run.repoRoot, scratchDir);
+		scratch = scratchDir;
+	} catch (error) {
+		await removeScratch(run.repoRoot, scratchDir);
+		const reason = error instanceof Error ? error.message : String(error);
+		run.ctx.ui.notify(`Reviewer scratch copy failed; reviewing without it: ${reason}`, "warning");
+	}
+	const transcript = { file: path.join(run.featureDir, `review-${reviewNumber}.jsonl`), fromLine: 0 };
+	let result: ChildResult;
+	try {
+		const message = [
+			`Spec: ${run.specPath}`,
+			scratch ? `Scratch: ${scratch}` : undefined,
+			`Task ${run.task.number}: ${run.task.subject}`,
+			run.brief,
+			previousReviews.length > 0 ? `Previous reviews:\n${previousReviews.join("\n")}` : undefined,
+			REVIEW_SCOPE,
+			run.preexisting.length > 0
+				? `These untracked files existed before this task and are not part of it; ignore them:\n${run.preexisting.join("\n")}`
+				: undefined,
+		]
+			.filter((line) => line !== undefined)
+			.join("\n\n");
+		result = await runChild(
+			{ ...ROLE_CONFIG.reviewer, sessionFile: transcript.file, scratch },
+			message,
+			run.ctx.cwd,
+			run.signal,
+			progressReporter("review", run.feature, transcript, run.onUpdate),
+		);
+	} finally {
+		await removeScratch(run.repoRoot, scratchDir);
+	}
+	addChildResult(run, result);
+	checkAborted(run);
+	if (isFailed(result)) blocked("review", failureText("reviewer", result));
+	if (!result.finalText.trim()) blocked("review", "The reviewer returned no verdict.");
+	const reviewPath = path.join(run.featureDir, `review-${reviewNumber}.md`);
+	fs.writeFileSync(reviewPath, `${result.finalText.trim()}\n`, { encoding: "utf-8", flag: "wx" });
+	run.record.reviews.push(reviewPath);
+	const verdict = parseVerdict(result.finalText);
+	if (verdict.kind === "missing") blocked("review", `The reviewer returned no verdict; see ${reviewPath}.`);
+	return { verdict, reviewPath };
+}
+
+function fixMessage(run: TaskRun, reviewPath: string, blocking: string[]): string {
+	const findings =
+		blocking.length > 0
+			? blocking.map((finding) => `- ${finding}`).join("\n")
+			: "(The reviewer asked for changes without marking a finding [blocking]; read the review for what it requires.)";
+	return `${taskHeader(run)}\n\n${run.brief}\n\nReview: ${reviewPath}\n\nFix exactly these blocking findings from the review, nothing else:\n${findings}`;
+}
+
+async function commitReviewedTask(run: TaskRun, report: string): Promise<string> {
+	checkAborted(run);
+	await enterStage(run, "commit");
+	const outcome = await commitTask(run.repoRoot, commitMessage(report, run.task.subject), run.preexisting);
+	if (outcome.kind === "nothing") blocked("commit", "The task left no changes to commit.");
+	if (outcome.kind === "failed") blocked("commit", `git commit failed:\n${tailLines(outcome.output, REASON_LINES)}`);
+	return outcome.sha;
+}
+
+async function runTaskPipeline(run: TaskRun): Promise<string> {
+	let report = await runWorker(run, freshWorkerSession(run), `${taskHeader(run)}\n\n${run.brief}`);
+	report = await passChecks(run, report);
+	for (let fixPasses = 0; ; fixPasses++) {
+		const { verdict, reviewPath } = await reviewTask(run);
+		if (verdict.pass) {
+			run.record.nonBlocking = verdict.nonBlocking;
+			break;
+		}
+		if (fixPasses >= MAX_FIX_PASSES) {
+			blocked(
+				"review",
+				`Blocking findings remain after ${MAX_FIX_PASSES} fix passes (${reviewPath}):\n${verdict.blocking.join("\n")}`,
+			);
+		}
+		report = await runWorker(run, freshWorkerSession(run), fixMessage(run, reviewPath, verdict.blocking));
+		report = await passChecks(run, report);
+	}
+	return commitReviewedTask(run, report);
+}
+
+function trimReason(reason: string): string {
+	const lines = reason.trim().split("\n");
+	return lines.length > REASON_LINES
+		? `${lines.slice(0, REASON_LINES).join("\n")}\n… ${lines.length - REASON_LINES} more lines`
+		: lines.join("\n");
+}
+
+function recordFiles(run: TaskRun): string {
+	const lines = [
+		`workers: ${run.record.workers.join(", ") || "none"}`,
+		`reviews: ${run.record.reviews.join(", ") || "none"}`,
+		`checks: ${run.record.checks.join(", ") || "none"}`,
+		`record: ${taskRecordPath(run.featureDir, run.task.number)}`,
+	];
+	return [...run.notices, ...lines].join("\n");
+}
+
+function finishRecord(run: TaskRun, status: TaskRecord["status"], extra: Partial<TaskRecord>): void {
+	run.record = { ...run.record, ...extra, status, cost: run.usage.cost.total };
+	writeTaskRecord(run.featureDir, run.record);
+}
+
+async function preexistingFiles(repoRoot: string): Promise<string[]> {
+	const changed = await trackedChanges(repoRoot);
+	if (changed.length > 0) {
+		throw new Error(
+			`Tracked files have uncommitted changes: ${changed.join(", ")}; expected a clean worktree so the task commits only its own work. Ask the user to commit, stash or revert them.`,
+		);
+	}
+	return untrackedPaths(repoRoot);
+}
+
+async function startTaskRun(
+	pi: ExtensionAPI,
+	ctx: ExtensionContext,
+	params: { feature: string; task: number; brief: string },
+	signal: AbortSignal | undefined,
+	onUpdate: OnUpdate,
+): Promise<TaskRun> {
+	const featureDir = await resolveFeatureDir(pi, ctx.cwd, params.feature);
+	const specPath = requireSpec(featureDir);
+	checkApproval(params.feature, specPath);
+	const repoRoot = await gitTopLevel(pi, ctx.cwd);
+	if (!repoRoot)
+		throw new Error(`${ctx.cwd} is not inside a git repository; the task tool commits each task, so run it from one.`);
+	const spec = fs.readFileSync(specPath, "utf-8");
+	const task = findTask(spec, params.task);
+	if (!task) {
+		throw new Error(
+			`Task ${params.task} not found in ${specPath}; expected a "### Task ${params.task}: <commit subject>" heading under "## Tasks".`,
+		);
+	}
+	const checks = parseChecks(spec);
+	if (checks.length === 0) {
+		throw new Error(
+			`No checks in ${specPath}; expected a "## Checks" section whose first fenced block lists shell commands.`,
+		);
+	}
+	const previousRecord = readTaskRecord(featureDir, task.number);
+	const untracked = await preexistingFiles(repoRoot);
+	const preexisting =
+		previousRecord?.status === "blocked" ? withoutPaths(untracked, previousRecord.created ?? []) : untracked;
+	const switchedFrom = await ensureFeatureBranch(repoRoot, params.feature);
+	if (switchedFrom) ctx.ui.notify(`Switched to branch ${params.feature}`, "info");
+	const checkpoint = await createCheckpoint(repoRoot, params.feature).catch((error: unknown) => {
+		ctx.ui.notify(
+			`Checkpoint failed; continuing without it: ${error instanceof Error ? error.message : String(error)}`,
+			"warning",
+		);
+		return undefined;
+	});
+	const notices = [
+		...(switchedFrom ? [`branch: ${params.feature} (from ${switchedFrom})`] : []),
+		...(checkpoint ? [`checkpoint: ${checkpoint}`] : []),
+	];
+	return {
+		pi,
+		ctx,
+		signal,
+		onUpdate,
+		feature: params.feature,
+		featureDir,
+		specPath,
+		repoRoot,
+		task,
+		brief: params.brief,
+		checks,
+		preexisting,
+		earlierReviews: previousRecord?.reviews ?? [],
+		record: {
+			task: task.number,
+			subject: task.subject,
+			status: "blocked",
+			workers: [],
+			reviews: [],
+			checks: [],
+			nonBlocking: [],
+			cost: 0,
+		},
+		usage: emptyUsage(),
+		turns: 0,
+		toolCalls: 0,
+		notices,
+	};
+}
+
+function taskDetails(run: TaskRun): LoopDetails {
+	return {
+		stage: runningStage ?? "worker",
+		feature: run.feature,
+		turns: run.turns,
+		toolCalls: run.toolCalls,
+		usage: run.usage,
+	};
+}
+
+async function blockedResult(run: TaskRun, error: unknown) {
+	const stage: BlockedStage =
+		error instanceof TaskBlocked ? error.stage : run.signal?.aborted ? "aborted" : (runningStage ?? "worker");
+	const reason = error instanceof Error ? error.message : String(error);
+	const untracked = await untrackedPaths(run.repoRoot).catch(() => []);
+	finishRecord(run, "blocked", { stage, created: withoutPaths(untracked, run.preexisting) });
+	return {
+		content: [
+			{
+				type: "text" as const,
+				text: `blocked: ${stage}\n${trimReason(reason)}\ncost: $${run.usage.cost.total.toFixed(2)}\n\n${recordFiles(run)}`,
+			},
+		],
+		details: taskDetails(run),
+		usage: run.usage,
+		isError: true,
+	};
+}
+
+async function executeTask(run: TaskRun) {
+	let sha: string;
+	try {
+		sha = await runTaskPipeline(run);
+	} catch (error) {
+		return blockedResult(run, error);
+	}
+	finishRecord(run, "committed", { sha });
+	const shortSha = (await gitText(run.repoRoot, ["rev-parse", "--short", sha])) ?? sha.slice(0, 12);
+	const subject = (await gitText(run.repoRoot, ["log", "-1", "--format=%s", sha])) ?? run.task.subject;
+	const nonBlocking = run.record.nonBlocking.map((finding) => `- ${finding}`).join("\n") || "none";
+	return {
+		content: [
+			{
+				type: "text" as const,
+				text: `committed ${shortSha} ${subject}\ncost: $${run.usage.cost.total.toFixed(2)}\n\nnon-blocking findings:\n${nonBlocking}\n\n${recordFiles(run)}`,
+			},
+		],
+		details: taskDetails(run),
+		usage: run.usage,
+	};
+}
+
 const FeatureParam = Type.String({
 	description: "Kebab-case feature slug; the spec lives at ~/.pi/plans/<project-slug>/<feature>/spec.md",
 });
 
 export default function (pi: ExtensionAPI) {
 	pi.registerTool({
-		name: "worker",
-		label: "Worker",
+		name: "task",
+		label: "Task",
 		description: [
-			"Dispatch the implementation worker (DeepSeek V4.1 Flash) for a feature whose spec.md exists.",
-			"Each dispatch needs the user's /approve; one approval allows exactly one call. Each dispatch starts a fresh worker by default; prefer that. Pass resume: true only when the previous worker stopped before finishing its task (limit, failure, abort) or on a question the user has since answered, never just to apply review findings; resume is refused above 200k context tokens and a fresh worker starts instead.",
-			"From the repository's default branch, a dispatch first switches to a branch named after the feature.",
-			"Each dispatch saves the tree before it runs as refs/pi/<feature>/<n>; `git diff <ref>` shows that pass.",
-			"Only one worker or reviewer runs at a time. Returns the worker's report.",
+			"Run one task of a feature's spec.md end to end: the DeepSeek V4.1 Flash worker implements it, the spec's Checks run, the GPT-6.1 Sol reviewer reviews it, up to 2 fix passes address blocking findings, then the loop commits it.",
+			"Needs the user's /approve of the current spec.md; the approval covers every task until spec.md changes.",
+			"Needs a clean worktree for tracked files. From the repository's default branch, the first task switches to a branch named after the feature.",
+			"One task runs at a time. Returns `committed <sha> <subject>` with the non-blocking findings, or `blocked: <stage>` with the reason and file paths.",
 		].join(" "),
 		parameters: Type.Object({
 			feature: FeatureParam,
-			task: Type.String({
-				description:
-					"Task brief: which spec section or which review fixes to implement, and anything the worker must know",
-			}),
-			resume: Type.Optional(
-				Type.Boolean({
-					description:
-						"Continue the newest worker session instead of starting a fresh one; only when that worker stopped before finishing or on a question the user has since answered",
-				}),
-			),
+			task: Type.Integer({ minimum: 1, description: "Task number from the spec's `### Task <n>: <subject>` heading" }),
+			brief: Type.String({ description: "What the worker must know beyond the spec" }),
 		}),
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
-			const featureDir = await resolveFeatureDir(pi, ctx.cwd, params.feature);
-			const specPath = requireSpec(featureDir);
-
 			return withLock(
-				"worker",
 				() => refreshStatus(pi, ctx),
-				async () => {
-					checkApproval(params.feature, specPath);
-					const repoRoot = await gitTopLevel(pi, ctx.cwd);
-					const switchedFrom = repoRoot ? await ensureFeatureBranch(repoRoot, params.feature) : undefined;
-					const checkpoint = repoRoot
-						? await createCheckpoint(repoRoot, params.feature).catch((error: unknown) => {
-								ctx.ui.notify(
-									`Checkpoint failed; continuing without it: ${error instanceof Error ? error.message : String(error)}`,
-									"warning",
-								);
-								return undefined;
-							})
-						: undefined;
-					consumeApproval(pi, params.feature);
-					if (switchedFrom) ctx.ui.notify(`Switched to branch ${params.feature}`, "info");
-					const session = chooseWorkerSession(featureDir, params.resume === true, ROLE_CONFIG.worker.maxResumeTokens ?? 0);
-					const sessionFile = session.file;
-					const transcript = { file: sessionFile, fromLine: session.resumed ? countLines(sessionFile) : 0 };
-					const result = await runChild(
-						{ ...ROLE_CONFIG.worker, sessionFile },
-						await workerMessage(repoRoot, params.feature, featureDir, specPath, params.task, session),
-						ctx.cwd,
-						signal,
-						progressReporter("worker", params.feature, transcript, onUpdate),
-					);
-					const details = makeDetails("worker", params.feature, result, transcript);
-					if (isFailed(result)) {
-						return {
-							content: [{ type: "text", text: failureText("worker", result) }],
-							details,
-							usage: result.usage,
-							isError: true,
-						};
-					}
-					return {
-						content: [
-							{
-								type: "text",
-								text: `${result.finalText || "(no output)"}\n\nsession: ${sessionFile} (${session.resumed ? "resumed" : "fresh"})${session.notice ? `\n${session.notice}` : ""}${checkpoint ? `\ncheckpoint: ${checkpoint}` : ""}${switchedFrom ? `\nbranch: ${params.feature} (from ${switchedFrom})` : ""}`,
-							},
-						],
-						details,
-						usage: result.usage,
-					};
-				},
+				async () => executeTask(await startTaskRun(pi, ctx, params, signal, onUpdate)),
 			);
 		},
 
 		renderCall(args, theme) {
-			return callView("worker", args.feature, args.task, theme);
-		},
-
-		renderResult(result, options, theme, context) {
-			return resultView(result, options, theme, context.state);
-		},
-	});
-
-	pi.registerTool({
-		name: "reviewer",
-		label: "Reviewer",
-		description: [
-			"Run a fresh read-only reviewer (GPT-6.1 Sol) on the uncommitted changes against the feature's spec.md.",
-			"Writes the verdict to review-<n>.md next to the spec and returns it.",
-			"Only one worker or reviewer runs at a time.",
-		].join(" "),
-		parameters: Type.Object({
-			feature: FeatureParam,
-			focus: Type.Optional(Type.String({ description: "Optional area the reviewer should examine most closely" })),
-		}),
-
-		async execute(_toolCallId, params, signal, onUpdate, ctx) {
-			const featureDir = await resolveFeatureDir(pi, ctx.cwd, params.feature);
-			const specPath = requireSpec(featureDir);
-
-			return withLock(
-				"reviewer",
-				() => refreshStatus(pi, ctx),
-				async () => {
-					const reviewNumber = nextReviewNumber(featureDir);
-					const previousReviews = previousReviewPaths(featureDir);
-					const repoRoot = await gitTopLevel(pi, ctx.cwd);
-					const scratchDir = path.join(featureDir, `scratch-${reviewNumber}`);
-					let scratchReady = false;
-					if (repoRoot) {
-						try {
-							await createScratch(repoRoot, scratchDir);
-							scratchReady = true;
-						} catch (error) {
-							await removeScratch(repoRoot, scratchDir);
-							const reason = error instanceof Error ? error.message : String(error);
-							ctx.ui.notify(`Reviewer scratch copy failed; reviewing without it: ${reason}`, "warning");
-						}
-					}
-					const scope = await reviewScope(repoRoot, params.feature);
-					try {
-						return await runReview(reviewNumber, previousReviews, scratchReady ? scratchDir : undefined, scope);
-					} finally {
-						if (repoRoot) await removeScratch(repoRoot, scratchDir);
-					}
-				},
+			return callView(
+				"task",
+				args.feature,
+				args.task === undefined ? args.brief : `${args.task}: ${args.brief ?? ""}`,
+				theme,
 			);
-
-			async function runReview(reviewNumber: number, previousReviews: string[], scratch: string | undefined, scope: string) {
-				const message = [
-					`Spec: ${specPath}`,
-					scratch ? `Scratch: ${scratch}` : undefined,
-					previousReviews.length > 0 ? `Previous reviews:\n${previousReviews.join("\n")}` : undefined,
-					params.focus ? `Focus: ${params.focus}` : undefined,
-					scope,
-				]
-					.filter((line) => line !== undefined)
-					.join("\n\n");
-				const transcript = { file: path.join(featureDir, `review-${reviewNumber}.jsonl`), fromLine: 0 };
-				const result = await runChild(
-					{ ...ROLE_CONFIG.reviewer, sessionFile: transcript.file, scratch },
-					message,
-					ctx.cwd,
-					signal,
-					progressReporter("reviewer", params.feature, transcript, onUpdate),
-				);
-				if (isFailed(result)) {
-					return {
-						content: [{ type: "text", text: failureText("reviewer", result) }],
-						details: makeDetails("reviewer", params.feature, result, transcript),
-						usage: result.usage,
-						isError: true,
-					};
-				}
-				if (!result.finalText.trim()) {
-					return {
-						content: [{ type: "text", text: "The reviewer returned no verdict." }],
-						details: makeDetails("reviewer", params.feature, result, transcript),
-						usage: result.usage,
-						isError: true,
-					};
-				}
-				const reviewPath = path.join(featureDir, `review-${reviewNumber}.md`);
-				fs.writeFileSync(reviewPath, `${result.finalText.trim()}\n`, { encoding: "utf-8", flag: "wx" });
-				return {
-					content: [{ type: "text", text: `${result.finalText}\n\nreview: ${reviewPath}` }],
-					details: makeDetails("reviewer", params.feature, result, transcript, reviewPath),
-					usage: result.usage,
-				};
-			}
-		},
-
-		renderCall(args, theme) {
-			return callView("reviewer", args.feature, args.focus, theme);
 		},
 
 		renderResult(result, options, theme, context) {
@@ -1099,7 +1334,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("tool_call", async (event, ctx) => {
-		if (event.toolName === "worker" || event.toolName === "reviewer") {
+		if (event.toolName === "task") {
 			const feature = event.input.feature;
 			if (typeof feature !== "string" || !FEATURE_PATTERN.test(feature)) return undefined;
 			touchFeature(pi, feature);
@@ -1116,7 +1351,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("approve", {
-		description: "Approve the current spec or fix pass so the worker can run once; text after it goes to the agent",
+		description: "Approve the current spec so its tasks can run; text after it goes to the agent",
 		handler: async (args, ctx) => {
 			if (!ctx.isIdle()) {
 				ctx.ui.notify("The agent is busy; wait for it to stop, then run /approve again.", "warning");
@@ -1133,7 +1368,7 @@ export default function (pi: ExtensionAPI) {
 			await refreshStatus(pi, ctx);
 			ctx.ui.notify(`Approved ${feature}`, "info");
 			const notes = args.trim();
-			pi.sendUserMessage(`Approved: dispatch the worker for ${feature}.${notes ? `\n\n${notes}` : ""}`);
+			pi.sendUserMessage(`Approved: run the tasks for ${feature}.${notes ? `\n\n${notes}` : ""}`);
 		},
 	});
 }
