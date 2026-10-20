@@ -10,7 +10,7 @@ import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -43,6 +43,12 @@ ZONE_PATTERN = re.compile(re.escape(REGION) + r"-[a-z]")
 NAME_PATTERN = re.compile(r"[a-z]([-a-z0-9]{0,61}[a-z0-9])?")
 OPERATION_PATTERN = re.compile(r"[-a-zA-Z0-9_]{1,128}")
 QUOTA_PATTERN = re.compile(r"QUOTA_EXCEEDED|Quota '[A-Z0-9_]+' exceeded")
+INSTANCE_METADATA = {
+    "enable-guest-attributes": "TRUE",
+    "block-project-ssh-keys": "TRUE",
+    "enable-oslogin": "FALSE",
+    "serial-port-enable": "FALSE",
+}
 
 INTERVAL = 30.0
 REQUEST_TIMEOUT = 30.0
@@ -360,13 +366,13 @@ def operation_errors(operation: dict[str, object]) -> str | None:
     return "; ".join(parts) or "the operation reported an error"
 
 
-def read_system(path: Path) -> tuple[str | None, str]:
+def read_system(path: Path, host: str) -> tuple[str | None, str]:
     try:
         raw = path.read_text()
     except FileNotFoundError:
         return None, (
             f"{path} does not exist; the main agent writes it when it "
-            "publishes a ci-builder system from main. Run a main build"
+            f"publishes a {host} system from main. Run a main build"
         )
     except (OSError, UnicodeDecodeError) as error:
         return None, f"reading {path} failed: {error}"
@@ -374,7 +380,7 @@ def read_system(path: Path) -> tuple[str | None, str]:
     if not SYSTEM_PATTERN.fullmatch(system):
         return None, (
             f"{path} does not hold one /nix/store/<hash>-nixos-system-* "
-            "path; publish a ci-builder system from main to rewrite it"
+            f"path; publish a {host} system from main to rewrite it"
         )
     return system, f"{path} holds {system}"
 
@@ -385,12 +391,16 @@ def instance_body(
     shape: str,
     zone: str,
     metadata: Mapping[str, str],
+    *,
+    label: str,
+    run_duration: int,
+    tags: Sequence[str] = (),
 ) -> dict[str, object]:
     project = account.project
-    return {
+    body: dict[str, object] = {
         "name": name,
         "machineType": f"zones/{zone}/machineTypes/{shape}",
-        "labels": {LABEL: "true"},
+        "labels": {label: "true"},
         "disks": [
             {
                 "boot": True,
@@ -422,7 +432,7 @@ def instance_body(
         "scheduling": {
             "provisioningModel": "SPOT",
             "instanceTerminationAction": "DELETE",
-            "maxRunDuration": {"seconds": str(RUN_DURATION)},
+            "maxRunDuration": {"seconds": str(run_duration)},
             "automaticRestart": False,
             "onHostMaintenance": "TERMINATE",
         },
@@ -432,6 +442,166 @@ def instance_body(
             ]
         },
     }
+    if tags:
+        body["tags"] = {"items": list(tags)}
+    return body
+
+
+class GcpClient:
+    def __init__(self, transport: Transport, clock: Clock, log: Log) -> None:
+        self._transport = transport
+        self._clock = clock
+        self._log = log
+        self._token: AccessToken | None = None
+
+    def forget_token(self) -> None:
+        self._token = None
+
+    def load_account(self, path: Path) -> ServiceAccount:
+        advice = (
+            "expected a service-account JSON key for maybe-ci-spot. "
+            "Encrypt one into nix/secrets/blaziken/gcp-ci-key.age"
+        )
+        try:
+            text = path.read_text()
+        except (OSError, UnicodeDecodeError) as error:
+            raise CredentialsError(
+                f"reading the GCP key {path} failed: {error}; {advice}"
+            ) from error
+        try:
+            data = json.loads(text)
+        except ValueError:
+            raise CredentialsError(
+                f"the GCP key {path} is not JSON; {advice}"
+            ) from None
+        if not isinstance(data, dict):
+            raise CredentialsError(f"the GCP key {path} is invalid; {advice}")
+        fields = {}
+        for field in ("project_id", "client_email", "private_key_id"):
+            value = data.get(field)
+            if not isinstance(value, str) or not value:
+                raise CredentialsError(
+                    f"the GCP key {path} has no {field}; {advice}"
+                )
+            fields[field] = value
+        pem = data.get("private_key")
+        if not isinstance(pem, str) or not pem:
+            raise CredentialsError(
+                f"the GCP key {path} has no private_key; {advice}"
+            )
+        self._log.secret(
+            "gcp-private-key",
+            pem,
+            *(
+                line
+                for line in pem.splitlines()
+                if len(line) >= 16 and not line.startswith("-----")
+            ),
+        )
+        if not PROJECT_PATTERN.fullmatch(fields["project_id"]):
+            raise CredentialsError(
+                f"the GCP key {path} has an invalid project_id; {advice}"
+            )
+        try:
+            key = serialization.load_pem_private_key(
+                pem.encode(), password=None
+            )
+        except (ValueError, TypeError):
+            raise CredentialsError(
+                f"the private_key in the GCP key {path} does not load; "
+                f"{advice}"
+            ) from None
+        if not isinstance(key, rsa.RSAPrivateKey):
+            raise CredentialsError(
+                f"the private_key in the GCP key {path} is not RSA; {advice}"
+            )
+        return ServiceAccount(
+            project=fields["project_id"],
+            email=fields["client_email"],
+            key_id=fields["private_key_id"],
+            key=key,
+        )
+
+    def send(
+        self,
+        method: str,
+        url: str,
+        headers: Mapping[str, str],
+        body: bytes | None,
+        timeout: float,
+    ) -> Response:
+        try:
+            return self._transport.request(method, url, headers, body, timeout)
+        except TransportError as error:
+            target = url.split("?", 1)[0]
+            raise Unreachable(f"{method} {target}: {error}") from error
+
+    def access_token(self, account: ServiceAccount) -> str:
+        now = self._clock.monotonic()
+        cached = self._token
+        if (
+            cached is not None
+            and cached.key_id == account.key_id
+            and now < cached.expires
+        ):
+            return cached.value
+        assertion = sign_assertion(account, int(self._clock.time()))
+        self._log.secret("gcp-assertion", assertion)
+        body = urllib.parse.urlencode(
+            {"grant_type": GRANT_TYPE, "assertion": assertion}
+        ).encode()
+        response = self.send(
+            "POST",
+            TOKEN_URI,
+            {"Content-Type": "application/x-www-form-urlencoded"},
+            body,
+            REQUEST_TIMEOUT,
+        )
+        if response.status != 200:
+            raise ApiError(
+                f"exchanging key {account.key_id} of {account.email} for an "
+                f"access token returned HTTP {response.status}: "
+                f"{error_message(response.body)}. Check that the key is "
+                "active and blaziken's clock is right"
+            )
+        data = parse_object(response.body, "the GCP token endpoint")
+        value = expect_str(data.get("access_token"), "access_token")
+        lifetime = expect_count(data.get("expires_in"), "expires_in")
+        self._log.secret("gcp-access-token", value)
+        self._token = AccessToken(
+            key_id=account.key_id,
+            value=value,
+            expires=now + max(0, lifetime - TOKEN_MARGIN),
+        )
+        return value
+
+    def request(
+        self,
+        account: ServiceAccount,
+        method: str,
+        url: str,
+        body: object | None = None,
+        timeout: float = REQUEST_TIMEOUT,
+    ) -> dict[str, object]:
+        headers = {"Authorization": f"Bearer {self.access_token(account)}"}
+        data = None
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+            data = json.dumps(body).encode()
+        elif method == "POST":
+            data = b""
+        response = self.send(method, url, headers, data, timeout)
+        target = url.split("?", 1)[0].removeprefix(COMPUTE)
+        if response.status == 401:
+            self._token = None
+        if response.status == 404:
+            raise NotFound(f"{method} {target}: not found")
+        if not 200 <= response.status < 300:
+            raise ApiError(
+                f"{method} {target} returned HTTP {response.status}: "
+                f"{error_message(response.body)}"
+            )
+        return parse_object(response.body, f"{method} {target}")
 
 
 class Poller:
@@ -443,10 +613,9 @@ class Poller:
         log: Log,
     ) -> None:
         self._config = config
-        self._transport = transport
+        self._client = GcpClient(transport, clock, log)
         self._clock = clock
         self._log = log
-        self._token: AccessToken | None = None
         self._problems: dict[str, str] = {}
         self._system_state: str | None = None
         self._ready: set[str] = set()
@@ -543,7 +712,7 @@ class Poller:
     def _metrics(self, token: str) -> Metrics | None:
         queue = self._config.queue
         try:
-            response = self._send(
+            response = self._client.send(
                 "GET",
                 METRICS_URL,
                 {"Authorization": f"Token {token}"},
@@ -588,7 +757,7 @@ class Poller:
         return expect_object(queues[queue], f"metrics {section}.{queue}")
 
     def _system(self) -> str | None:
-        system, state = read_system(self._config.system_file)
+        system, state = read_system(self._config.system_file, "ci-builder")
         if state != self._system_state:
             self._system_state = state
             if system is None:
@@ -600,159 +769,13 @@ class Poller:
     def _account(self) -> ServiceAccount | None:
         path = self._config.gcp_key_path
         try:
-            account = self._load_account(path)
+            account = self._client.load_account(path)
         except CredentialsError as error:
-            self._token = None
+            self._client.forget_token()
             self._report("gcp-key", str(error))
             return None
         self._report("gcp-key", None)
         return account
-
-    def _load_account(self, path: Path) -> ServiceAccount:
-        advice = (
-            "expected a service-account JSON key for maybe-ci-spot. "
-            "Encrypt one into nix/secrets/blaziken/gcp-ci-key.age"
-        )
-        try:
-            text = path.read_text()
-        except (OSError, UnicodeDecodeError) as error:
-            raise CredentialsError(
-                f"reading the GCP key {path} failed: {error}; {advice}"
-            ) from error
-        try:
-            data = json.loads(text)
-        except ValueError:
-            raise CredentialsError(
-                f"the GCP key {path} is not JSON; {advice}"
-            ) from None
-        if not isinstance(data, dict):
-            raise CredentialsError(f"the GCP key {path} is invalid; {advice}")
-        fields = {}
-        for field in ("project_id", "client_email", "private_key_id"):
-            value = data.get(field)
-            if not isinstance(value, str) or not value:
-                raise CredentialsError(
-                    f"the GCP key {path} has no {field}; {advice}"
-                )
-            fields[field] = value
-        pem = data.get("private_key")
-        if not isinstance(pem, str) or not pem:
-            raise CredentialsError(
-                f"the GCP key {path} has no private_key; {advice}"
-            )
-        self._log.secret(
-            "gcp-private-key",
-            pem,
-            *(
-                line
-                for line in pem.splitlines()
-                if len(line) >= 16 and not line.startswith("-----")
-            ),
-        )
-        if not PROJECT_PATTERN.fullmatch(fields["project_id"]):
-            raise CredentialsError(
-                f"the GCP key {path} has an invalid project_id; {advice}"
-            )
-        try:
-            key = serialization.load_pem_private_key(
-                pem.encode(), password=None
-            )
-        except (ValueError, TypeError):
-            raise CredentialsError(
-                f"the private_key in the GCP key {path} does not load; "
-                f"{advice}"
-            ) from None
-        if not isinstance(key, rsa.RSAPrivateKey):
-            raise CredentialsError(
-                f"the private_key in the GCP key {path} is not RSA; {advice}"
-            )
-        return ServiceAccount(
-            project=fields["project_id"],
-            email=fields["client_email"],
-            key_id=fields["private_key_id"],
-            key=key,
-        )
-
-    def _send(
-        self,
-        method: str,
-        url: str,
-        headers: Mapping[str, str],
-        body: bytes | None,
-        timeout: float,
-    ) -> Response:
-        try:
-            return self._transport.request(method, url, headers, body, timeout)
-        except TransportError as error:
-            target = url.split("?", 1)[0]
-            raise Unreachable(f"{method} {target}: {error}") from error
-
-    def _access_token(self, account: ServiceAccount) -> str:
-        now = self._clock.monotonic()
-        cached = self._token
-        if (
-            cached is not None
-            and cached.key_id == account.key_id
-            and now < cached.expires
-        ):
-            return cached.value
-        assertion = sign_assertion(account, int(self._clock.time()))
-        self._log.secret("gcp-assertion", assertion)
-        body = urllib.parse.urlencode(
-            {"grant_type": GRANT_TYPE, "assertion": assertion}
-        ).encode()
-        response = self._send(
-            "POST",
-            TOKEN_URI,
-            {"Content-Type": "application/x-www-form-urlencoded"},
-            body,
-            REQUEST_TIMEOUT,
-        )
-        if response.status != 200:
-            raise ApiError(
-                f"exchanging key {account.key_id} of {account.email} for an "
-                f"access token returned HTTP {response.status}: "
-                f"{error_message(response.body)}. Check that the key is "
-                "active and blaziken's clock is right"
-            )
-        data = parse_object(response.body, "the GCP token endpoint")
-        value = expect_str(data.get("access_token"), "access_token")
-        lifetime = expect_count(data.get("expires_in"), "expires_in")
-        self._log.secret("gcp-access-token", value)
-        self._token = AccessToken(
-            key_id=account.key_id,
-            value=value,
-            expires=now + max(0, lifetime - TOKEN_MARGIN),
-        )
-        return value
-
-    def _gcp(
-        self,
-        account: ServiceAccount,
-        method: str,
-        url: str,
-        body: object | None = None,
-        timeout: float = REQUEST_TIMEOUT,
-    ) -> dict[str, object]:
-        headers = {"Authorization": f"Bearer {self._access_token(account)}"}
-        data = None
-        if body is not None:
-            headers["Content-Type"] = "application/json"
-            data = json.dumps(body).encode()
-        elif method == "POST":
-            data = b""
-        response = self._send(method, url, headers, data, timeout)
-        target = url.split("?", 1)[0].removeprefix(COMPUTE)
-        if response.status == 401:
-            self._token = None
-        if response.status == 404:
-            raise NotFound(f"{method} {target}: not found")
-        if not 200 <= response.status < 300:
-            raise ApiError(
-                f"{method} {target} returned HTTP {response.status}: "
-                f"{error_message(response.body)}"
-            )
-        return parse_object(response.body, f"{method} {target}")
 
     def _inventory(self, account: ServiceAccount) -> Inventory | None:
         try:
@@ -776,7 +799,7 @@ class Poller:
             query = {"filter": LABEL_FILTER, "maxResults": "500"}
             if page:
                 query["pageToken"] = page
-            data = self._gcp(
+            data = self._client.request(
                 account,
                 "GET",
                 f"{COMPUTE}/projects/{account.project}/aggregated/instances?"
@@ -858,7 +881,7 @@ class Poller:
             + urllib.parse.urlencode({"queryPath": "ci-builder/"})
         )
         try:
-            data = self._gcp(account, "GET", url)
+            data = self._client.request(account, "GET", url)
         except NotFound:
             return Readiness.NOT_READY
         except ApiError as error:
@@ -944,7 +967,7 @@ class Poller:
         )
         self._log(f"deleting {instance.name} in {instance.zone}: {reason}")
         try:
-            self._gcp(account, "DELETE", url)
+            self._client.request(account, "DELETE", url)
         except NotFound:
             pass
         except ApiError as error:
@@ -966,10 +989,7 @@ class Poller:
             "startup-script": self._config.startup_script,
             "buildkite-agent-token": token,
             "ci-builder-system": system,
-            "enable-guest-attributes": "TRUE",
-            "block-project-ssh-keys": "TRUE",
-            "enable-oslogin": "FALSE",
-            "serial-port-enable": "FALSE",
+            **INSTANCE_METADATA,
         }
         candidates = [
             (shape, zone) for shape in SHAPES for zone in self._config.zones
@@ -1020,10 +1040,18 @@ class Poller:
         deadline: float,
     ) -> Outcome:
         name = f"{LABEL}-{secrets.token_hex(4)}"
-        body = instance_body(account, name, shape, zone, metadata)
+        body = instance_body(
+            account,
+            name,
+            shape,
+            zone,
+            metadata,
+            label=LABEL,
+            run_duration=RUN_DURATION,
+        )
         zone_url = f"{COMPUTE}/projects/{account.project}/zones/{zone}"
         try:
-            operation = self._gcp(
+            operation = self._client.request(
                 account, "POST", f"{zone_url}/instances", body
             )
         except Unreachable as error:
@@ -1056,7 +1084,7 @@ class Poller:
                 )
                 return Outcome.UNDETERMINED
             try:
-                operation = self._gcp(
+                operation = self._client.request(
                     account,
                     "POST",
                     f"{zone_url}/operations/{operation_name}/wait",

@@ -246,6 +246,21 @@ The `spot-builders` Buildkite queue runs on GCE Spot VMs booted from the
   when every launch failed with no VM alive, when the ci-builder system file
   is missing or invalid, or when no VM has been ready for 5 minutes. It exits
   after 5 idle minutes.
+- `ci-remote-builder` (`ci-remote-builder.nix`) leases a single-use VM as a Nix
+  remote builder for publish. It is on the `buildkite-agent-main` job PATH
+  only, and `buildkite-agent-main` is a trusted Nix user so the daemon accepts
+  its `builders`; the untrusted agents are neither.
+  - `ci-remote-builder lease <job-id>` launches `maybe-ci-remote-<job-id>`,
+    labelled `maybe-ci-remote=true` and tagged `ci-remote-builder`, with the
+    same shapes and zones as the poller and the ci-remote-builder toplevel
+    from `/var/lib/buildkite-agent-main/ci-remote-builder-system`. It waits up
+    to 5 minutes for the guest attribute `ci-remote-builder/ready` and prints
+    one `builders` line for `ssh-ng://builder@<address>`, pinned to the host
+    key the VM published in `ci-remote-builder/host-key`. On any failure it
+    deletes the VM and exits non-zero.
+  - `ci-remote-builder release <job-id>` deletes the VM and succeeds when it is
+    already gone.
+  - The poller ignores these VMs. GCE deletes each one after 2 hours.
 
 The poller logs each launch, deletion and fallback request; read them with
 `journalctl -u ci-spot-poller`. Until `secrets/blaziken/gcp-ci-key.age` holds
@@ -262,7 +277,8 @@ One-time setup, in a shell with gcloud (`nix shell nixpkgs#google-cloud-sdk`):
    ~/maybe/nix/gcp/ci-spot.sh
    ```
 
-   The firewall allows egress to TCP 80 and 443 only, and no ingress. Traffic
+   The firewall allows egress to TCP 80 and 443 only. The only ingress is TCP
+   22 from blaziken (147.135.1.187) to VMs tagged `ci-remote-builder`. Traffic
    to the metadata server at 169.254.169.254, including DNS, is not subject to
    VPC firewall rules.
 2. Run the commands the script prints. They create a key for `maybe-ci-spot`,

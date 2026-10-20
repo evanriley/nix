@@ -17,6 +17,7 @@ permissions=(
   compute.instances.list
   compute.instances.setLabels
   compute.instances.setMetadata
+  compute.instances.setTags
   compute.subnetworks.use
   compute.subnetworks.useExternalIp
   compute.zoneOperations.get
@@ -52,18 +53,23 @@ fi
 
 echo "--- firewall"
 firewall_rule() {
-  local name=$1 action=$2 rules=$3 priority=$4
+  local name=$1 direction=$2 action=$3 rules=$4 priority=$5
+  shift 5
   if exists gcloud compute firewall-rules describe "$name" --project="$project"; then
     gcloud compute firewall-rules update "$name" --project="$project" \
-      --rules="$rules" --destination-ranges=0.0.0.0/0 --priority="$priority"
+      --rules="$rules" --priority="$priority" "$@"
   else
     gcloud compute firewall-rules create "$name" --project="$project" \
-      --network="$network" --direction=EGRESS --action="$action" \
-      --rules="$rules" --destination-ranges=0.0.0.0/0 --priority="$priority"
+      --network="$network" --direction="$direction" --action="$action" \
+      --rules="$rules" --priority="$priority" "$@"
   fi
 }
-firewall_rule maybe-ci-allow-web-egress ALLOW tcp:80,tcp:443 1000
-firewall_rule maybe-ci-deny-egress DENY all 65535
+firewall_rule maybe-ci-allow-web-egress EGRESS ALLOW tcp:80,tcp:443 1000 \
+  --destination-ranges=0.0.0.0/0
+firewall_rule maybe-ci-deny-egress EGRESS DENY all 65535 \
+  --destination-ranges=0.0.0.0/0
+firewall_rule maybe-ci-allow-builder-ssh INGRESS ALLOW tcp:22 1000 \
+  --source-ranges=147.135.1.187/32 --target-tags=ci-remote-builder
 
 echo "--- role $role"
 role_flags=(
