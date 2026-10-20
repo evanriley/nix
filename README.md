@@ -238,7 +238,7 @@ The `spot-builders` Buildkite queue runs on GCE Spot VMs booted from the
 - Each VM receives the ci-builder toplevel that `ci.sh publish` last recorded
   in `/var/lib/buildkite-agent-main/ci-builder-system`. Its startup script
   switches to that system, starts one agent and sets the guest attribute
-  `ci-builder/ready`. The agent exits after 5 idle minutes and the VM powers
+  `ci-builder/ready`. The agent exits after 3 idle minutes and the VM powers
   off; GCE deletes any VM after 6 hours.
 - `buildkite-agent-spot-fallback.service` on blaziken serves the same queue as
   the untrusted `buildkite-agent-blaziken` user and never starts at boot.

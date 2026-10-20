@@ -80,7 +80,7 @@ in
         name = "$(cat ${credentialsDir}/agent-name)";
         extraConfig = ''
           spawn=1
-          disconnect-after-idle-timeout=300
+          disconnect-after-idle-timeout=180
         '';
         extraGroups = [ ];
         tags.queue = "spot-builders";
