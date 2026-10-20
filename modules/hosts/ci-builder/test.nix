@@ -380,6 +380,12 @@ in
                   boot_until_ready()
                   builder.execute(f"systemctl kill --kill-whom=main --signal=SIGQUIT {agent_unit} >&2 &", check_return=False)
                   assert_agent_end_powers_off("exit-code")
+
+              with subtest("a system shutdown sends the agent SIGQUIT to cancel its job"):
+                  boot_until_ready()
+                  builder.execute("systemctl poweroff >&2 &", check_return=False)
+                  builder.wait_for_console_text(r"buildkite-agent\[\d+\]: SIGQUIT: quit", timeout=datetime.timedelta(minutes=1))
+                  builder.wait_for_shutdown(timeout=datetime.timedelta(minutes=2))
             '';
         }
       );

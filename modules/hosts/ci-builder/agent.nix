@@ -102,6 +102,18 @@ in
         };
       };
 
+      systemd.services.ci-builder-agent-cancel = {
+        description = "Cancel the running Buildkite job when the VM shuts down";
+        wantedBy = [ "multi-user.target" ];
+        after = [ "${agent}.service" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ExecStart = "${pkgs.coreutils}/bin/true";
+          ExecStop = "-${config.systemd.package}/bin/systemctl kill --kill-whom=main --signal=SIGQUIT ${agent}.service";
+        };
+      };
+
       systemd.services.ci-builder-startup = {
         description = "Fetch and run the GCE startup-script";
         wantedBy = [ "multi-user.target" ];
