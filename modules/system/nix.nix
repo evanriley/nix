@@ -22,7 +22,7 @@ let
       "https://evanriley.cachix.org"
       "https://devenv.cachix.org"
       "https://noctalia.cachix.org"
-      "https://cache.numtide.com"
+      "https://cache.numtide.com?priority=45"
       "https://orca.cachix.org"
     ];
     extra-trusted-public-keys = [
