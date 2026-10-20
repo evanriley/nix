@@ -7,10 +7,12 @@ import { after, test } from "node:test";
 import {
 	commitMessage,
 	commitTask,
+	contextCapStep,
 	featureCost,
 	findTask,
 	parseChecks,
 	parseCommitMessage,
+	parseContextCap,
 	parseTasks,
 	parseVerdict,
 	runChecks,
@@ -341,4 +343,55 @@ test("featureCost_workerAndReviewSessions_sumsAssistantCosts", () => {
 	fs.writeFileSync(path.join(featureDir, "review-1.jsonl"), `${assistant(0.5)}\nnot json\n`);
 	fs.writeFileSync(path.join(featureDir, "other.jsonl"), `${assistant(50)}\n`);
 	assert.equal(featureCost(featureDir), 4);
+});
+
+test("parseContextCap_positiveInteger_returnsIt", () => {
+	assert.equal(parseContextCap("2000", 160_000), 2000);
+	assert.equal(parseContextCap(" 2000\n", 160_000), 2000);
+});
+
+test("parseContextCap_missingOrInvalid_returnsFallback", () => {
+	for (const value of [undefined, "", "0", "-5", "1.5", "2e3", "abc", "0100", "99999999999999999999"]) {
+		assert.equal(parseContextCap(value, 160_000), 160_000, `value ${value}`);
+	}
+});
+
+test("contextCapStep_belowCap_doesNothing", () => {
+	assert.deepEqual(contextCapStep(159_999, 160_000, 30_000, { warned: false, aborted: false }), {
+		warn: false,
+		abort: false,
+	});
+});
+
+test("contextCapStep_atCap_warnsOnce", () => {
+	assert.deepEqual(contextCapStep(160_000, 160_000, 30_000, { warned: false, aborted: false }), {
+		warn: true,
+		abort: false,
+	});
+	assert.deepEqual(contextCapStep(170_000, 160_000, 30_000, { warned: true, aborted: false }), {
+		warn: false,
+		abort: false,
+	});
+});
+
+test("contextCapStep_atHardStop_abortsOnceWithoutWarning", () => {
+	assert.deepEqual(contextCapStep(190_000, 160_000, 30_000, { warned: true, aborted: false }), {
+		warn: false,
+		abort: true,
+	});
+	assert.deepEqual(contextCapStep(200_000, 160_000, 30_000, { warned: false, aborted: false }), {
+		warn: false,
+		abort: true,
+	});
+	assert.deepEqual(contextCapStep(200_000, 160_000, 30_000, { warned: true, aborted: true }), {
+		warn: false,
+		abort: false,
+	});
+});
+
+test("contextCapStep_pastHardStopAfterAbort_warnsIfNeverWarned", () => {
+	assert.deepEqual(contextCapStep(200_000, 160_000, 30_000, { warned: false, aborted: true }), {
+		warn: true,
+		abort: false,
+	});
 });

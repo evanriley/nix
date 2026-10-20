@@ -8,6 +8,7 @@ import type { AgentToolResult } from "@earendil-works/pi-agent-core";
 import type { Message, Usage } from "@earendil-works/pi-ai";
 import {
 	type ExtensionAPI,
+	type ExtensionCommandContext,
 	type ExtensionContext,
 	getAgentDir,
 	getMarkdownTheme,
@@ -28,12 +29,15 @@ import {
 import { Type } from "typebox";
 import {
 	type CheckRun,
+	type ContextCapState,
 	commitMessage,
 	commitTask,
+	contextCapStep,
 	featureCost,
 	findTask,
 	nextNumber,
 	parseChecks,
+	parseContextCap,
 	parseVerdict,
 	readTaskRecord,
 	runChecks,
@@ -61,6 +65,9 @@ const CHECK_TIMEOUT_MINUTES = 30;
 const MAX_CHECK_RETRIES = 2;
 const MAX_FIX_PASSES = 2;
 const REASON_LINES = 40;
+const PLANNER_CONTEXT_CAP = 160_000;
+const PLANNER_CONTEXT_HARD_MARGIN = 30_000;
+const plannerContextCap = parseContextCap(process.env.PI_LOOP_CONTEXT_CAP, PLANNER_CONTEXT_CAP);
 const REVIEW_SCOPE =
 	"Review the uncommitted changes in this repository against the spec: run `git status`, `git diff` and `git diff --cached`, and read every file listed by `git ls-files --others --exclude-standard`.";
 
@@ -150,6 +157,7 @@ let taskRunning = false;
 let runningStage: Stage | undefined;
 let lastTouchedFeature: string | undefined;
 const approvals = new Map<string, string>();
+const contextCapState: ContextCapState = { warned: false, aborted: false };
 
 interface ApprovalEntryData {
 	feature: string;
@@ -1287,6 +1295,97 @@ async function executeTask(run: TaskRun) {
 	};
 }
 
+interface FeatureTarget {
+	feature: string;
+	featureDir: string;
+}
+
+function contextCapMessage(tokens: number, target: FeatureTarget | undefined): string {
+	const reached = `The context cap was reached: context is at ${tokens} tokens (cap ${plannerContextCap}). Finish the current step only if it is one tool call.`;
+	if (!target) {
+		return `${reached} Then summarise in chat what is done, the current state, the next steps, open questions and decisions, and STOP. Tell the user to start a new session and paste the summary there.`;
+	}
+	return `${reached} Then write ${path.join(target.featureDir, "status.md")}: the tasks committed with their SHAs, the current task and its state, the next steps, open questions, decisions, and anything the user said that the spec does not record. Then STOP and tell the user to run /resume-feature ${target.feature}.`;
+}
+
+async function enforceContextCap(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
+	const tokens = ctx.getContextUsage()?.tokens;
+	if (tokens === undefined || tokens === null) return;
+	const step = contextCapStep(tokens, plannerContextCap, PLANNER_CONTEXT_HARD_MARGIN, contextCapState);
+	const feature = lastTouchedFeature;
+	if (step.abort) {
+		contextCapState.aborted = true;
+		ctx.abort();
+		const resume = feature ? `/resume-feature ${feature}` : "/resume-feature <feature>, or start a new session,";
+		ctx.ui.notify(
+			`Context at ${tokens} tokens passed the hard stop of ${plannerContextCap + PLANNER_CONTEXT_HARD_MARGIN}; aborted the agent. Run ${resume} to continue.`,
+			"warning",
+		);
+	}
+	if (step.warn) {
+		contextCapState.warned = true;
+		const target = feature ? { feature, featureDir: path.join(await projectPlansDir(pi, ctx.cwd), feature) } : undefined;
+		pi.sendUserMessage(contextCapMessage(tokens, target), { deliverAs: "steer" });
+	}
+}
+
+function resumeMessage(target: FeatureTarget, approved: boolean): string {
+	const { feature, featureDir } = target;
+	const reads = [
+		`Resume feature ${feature}.`,
+		`Read ${path.join(featureDir, "spec.md")}, ${path.join(featureDir, "status.md")} if it exists, every task-*.json in ${featureDir}, and \`git log --oneline\` since the feature started (from the upstream default branch to HEAD).`,
+		`The rules of /feature are in ${path.join(getAgentDir(), "prompts", "feature.md")}; follow them.`,
+	].join(" ");
+	const next = approved
+		? "Then continue from the first task that is not committed by calling `task`."
+		: "The spec changed after its approval or was never approved: present it to the user and STOP until they run /approve.";
+	return `${reads}\n\n${next}`;
+}
+
+async function resumeFeature(pi: ExtensionAPI, args: string, ctx: ExtensionCommandContext): Promise<void> {
+	if (!ctx.isIdle()) {
+		ctx.ui.notify("The agent is busy; wait for it to stop, then run /resume-feature again.", "warning");
+		return;
+	}
+	const feature = args.trim() || lastTouchedFeature;
+	if (!feature) {
+		ctx.ui.notify("No feature to resume; run /resume-feature <feature>.", "warning");
+		return;
+	}
+	let featureDir: string;
+	try {
+		featureDir = await resolveFeatureDir(pi, ctx.cwd, feature);
+	} catch (error) {
+		ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
+		return;
+	}
+	const specPath = path.join(featureDir, "spec.md");
+	if (!fs.existsSync(specPath)) {
+		ctx.ui.notify(`Spec not found at ${specPath}; expected an existing feature. Check the slug.`, "error");
+		return;
+	}
+	const specHash = hashFile(specPath);
+	const approved = approvals.get(feature) === specHash;
+	const message = resumeMessage({ feature, featureDir }, approved);
+	const result = await ctx.newSession({
+		setup: async (sessionManager) => {
+			sessionManager.appendCustomEntry(APPROVAL_ENTRY, {
+				feature,
+				specHash: approved ? specHash : null,
+			} satisfies ApprovalEntryData);
+		},
+		withSession: async (sessionCtx) => {
+			sessionCtx.sendUserMessage(message).catch((error: unknown) => {
+				sessionCtx.ui.notify(
+					`Failed to send the resume prompt: ${error instanceof Error ? error.message : String(error)}`,
+					"error",
+				);
+			});
+		},
+	});
+	if (result.cancelled) ctx.ui.notify("Resume cancelled; stayed in this session.", "info");
+}
+
 const FeatureParam = Type.String({
 	description: "Kebab-case feature slug; the spec lives at ~/.pi/plans/<project-slug>/<feature>/spec.md",
 });
@@ -1329,8 +1428,14 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
+		contextCapState.warned = false;
+		contextCapState.aborted = false;
 		restoreFromBranch(pi, ctx);
 		await refreshStatus(pi, ctx);
+	});
+
+	pi.on("turn_end", async (_event, ctx) => {
+		await enforceContextCap(pi, ctx);
 	});
 
 	pi.on("tool_call", async (event, ctx) => {
@@ -1370,5 +1475,11 @@ export default function (pi: ExtensionAPI) {
 			const notes = args.trim();
 			pi.sendUserMessage(`Approved: run the tasks for ${feature}.${notes ? `\n\n${notes}` : ""}`);
 		},
+	});
+
+	pi.registerCommand("resume-feature", {
+		description:
+			"Continue a feature in a fresh session from its spec, status.md and task records; the approval carries only while spec.md is unchanged",
+		handler: async (args, ctx) => resumeFeature(pi, args, ctx),
 	});
 }

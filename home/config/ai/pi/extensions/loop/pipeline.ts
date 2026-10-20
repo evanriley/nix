@@ -410,3 +410,26 @@ export function readTaskRecord(featureDir: string, task: number): TaskRecord | u
 export function writeTaskRecord(featureDir: string, record: TaskRecord): void {
 	fs.writeFileSync(taskRecordPath(featureDir, record.task), `${JSON.stringify(record, null, "\t")}\n`, "utf-8");
 }
+
+export function parseContextCap(value: string | undefined, fallback: number): number {
+	const trimmed = value?.trim() ?? "";
+	if (!/^[1-9]\d*$/.test(trimmed)) return fallback;
+	const cap = Number(trimmed);
+	return Number.isSafeInteger(cap) ? cap : fallback;
+}
+
+export interface ContextCapState {
+	warned: boolean;
+	aborted: boolean;
+}
+
+export function contextCapStep(
+	tokens: number,
+	cap: number,
+	hardMargin: number,
+	state: ContextCapState,
+): { warn: boolean; abort: boolean } {
+	const abort = !state.aborted && tokens >= cap + hardMargin;
+	const warn = !abort && !state.warned && tokens >= cap;
+	return { warn, abort };
+}
