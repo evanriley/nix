@@ -32,7 +32,9 @@ LABEL = "maybe-ci"
 LABEL_FILTER = 'labels.maybe-ci = "true"'
 SHAPES = ("c4d-highcpu-32", "c3d-highcpu-30")
 DEFAULT_ZONES = "us-central1-a,us-central1-b,us-central1-c,us-central1-f"
-DEAD = frozenset({"TERMINATED", "STOPPED", "SUSPENDED"})
+DEAD = frozenset(
+    {"TERMINATED", "STOPPED", "SUSPENDED", "STOPPING", "SUSPENDING"}
+)
 SYSTEM_PATTERN = re.compile(
     r"/nix/store/[0-9a-df-np-sv-z]{32}-nixos-system-[0-9A-Za-z+._?=-]+"
 )

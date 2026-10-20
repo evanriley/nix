@@ -735,13 +735,33 @@ def test_cycle_bad_system_file_launches_nothing_and_requests_fallback(
     assert len(harness.cloud.attempts) == 2
 
 
-@pytest.mark.parametrize("status", ["TERMINATED", "STOPPED", "SUSPENDED"])
+@pytest.mark.parametrize(
+    "status",
+    ["TERMINATED", "STOPPED", "SUSPENDED", "STOPPING", "SUSPENDING"],
+)
 def test_cycle_dead_instance_is_deleted(harness: Harness, status: str) -> None:
     harness.cloud.add("maybe-ci-dead", status=status, age=30)
 
     harness.cycle()
 
     assert harness.cloud.deleted == ["maybe-ci-dead"]
+
+
+@pytest.mark.parametrize("status", ["STOPPING", "SUSPENDING"])
+def test_cycle_shutting_down_instance_is_deleted_and_replaced(
+    harness: Harness, status: str
+) -> None:
+    harness.cloud.scheduled = 1
+    harness.cloud.busy = 2
+    harness.cloud.add("maybe-ci-busy-1", age=600, ready=True)
+    harness.cloud.add("maybe-ci-busy-2", age=600, ready=True)
+    harness.cloud.add("maybe-ci-leaving", status=status, age=600)
+
+    harness.cycle()
+
+    assert harness.cloud.deleted == ["maybe-ci-leaving"]
+    assert len(harness.cloud.attempts) == 1
+    assert len(live(harness.cloud)) == 3
 
 
 @pytest.mark.parametrize("status", ["RUNNING", "PROVISIONING", "STAGING"])
