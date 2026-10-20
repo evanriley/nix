@@ -109,7 +109,7 @@ in
             export GITHUB_KNOWN_HOSTS=${githubKnownHosts}
             export CI_BUILDER_SYSTEM_FILE=${mainHome}/ci-builder-system
             export CI_REMOTE_BUILDER_SYSTEM_FILE=${mainHome}/ci-remote-builder-system
-            export CI_REMOTE_BUILDER=1
+            export CI_REMOTE_BUILDER=1 BUILDKITE_JOB_ID="$job_id"
             exec .buildkite/ci.sh publish
           }
 
