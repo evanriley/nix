@@ -17,16 +17,25 @@ in
 
   perSystem =
     { config, system, ... }:
+    let
+      buildsHere = _: home: home.pkgs.stdenv.hostPlatform.system == system;
+      activationPackages = lib.mapAttrs (_: home: home.activationPackage);
+    in
     lib.mkIf (system == "x86_64-linux") {
       legacyPackages.ci = {
-        targets = lib.mapAttrs' (name: lib.nameValuePair "checks.${name}") config.checks // {
-          cinderace = toplevel "cinderace";
-          blaziken = toplevel "blaziken";
-          ci-builder = toplevel "ci-builder";
-        };
-        evalOnly = lib.mapAttrs (_: home: home.activationPackage) homeConfigurations // {
-          ninetales = darwinConfigurations.ninetales.system;
-        };
+        targets =
+          lib.mapAttrs' (name: lib.nameValuePair "checks.${name}") config.checks
+          // activationPackages (lib.filterAttrs buildsHere homeConfigurations)
+          // {
+            cinderace = toplevel "cinderace";
+            blaziken = toplevel "blaziken";
+            ci-builder = toplevel "ci-builder";
+          };
+        evalOnly =
+          activationPackages (lib.filterAttrs (name: home: !buildsHere name home) homeConfigurations)
+          // {
+            ninetales = darwinConfigurations.ninetales.system;
+          };
         extraSteps = [ ];
         fullSteps = [ ];
       };
