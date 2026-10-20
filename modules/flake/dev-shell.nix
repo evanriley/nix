@@ -18,7 +18,13 @@
         ]
         ++ lib.optional (system == "x86_64-linux") inputs.deploy-rs.packages.${system}.default
         ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.mkpasswd;
-        shellHook = config.pre-commit.installationScript;
+        shellHook = ''
+          ${config.pre-commit.installationScript}
+          if ${lib.getExe pkgs.gitMinimal} rev-parse --git-dir &>/dev/null; then
+            ${lib.getExe pkgs.gitMinimal} config --local core.hooksPath \
+              "$(${lib.getExe pkgs.gitMinimal} rev-parse --path-format=absolute --git-common-dir)/hooks"
+          fi
+        '';
       };
 
       formatter = pkgs.nixfmt-tree;
