@@ -11,6 +11,7 @@ in
     pkgs.jq
     pkgs.josh
     pkgs.openssh
+    pkgs.util-linux
     pkgs.lixPackageSets.stable.nix-eval-jobs
     nix
   ];
