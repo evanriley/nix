@@ -8,12 +8,20 @@ in
   };
 
   flake.modules.nixos.ci-builder =
-    { lib, modulesPath, ... }:
+    { lib, ... }:
     {
       imports = [
-        "${modulesPath}/virtualisation/google-compute-image.nix"
+        nixos.ci-builder-image
         nixos.ci-builder-agent
       ];
+
+      services.openssh.enable = lib.mkForce false;
+    };
+
+  flake.modules.nixos.ci-builder-image =
+    { lib, modulesPath, ... }:
+    {
+      imports = [ "${modulesPath}/virtualisation/google-compute-image.nix" ];
 
       system.stateVersion = "26.11";
       nixpkgs.hostPlatform = "x86_64-linux";
@@ -28,7 +36,6 @@ in
         google-shutdown-scripts.enable = false;
       };
       security.googleOsLogin.enable = lib.mkForce false;
-      services.openssh.enable = lib.mkForce false;
 
       users.mutableUsers = false;
       users.allowNoPasswordLogin = true;
