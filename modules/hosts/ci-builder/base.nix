@@ -98,9 +98,12 @@ in
           # The startup script runs switch-to-configuration from inside this unit.
           restartIfChanged = false;
           path = [ config.nix.package ];
+          unitConfig.FailureAction = "poweroff";
           serviceConfig = {
             Type = "oneshot";
             ExecStart = lib.getExe fetchAndRunStartupScript;
+            StandardOutput = "journal+console";
+            StandardError = "journal+console";
             RuntimeDirectory = "ci-builder";
             RuntimeDirectoryMode = "0700";
             RuntimeDirectoryPreserve = true;

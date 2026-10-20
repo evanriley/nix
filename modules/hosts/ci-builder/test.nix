@@ -31,6 +31,13 @@ in
               --header 'Metadata-Flavor: Google' --request PUT --data "$state" \
               http://${metadataIPv4}/computeMetadata/v1/instance/guest-attributes/test/agent-start
           '';
+          observeStartupEnd = pkgs.writeShellScript "observe-startup-end" ''
+            token=absent
+            if [ -e /run/ci-builder/agent-token ] || [ -e /run/ci-builder/agent-token.fetched ]; then
+              token=present
+            fi
+            echo "startup ended with $SERVICE_RESULT: agent token $token, agent $(${pkgs.systemd}/bin/systemctl is-active buildkite-agent-ci-builder.service)"
+          '';
           fixedOutputProbe = pkgs.writeText "fixed-output-probe.nix" ''
             derivation {
               name = "fixed-output-probe";
@@ -157,6 +164,7 @@ in
             virtualisation.additionalPaths = [ systemWithoutSwitch ];
             systemd.services.register-nix-paths.environment.NIX_REMOTE = "local";
             systemd.services.buildkite-agent-ci-builder.serviceConfig.ExecStartPost = "+${observeAgentStart}";
+            systemd.services.ci-builder-startup.serviceConfig.ExecStopPost = "${observeStartupEnd}";
             specialisation.published.configuration = {
               systemd.services.ci-builder-startup.environment.CI_BUILDER_SYSTEM = "published";
               services.buildkite-agents.ci-builder.tags.system = "published";
@@ -166,13 +174,16 @@ in
           testScript =
             { nodes, ... }:
             ''
+              import base64
               import datetime
               import json
+              import os
               import re
               import shlex
 
               base_system = "${nodes.builder.system.build.toplevel}"
               published_system = "${nodes.builder.specialisation.published.configuration.system.build.toplevel}"
+              system_without_switch = "${systemWithoutSwitch}"
               metadata_path = "/computeMetadata/v1/instance/name"
               agent = "runuser -u buildkite-agent-ci-builder --"
               nixbld = "setpriv --reuid=nixbld1 --regid=nixbld --clear-groups --"
@@ -187,6 +198,14 @@ in
               token_request = "GET /computeMetadata/v1/instance/attributes/buildkite-agent-token 200"
               agent_start_request = "PUT /computeMetadata/v1/instance/guest-attributes/test/agent-start "
               ready_request = "PUT /computeMetadata/v1/instance/guest-attributes/ci-builder/ready "
+              startup_failure_action_none = base64.b64encode(b"[Unit]\nFailureAction=none\n").decode()
+              keep_running_on_startup_failure = f"systemd.set_credential_binary=systemd.unit-dropin.{startup_unit}:{startup_failure_action_none}"
+              unit_output_only_on_console = "systemd.journald.forward_to_console=0"
+
+              def start_builder(kernel_params):
+                  os.environ["QEMU_KERNEL_PARAMS"] = " ".join(kernel_params)
+                  builder.start()
+                  del os.environ["QEMU_KERNEL_PARAMS"]
 
               def serve_system(value):
                   metadata.succeed(f"printf %s {shlex.quote(value)} >${metadataState}/ci-builder-system")
@@ -234,24 +253,24 @@ in
                   metadata.wait_until_succeeds(f"test -f {ready}")
                   builder.wait_until_succeeds(f"systemctl show -P ActiveState {startup_unit} | grep -qx inactive")
 
-              def assert_agent_end_powers_off(result):
+              def assert_unit_end_powers_off(unit, result):
                   if result == "success":
-                      ending = [f"{agent_unit}: Deactivated successfully."]
+                      ending = [f"{unit}: Deactivated successfully."]
                   else:
-                      ending = [f"{agent_unit}: Failed with result '{result}'.", f"Powering off: unit {agent_unit} failed"]
+                      ending = [f"{unit}: Failed with result '{result}'.", f"Powering off: unit {unit} failed"]
                   for line in ending:
                       builder.wait_for_console_text(re.escape(line), timeout=datetime.timedelta(minutes=1))
                   builder.wait_for_shutdown(timeout=datetime.timedelta(minutes=2))
                   console = builder.get_console_log()
                   assert re.search(r"(?i)poweroff requested from", console) is None, "a client requested the poweroff"
-                  assert (f"Powering off: unit {agent_unit} failed" in console) == (result != "success")
-                  print(f"{agent_unit} ended with result {result!r} and systemd powered the VM off")
+                  assert (f"Powering off: unit {unit} failed" in console) == (result != "success")
+                  print(f"{unit} ended with result {result!r} and systemd powered the VM off")
 
               metadata.start()
               metadata.wait_for_unit("nginx.service")
               metadata.wait_for_unit("dnsmasq.service")
               serve_system(f"{published_system}/bin/switch-to-configuration")
-              builder.start()
+              start_builder([keep_running_on_startup_failure])
               builder.wait_for_unit("firewall.service")
               builder.wait_for_unit("multi-user.target")
 
@@ -298,11 +317,36 @@ in
               with subtest("agent stays down without a token"):
                   builder.fail(f"systemctl is-active {agent_unit}")
                   builder.succeed(f"journalctl -u {agent_unit} | grep -q 'ConditionPathExists'")
-                  assert unit_property("poweroff.target", "ActiveState") == "inactive"
-                  assert builder.succeed("systemctl list-jobs --no-legend poweroff.target").strip() == ""
-                  assert "Powering off" not in builder.get_console_log()
 
               builder.shutdown()
+
+              with subtest("a failed startup fails closed and powers the VM off"):
+                  serve_system(system_without_switch)
+                  metadata.succeed(f": >{metadata_log}")
+                  builder.start()
+                  assert_unit_end_powers_off(startup_unit, "exit-code")
+                  console = builder.get_console_log()
+                  ended = "startup ended with exit-code: agent token absent, agent inactive"
+                  assert ended in console, "expected no token and no agent when the startup unit ended"
+                  assert console.index(ended) < console.index(f"Powering off: unit {startup_unit} failed"), "expected the startup unit to fail closed before the poweroff"
+                  log = requests()
+                  assert token_request in log, log
+                  assert not any(line.startswith("PUT ") for line in log), log
+                  metadata.fail(f"test -e {ready}")
+
+              with subtest("a failed startup prints its output on the serial console without the token"):
+                  metadata.succeed(f": >{metadata_log}")
+                  start_builder([unit_output_only_on_console])
+                  rejected = f"{system_without_switch} has no executable bin/switch-to-configuration"
+                  builder.wait_for_console_text(rf"ci-builder-startup\[\d+\]: {re.escape(rejected)}", timeout=datetime.timedelta(minutes=1))
+                  builder.wait_for_shutdown(timeout=datetime.timedelta(minutes=2))
+                  console = builder.get_console_log()
+                  realised = rf"ci-builder-startup\[\d+\]: {re.escape(system_without_switch)}$"
+                  assert re.search(realised, console, re.MULTILINE), "expected the stdout of nix-store --realise on the console"
+                  assert token_request in requests()
+                  assert "${agentToken}" not in console, "expected the token to be absent from the serial console"
+                  metadata.fail(f"test -e {ready}")
+
               serve_system(published_system)
               boot_until_ready()
 
@@ -313,6 +357,7 @@ in
                   builder.fail(f"{agent} cat /run/ci-builder/agent-token")
                   status, _ = builder.execute("journalctl -b -o export | grep -qaFf /run/ci-builder/agent-token")
                   assert status == 1, f"expected the token to be absent from the journal, grep exit {status}"
+                  assert "${agentToken}" not in builder.get_console_log(), "expected the token to be absent from the serial console"
 
               with subtest("profile and current system are the served ci-builder-system"):
                   assert builder.succeed("readlink -f /nix/var/nix/profiles/system").strip() == published_system
@@ -356,14 +401,14 @@ in
 
               with subtest("killing the whole agent unit powers the VM off"):
                   builder.execute(f"systemctl kill --signal=SIGKILL {agent_unit} >&2 &", check_return=False)
-                  assert_agent_end_powers_off("signal")
+                  assert_unit_end_powers_off(agent_unit, "signal")
 
               with subtest("a failed ready update stops the agent and powers the VM off"):
                   metadata.succeed("touch ${metadataState}/refuse-ready", f"rm {ready}", f": >{metadata_log}")
                   builder.start()
                   refused = ready_request + "403"
                   metadata.wait_until_succeeds(f"grep -qxF '{refused}' {metadata_log}")
-                  assert_agent_end_powers_off("success")
+                  assert_unit_end_powers_off(agent_unit, "success")
                   log = requests()
                   started_at = next(i for i, line in enumerate(log) if line.startswith(agent_start_request))
                   assert started_at < log.index(refused), log
@@ -374,12 +419,12 @@ in
               with subtest("a clean agent exit powers the VM off"):
                   boot_until_ready()
                   builder.execute(f"systemctl kill --kill-whom=main --signal=SIGTERM {agent_unit} >&2 &", check_return=False)
-                  assert_agent_end_powers_off("success")
+                  assert_unit_end_powers_off(agent_unit, "success")
 
               with subtest("a non-zero agent exit powers the VM off"):
                   boot_until_ready()
                   builder.execute(f"systemctl kill --kill-whom=main --signal=SIGQUIT {agent_unit} >&2 &", check_return=False)
-                  assert_agent_end_powers_off("exit-code")
+                  assert_unit_end_powers_off(agent_unit, "exit-code")
 
               with subtest("a system shutdown sends the agent SIGQUIT to cancel its job"):
                   boot_until_ready()
