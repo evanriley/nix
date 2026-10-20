@@ -399,6 +399,7 @@ in
           pkgs.jq
           pkgs.cachix
           pkgs.josh
+          pkgs.lixPackageSets.stable.nix-eval-jobs
           config.nix.package
           pkgs.coreutils
         ];
