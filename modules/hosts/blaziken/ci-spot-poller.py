@@ -30,7 +30,7 @@ SUBNETWORK = "maybe-ci-us-central1"
 IMAGE_FAMILY = "ci-builder"
 LABEL = "maybe-ci"
 LABEL_FILTER = 'labels.maybe-ci = "true"'
-SHAPES = ("c4d-highcpu-32", "c3d-highcpu-30")
+SHAPES = ("c4d-highcpu-16", "c3d-highcpu-30")
 DEFAULT_ZONES = "us-central1-a,us-central1-b,us-central1-c,us-central1-f"
 DEAD = frozenset(
     {"TERMINATED", "STOPPED", "SUSPENDED", "STOPPING", "SUSPENDING"}

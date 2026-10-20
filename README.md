@@ -15,7 +15,7 @@ requests. Report a serious problem, such as a security hole, by email to
 | `cinderace` | Desktop: Ryzen 7 9800X3D, Radeon RX 9070 XT | NixOS, x86_64-linux | Active |
 | `ninetales` | MacBook Pro, M1 Pro | nix-darwin, aarch64-darwin | Active |
 | `blaziken` | Server: OVH KS-5, Xeon E3-1270 v6, 32 GB | NixOS, x86_64-linux | Active |
-| `ci-builder` | GCE Spot VM, c4d-highcpu-32 or c3d-highcpu-30 | NixOS, x86_64-linux | Active |
+| `ci-builder` | GCE Spot VM, c4d-highcpu-16 or c3d-highcpu-30 | NixOS, x86_64-linux | Active |
 
 ## Usage
 
@@ -230,7 +230,7 @@ The `spot-builders` Buildkite queue runs on GCE Spot VMs booted from the
   `buildkite-agent-main`. Every 30 seconds it:
   - reads the queue's scheduled jobs and idle agents from the Buildkite agent
     metrics API;
-  - launches one VM per unserved job, `c4d-highcpu-32` first and then
+  - launches one VM per unserved job, `c4d-highcpu-16` first and then
     `c3d-highcpu-30`, in `us-central1-a`, `-b`, `-c` and `-f`, keeping at most
     `CI_SPOT_MAX_INSTANCES` (default 3) VMs labelled `maybe-ci=true`;
   - deletes labelled VMs that are stopped, not ready after 15 minutes, or older

@@ -19,7 +19,7 @@ ACCESS_TOKEN = "ya29.access-token-that-must-stay-secret"
 SYSTEM = "/nix/store/" + "a" * 32 + "-nixos-system-ci-builder-26.05"
 STARTUP_SCRIPT = "#!/usr/bin/env bash\necho start\n"
 ZONES = ("us-central1-a", "us-central1-b", "us-central1-c", "us-central1-f")
-C4D = "c4d-highcpu-32"
+C4D = "c4d-highcpu-16"
 C3D = "c3d-highcpu-30"
 QUOTA_MESSAGE = (
     "Quota 'CPUS_PER_VM_FAMILY' exceeded.  Limit: 50.0 in region us-central1."
