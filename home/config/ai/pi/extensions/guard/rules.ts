@@ -731,6 +731,11 @@ const OUTPUT_OPTIONS = new Set(["output"]);
 const OUTPUT_DOCUMENT_OPTIONS = new Set(["output-document"]);
 const EMPTY_OPTIONS = new Set<string>();
 
+const TAR_VALUE_OPTIONS = new Set(["file", "directory"]);
+const TOUCH_VALUE_OPTIONS = new Set(["date", "timestamp", "reference"]);
+const TRUNCATE_VALUE_OPTIONS = new Set(["size", "reference"]);
+const DEVICE_SINKS = new Set(["/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty"]);
+
 function writeDestinations(name: string, args: string[]): string[] {
 	switch (name) {
 		case "cp":
@@ -775,6 +780,39 @@ function writeDestinations(name: string, args: string[]): string[] {
 			if (args.some(isRemoteRsyncArgument)) return [];
 			const parsed = parseOptions(args, {}, {}, EMPTY_OPTIONS);
 			return parsed.operands.length > 0 ? [parsed.operands[parsed.operands.length - 1]] : [];
+		}
+		case "touch":
+			return parseOptions(
+				args,
+				{ d: "date", r: "reference", t: "timestamp" },
+				{ "--date": "date", "--reference": "reference" },
+				TOUCH_VALUE_OPTIONS,
+			).operands;
+		case "truncate":
+			return parseOptions(
+				args,
+				{ r: "reference", s: "size" },
+				{ "--reference": "reference", "--size": "size" },
+				TRUNCATE_VALUE_OPTIONS,
+			).operands;
+		case "tar": {
+			const bundled = args.length > 0 && /^[A-Za-z]+$/.test(args[0]) ? [`-${args[0]}`, ...args.slice(1)] : args;
+			const parsed = parseOptions(
+				bundled,
+				{ C: "directory", c: "create", f: "file", r: "append", u: "update" },
+				{
+					"--append": "append",
+					"--create": "create",
+					"--directory": "directory",
+					"--file": "file",
+					"--update": "update",
+				},
+				TAR_VALUE_OPTIONS,
+			);
+			const destinations = [...(parsed.values.get("directory") ?? [])];
+			if (["append", "create", "update"].some((kind) => parsed.seen.has(kind)))
+				destinations.push(...(parsed.values.get("file") ?? []));
+			return destinations;
 		}
 		default:
 			return [];
@@ -1110,6 +1148,7 @@ function writeFindings(targets: string[], cwd: string | undefined, options: Clas
 			findings.push(secret(secretReason));
 			continue;
 		}
+		if (DEVICE_SINKS.has(filePath)) continue;
 		if (!filePath.startsWith("/") || allowedRoots.some((root) => isWithin(filePath, root))) continue;
 		findings.push(
 			isWithin(filePath, `${options.home}/.pi/plans`)
@@ -1142,10 +1181,10 @@ function analyzePath(toolName: string, rawPath: unknown, options: ClassifyOption
 	const protectedDirectories = ["/etc", `${options.home}/.ssh`, `${options.home}/.pi/agent`];
 	const protectedDirectory = protectedDirectories.find((directory) => isWithin(filePath, directory));
 	if (protectedDirectory) return [risky(`${toolName} under ${protectedDirectory}`)];
-	if (isWithin(filePath, `${options.home}/.pi/plans`) && !isScratchPath(filePath, options))
-		return [childOnly(`${toolName} under ${options.home}/.pi/plans changes the loop's state files`)];
 	if (/(^|\/)\.git(\/|$)/.test(filePath)) return [risky(`${toolName} of git internals`)];
 	if (isDotenv(filePath)) return [risky(`${toolName} of ${basename(filePath)} may change credentials`)];
+	if (isWithin(filePath, `${options.home}/.pi/plans`) && !isScratchPath(filePath, options))
+		return [childOnly(`${toolName} under ${options.home}/.pi/plans changes the loop's state files`)];
 	return [];
 }
 
