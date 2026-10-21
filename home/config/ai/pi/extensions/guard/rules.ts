@@ -44,8 +44,14 @@ interface Token {
 
 interface Lexed {
 	commands: string[][];
+	redirectTargets: string[][];
 	substitutedCommands: boolean[];
 	substitutions: string[];
+}
+
+function redirectWritesPath(operator: string, target: string): boolean {
+	if (!(operator.startsWith(">") || operator.startsWith("&>") || operator === "<>")) return false;
+	return !/^\d+$/.test(target) && target !== "-";
 }
 
 function matchingParen(source: string, openIndex: number): number {
@@ -222,30 +228,39 @@ function lex(source: string): Lexed {
 	endWord();
 
 	const commands: string[][] = [];
+	const redirectTargets: string[][] = [];
 	const substitutedCommands: boolean[] = [];
 	let current: string[] = [];
+	let currentTargets: string[] = [];
 	let currentSubstituted = false;
 	for (let position = 0; position < tokens.length; position++) {
 		const token = tokens[position];
 		if (token.kind === "separator") {
-			if (current.length > 0) {
+			if (current.length > 0 || currentTargets.length > 0) {
 				commands.push(current);
+				redirectTargets.push(currentTargets);
 				substitutedCommands.push(currentSubstituted);
 			}
 			current = [];
+			currentTargets = [];
 			currentSubstituted = false;
 		} else if (token.kind === "redirect") {
-			if (tokens[position + 1]?.kind === "word") position++;
+			const target = tokens[position + 1];
+			if (target?.kind === "word") {
+				if (redirectWritesPath(token.text, target.text)) currentTargets.push(target.text);
+				position++;
+			}
 		} else {
 			current.push(token.text);
 			if (token.substituted) currentSubstituted = true;
 		}
 	}
-	if (current.length > 0) {
+	if (current.length > 0 || currentTargets.length > 0) {
 		commands.push(current);
+		redirectTargets.push(currentTargets);
 		substitutedCommands.push(currentSubstituted);
 	}
-	return { commands, substitutedCommands, substitutions };
+	return { commands, redirectTargets, substitutedCommands, substitutions };
 }
 
 function basename(word: string): string {
@@ -630,6 +645,140 @@ function isRemoteRsyncArgument(argument: string): boolean {
 	return !argument.startsWith("-") && (argument.startsWith("rsync://") || /^(?:[^\s/@:]+@)?[^\s/:]+:/.test(argument));
 }
 
+interface ParsedOptions {
+	operands: string[];
+	seen: Set<string>;
+	values: Map<string, string[]>;
+}
+
+function parseOptions(
+	args: string[],
+	shortOptions: Record<string, string>,
+	longOptions: Record<string, string>,
+	valueOptions: Set<string>,
+	optionalValueOptions: Set<string> = new Set(),
+): ParsedOptions {
+	const operands: string[] = [];
+	const seen = new Set<string>();
+	const values = new Map<string, string[]>();
+	const record = (name: string, value?: string) => {
+		seen.add(name);
+		if (value !== undefined) values.set(name, [...(values.get(name) ?? []), value]);
+	};
+	let index = 0;
+	let optionsEnded = false;
+	while (index < args.length) {
+		const argument = args[index];
+		if (optionsEnded || argument === "-" || !argument.startsWith("-")) {
+			operands.push(argument);
+			index++;
+			continue;
+		}
+		if (argument === "--") {
+			optionsEnded = true;
+			index++;
+			continue;
+		}
+		if (argument.startsWith("--")) {
+			const equals = argument.indexOf("=");
+			const name = equals === -1 ? argument : argument.slice(0, equals);
+			const canonical = longOptions[name];
+			index++;
+			if (canonical === undefined) continue;
+			record(canonical, equals === -1 ? undefined : argument.slice(equals + 1));
+			if (equals === -1 && valueOptions.has(canonical) && index < args.length) {
+				record(canonical, args[index]);
+				index++;
+			}
+			continue;
+		}
+		let position = 1;
+		while (position < argument.length) {
+			const canonical = shortOptions[argument[position]];
+			position++;
+			if (canonical === undefined) continue;
+			const rest = argument.slice(position);
+			if (valueOptions.has(canonical)) {
+				if (rest !== "") {
+					record(canonical, rest);
+				} else if (index + 1 < args.length) {
+					record(canonical, args[index + 1]);
+					index++;
+				} else {
+					record(canonical);
+				}
+				position = argument.length;
+				break;
+			}
+			if (optionalValueOptions.has(canonical)) {
+				record(canonical, rest === "" ? undefined : rest);
+				position = argument.length;
+				break;
+			}
+			record(canonical);
+		}
+		index++;
+	}
+	return { operands, seen, values };
+}
+
+const TARGET_DIRECTORY_OPTIONS = new Set(["target-directory"]);
+const SED_VALUE_OPTIONS = new Set(["expression", "file"]);
+const SED_OPTIONAL_VALUE_OPTIONS = new Set(["in-place"]);
+const OUTPUT_OPTIONS = new Set(["output"]);
+const OUTPUT_DOCUMENT_OPTIONS = new Set(["output-document"]);
+const EMPTY_OPTIONS = new Set<string>();
+
+function writeDestinations(name: string, args: string[]): string[] {
+	switch (name) {
+		case "cp":
+		case "mv":
+		case "ln":
+		case "install": {
+			const parsed = parseOptions(
+				args,
+				{ t: "target-directory" },
+				{ "--target-directory": "target-directory" },
+				TARGET_DIRECTORY_OPTIONS,
+			);
+			const directories = parsed.values.get("target-directory");
+			if (directories !== undefined && directories.length > 0) return directories.slice(-1);
+			return parsed.operands.length > 0 ? [parsed.operands[parsed.operands.length - 1]] : [];
+		}
+		case "tee":
+			return parseOptions(args, {}, {}, EMPTY_OPTIONS).operands;
+		case "sed": {
+			const parsed = parseOptions(
+				args,
+				{ i: "in-place", e: "expression", f: "file" },
+				{ "--in-place": "in-place", "--expression": "expression", "--file": "file" },
+				SED_VALUE_OPTIONS,
+				SED_OPTIONAL_VALUE_OPTIONS,
+			);
+			if (!parsed.seen.has("in-place")) return [];
+			const script = parsed.seen.has("expression") || parsed.seen.has("file") ? 0 : 1;
+			return parsed.operands.slice(script);
+		}
+		case "curl":
+			return (
+				parseOptions(args, { o: "output" }, { "--output": "output" }, OUTPUT_OPTIONS).values.get("output") ?? []
+			);
+		case "wget":
+			return (
+				parseOptions(args, { O: "output-document" }, { "--output-document": "output-document" }, OUTPUT_DOCUMENT_OPTIONS).values.get(
+					"output-document",
+				) ?? []
+			);
+		case "rsync": {
+			if (args.some(isRemoteRsyncArgument)) return [];
+			const parsed = parseOptions(args, {}, {}, EMPTY_OPTIONS);
+			return parsed.operands.length > 0 ? [parsed.operands[parsed.operands.length - 1]] : [];
+		}
+		default:
+			return [];
+	}
+}
+
 function commandFindings(name: string, args: string[], hasSubstitution: boolean): Finding[] {
 	if (name.startsWith("mkfs")) return [risky(`${name} formats a filesystem`)];
 	switch (name) {
@@ -757,34 +906,50 @@ function secretPathReason(text: string): string | undefined {
 	return undefined;
 }
 
-function analyzeBash(command: string): Finding[] {
+function analyzeBash(command: string, options: ClassifyOptions): Finding[] {
 	const findings: Finding[] = [];
-	const visitSource = (source: string, depth: number) => {
+	const visitSource = (source: string, depth: number, initialCwd = options.cwd) => {
 		if (depth > MAX_NESTING) {
 			findings.push(risky("the command nests too deeply to check"));
 			return;
 		}
 		const lexed = lex(source);
-		lexed.commands.forEach((words, position) => visitWords(words, depth, lexed.substitutedCommands[position]));
-		for (const substitution of lexed.substitutions) visitSource(substitution, depth + 1);
+		let cwd = initialCwd;
+		lexed.commands.forEach((words, position) => {
+			const hasSubstitution = lexed.substitutedCommands[position] ?? false;
+			visitWords(words, depth, hasSubstitution, lexed.redirectTargets[position] ?? [], cwd);
+			const nextCwd = cdTarget(words, cwd, options, hasSubstitution);
+			if (nextCwd !== undefined) cwd = nextCwd;
+		});
+		for (const substitution of lexed.substitutions) visitSource(substitution, depth + 1, cwd);
 	};
-	const visitWords = (words: string[], depth: number, hasSubstitution = false) => {
+	const visitWords = (
+		words: string[],
+		depth: number,
+		hasSubstitution = false,
+		redirectTargets: string[] = [],
+		cwd = options.cwd,
+	) => {
 		const secretReason = secretPathReason(words.join(" "));
 		if (secretReason) findings.push(secret(secretReason));
 		const command = unwrapPrefixes(words, findings);
-		if (command.length === 0) return;
+		if (command.length === 0) {
+			findings.push(...writeFindings(redirectTargets, cwd, options));
+			return;
+		}
 		const name = basename(command[0]);
 		const args = command.slice(1);
 		const body = shellBody(name, args);
-		if (body !== undefined) visitSource(body, depth + 1);
-		if (name === "eval") visitSource(args.join(" "), depth + 1);
+		if (body !== undefined) visitSource(body, depth + 1, cwd);
+		if (name === "eval") visitSource(args.join(" "), depth + 1, cwd);
 		if (name === "find") {
 			for (const execCommand of findExecCommands(args)) {
 				if (execCommand.length > 0 && basename(execCommand[0]) === "rm") findings.push(risky("find -exec rm deletes files"));
-				visitWords(execCommand, depth + 1);
+				visitWords(execCommand, depth + 1, false, [], cwd);
 			}
 		}
 		findings.push(...commandFindings(name, args, hasSubstitution));
+		findings.push(...writeFindings([...redirectTargets, ...writeDestinations(name, args)], cwd, options));
 	};
 	const rawSecretReason = secretPathReason(command);
 	if (rawSecretReason) findings.push(secret(rawSecretReason));
@@ -810,6 +975,53 @@ function isWithin(candidate: string, directory: string): boolean {
 	return candidate === directory || candidate.startsWith(directory.endsWith("/") ? directory : `${directory}/`);
 }
 
+function isScratchPath(filePath: string, options: ClassifyOptions): boolean {
+	if (options.scratch === undefined || options.scratch === "") return false;
+	return isWithin(filePath, normalizePath(options.scratch, options));
+}
+
+function cdTarget(words: string[], cwd: string | undefined, options: ClassifyOptions, hasSubstitution: boolean): string | undefined {
+	let index = 0;
+	while (index < words.length && (ASSIGNMENT.test(words[index]) || KEYWORDS.has(words[index]))) index++;
+	if (basename(words[index] ?? "") !== "cd") return undefined;
+	const args = words.slice(index + 1);
+	let operand: string | undefined;
+	for (let position = 0; position < args.length; position++) {
+		const argument = args[position];
+		if (argument === "--") {
+			operand = args.slice(position + 1).find((candidate) => candidate !== "") ?? operand;
+			break;
+		}
+		if (argument.startsWith("-") && argument !== "-") continue;
+		if (argument !== "") operand = argument;
+	}
+	if (hasSubstitution || operand === undefined || operand === "-") return options.cwd;
+	return normalizePath(operand, { ...options, cwd });
+}
+
+function writeFindings(targets: string[], cwd: string | undefined, options: ClassifyOptions): Finding[] {
+	const findings: Finding[] = [];
+	const allowedRoots = ["/tmp", `${options.home}/.cache`, `${options.home}/.local`];
+	if (options.cwd !== undefined) allowedRoots.push(normalizePath(options.cwd, options));
+	if (options.scratch !== undefined && options.scratch !== "") allowedRoots.push(normalizePath(options.scratch, options));
+	for (const target of targets) {
+		if (target === "" || target === "-") continue;
+		const filePath = normalizePath(target, { ...options, cwd });
+		const secretReason = secretPathReason(filePath) ?? secretPathReason(target);
+		if (secretReason !== undefined) {
+			findings.push(secret(secretReason));
+			continue;
+		}
+		if (!filePath.startsWith("/") || allowedRoots.some((root) => isWithin(filePath, root))) continue;
+		findings.push(
+			isWithin(filePath, `${options.home}/.pi/plans`)
+				? childOnly("bash writes the loop's state files")
+				: risky("bash writes outside the session"),
+		);
+	}
+	return findings;
+}
+
 function isDotenv(filePath: string): boolean {
 	const name = basename(filePath);
 	return /^\.env(\..+)?$/.test(name) && !DOTENV_TEMPLATES.has(name);
@@ -832,6 +1044,8 @@ function analyzePath(toolName: string, rawPath: unknown, options: ClassifyOption
 	const protectedDirectories = ["/etc", `${options.home}/.ssh`, `${options.home}/.pi/agent`];
 	const protectedDirectory = protectedDirectories.find((directory) => isWithin(filePath, directory));
 	if (protectedDirectory) return [risky(`${toolName} under ${protectedDirectory}`)];
+	if (isWithin(filePath, `${options.home}/.pi/plans`) && !isScratchPath(filePath, options))
+		return [childOnly(`${toolName} under ${options.home}/.pi/plans changes the loop's state files`)];
 	if (/(^|\/)\.git(\/|$)/.test(filePath)) return [risky(`${toolName} of git internals`)];
 	if (isDotenv(filePath)) return [risky(`${toolName} of ${basename(filePath)} may change credentials`)];
 	return [];
@@ -867,7 +1081,7 @@ export function classify(
 	if (toolName === "bash") {
 		const command = typeof input.command === "string" ? input.command : "";
 		const scratchCommand = options.scratch !== undefined && options.scratch !== "" && command.includes(options.scratch);
-		return decide(analyzeBash(command), role, scratchCommand);
+		return decide(analyzeBash(command, options), role, scratchCommand);
 	}
 	if (PATH_TOOLS.has(toolName)) return decide(analyzePath(toolName, input.path, options), role, false);
 	return { action: "allow" };
