@@ -3,7 +3,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { bashTimeout, classify, type Role } from "./rules.ts";
 
 function roleFromEnvironment(value: string | undefined): Role {
-	return value === "worker" || value === "reviewer" ? value : "main";
+	return value === "worker" || value === "reviewer" || value === "oracle" ? value : "main";
 }
 
 function describeCall(toolName: string, input: Record<string, unknown>): string {

@@ -33,6 +33,18 @@
             }
           }
         },
+        "tencent/hy4-preview": {
+          "contextWindow": 1048576,
+          "maxTokens": 64000,
+          "compat": {
+            "openRouterRouting": {
+              "order": ["tencent", "siliconflow"],
+              "only": ["tencent", "siliconflow"],
+              "allow_fallbacks": false,
+              "quantizations": ["fp8"]
+            }
+          }
+        },
         "deepseek/deepseek-v4.1-flash": {
           "contextWindow": 1048576,
           "maxTokens": 393216,

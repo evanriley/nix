@@ -44,6 +44,15 @@ A repository's own `AGENTS.md` takes precedence for that repository.
 - In repositories with a `.gitreview` file, push only to `refs/for/<branch>`
   (Gerrit review), never to the branch itself.
 
+## Oracle
+
+- The `oracle` tool consults a read-only reasoning model. Use it before the
+  spec for critical, weakly-verifiable work (concurrency, data loss, security,
+  boot), after proposing it in one line and getting my yes; when a root cause
+  is still unknown after narrowing it; or when I ask.
+- Never consult it solely to choose a worker, and never run two at once.
+- Pass one `thread` slug per feature and reuse it for follow-ups.
+
 ## Output style
 
 - Lead with the result. No preamble or progress narration.

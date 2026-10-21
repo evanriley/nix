@@ -12,7 +12,7 @@ import {
 
 const HOME = "/home/tester";
 const SCRATCH = "/home/tester/.pi/plans/repo/feature/scratch-1";
-const ROLES: Role[] = ["main", "worker", "reviewer"];
+const ROLES: Role[] = ["main", "worker", "reviewer", "oracle"];
 
 type Expected = Action | { main: Action; children: Action };
 
@@ -531,7 +531,7 @@ test("classify_relativeGitPathWithoutCwd_blocksWrite", () => {
 });
 
 test("bashTimeout_childOmitted_defaults", () => {
-	for (const role of ["worker", "reviewer"] as const) {
+	for (const role of ["worker", "reviewer", "oracle"] as const) {
 		assert.equal(bashTimeout(role, undefined), DEFAULT_BASH_TIMEOUT_SECONDS);
 		assert.equal(bashTimeout(role, null), DEFAULT_BASH_TIMEOUT_SECONDS);
 		assert.equal(bashTimeout(role, 0), DEFAULT_BASH_TIMEOUT_SECONDS);
@@ -541,7 +541,7 @@ test("bashTimeout_childOmitted_defaults", () => {
 });
 
 test("bashTimeout_childRequested_clampsToMaximum", () => {
-	for (const role of ["worker", "reviewer"] as const) {
+	for (const role of ["worker", "reviewer", "oracle"] as const) {
 		assert.equal(bashTimeout(role, 60), undefined);
 		assert.equal(bashTimeout(role, 1800), undefined);
 		assert.equal(bashTimeout(role, 5000), MAX_BASH_TIMEOUT_SECONDS);

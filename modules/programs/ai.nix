@@ -205,6 +205,7 @@ in
         ".pi/agent/extensions/exit.ts".source = link "config/ai/pi/extensions/exit.ts";
         ".pi/agent/extensions/guard".source = link "config/ai/pi/extensions/guard";
         ".pi/agent/extensions/vision".source = link "config/ai/pi/extensions/vision";
+        ".pi/agent/extensions/oracle".source = link "config/ai/pi/extensions/oracle";
       }
       // linkSkills ".claude/skills"
       // linkSkills ".agents/skills"

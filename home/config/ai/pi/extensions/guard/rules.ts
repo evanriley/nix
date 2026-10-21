@@ -1,4 +1,4 @@
-export type Role = "main" | "worker" | "reviewer";
+export type Role = "main" | "worker" | "reviewer" | "oracle";
 export type Action = "allow" | "confirm" | "block";
 
 export interface Decision {
