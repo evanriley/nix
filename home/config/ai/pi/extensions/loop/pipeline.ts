@@ -392,6 +392,70 @@ export function nextNumber(featureDir: string, pattern: RegExp): number {
 	return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
 }
 
+export function reviewNumbers(featureDir: string, pattern: RegExp): number[] {
+	if (!fs.existsSync(featureDir)) return [];
+	return fs
+		.readdirSync(featureDir)
+		.map((name) =>
+			pattern
+				.exec(name)
+				?.slice(1)
+				.find((group) => group !== undefined),
+		)
+		.filter((match): match is string => match !== undefined)
+		.map(Number)
+		.sort((left, right) => left - right);
+}
+
+export function workerSessionNumbers(featureDir: string): number[] {
+	const numbers = reviewNumbers(featureDir, /^worker(?:-(\d+))?\.jsonl$/);
+	return fs.existsSync(path.join(featureDir, "worker.jsonl")) ? [0, ...numbers] : numbers;
+}
+
+export function workerSessionPath(featureDir: string, number: number): string {
+	return path.join(featureDir, number === 0 ? "worker.jsonl" : `worker-${number}.jsonl`);
+}
+
+export function lastContextTokens(file: string): number {
+	if (!fs.existsSync(file)) return 0;
+	let tokens = 0;
+	for (const line of fs.readFileSync(file, "utf-8").split("\n")) {
+		if (!line.includes('"usage"')) continue;
+		try {
+			const entry = JSON.parse(line);
+			const usage = entry?.message?.role === "assistant" ? entry.message.usage : undefined;
+			if (usage) tokens = (usage.input ?? 0) + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
+		} catch {}
+	}
+	return tokens;
+}
+
+export interface WorkerSession {
+	file: string;
+	resumed: boolean;
+	notice?: string;
+}
+
+export function chooseWorkerSession(featureDir: string, resume: boolean, maxResumeTokens: number): WorkerSession {
+	const newest = workerSessionNumbers(featureDir).at(-1);
+	const fresh = workerSessionPath(featureDir, (newest ?? 0) + 1);
+	const freshName = path.basename(fresh, ".jsonl");
+	if (!resume) return { file: fresh, resumed: false };
+	if (newest === undefined) {
+		return { file: fresh, resumed: false, notice: `nothing to resume; started ${freshName}` };
+	}
+	const newestFile = workerSessionPath(featureDir, newest);
+	const tokens = lastContextTokens(newestFile);
+	if (tokens > maxResumeTokens) {
+		return {
+			file: fresh,
+			resumed: false,
+			notice: `resume refused: previous session at ${Math.round(tokens / 1000)}k tokens; started ${freshName}`,
+		};
+	}
+	return { file: newestFile, resumed: true };
+}
+
 export function taskRecordPath(featureDir: string, task: number): string {
 	return path.join(featureDir, `task-${task}.json`);
 }

@@ -5,16 +5,19 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { after, test } from "node:test";
 import {
+	chooseWorkerSession,
 	commitMessage,
 	commitTask,
 	contextCapStep,
 	featureCost,
 	findTask,
+	lastContextTokens,
 	parseChecks,
 	parseCommitMessage,
 	parseContextCap,
 	parseTasks,
 	parseVerdict,
+	reviewNumbers,
 	runChecks,
 	stageChanges,
 	trackedChanges,
@@ -394,4 +397,86 @@ test("contextCapStep_pastHardStopAfterAbort_warnsIfNeverWarned", () => {
 		warn: true,
 		abort: false,
 	});
+});
+
+test("chooseWorkerSession_freshPastTen_startsEleven", () => {
+	const featureDir = tempDir("pipeline-feature-");
+	for (const name of ["worker.jsonl", "worker-9.jsonl", "worker-10.jsonl"]) {
+		fs.writeFileSync(path.join(featureDir, name), "");
+	}
+	assert.deepEqual(chooseWorkerSession(featureDir, false, 200_000), {
+		file: path.join(featureDir, "worker-11.jsonl"),
+		resumed: false,
+	});
+	assert.deepEqual(chooseWorkerSession(featureDir, true, 200_000), {
+		file: path.join(featureDir, "worker-10.jsonl"),
+		resumed: true,
+	});
+});
+
+test("chooseWorkerSession_resumeUnderCap_returnsNewest", () => {
+	const featureDir = tempDir("pipeline-feature-");
+	const usage = (input: number) =>
+		JSON.stringify({ type: "message", message: { role: "assistant", usage: { input, cacheRead: 1000 } } });
+	fs.writeFileSync(path.join(featureDir, "worker-2.jsonl"), `${usage(150_000)}\n`);
+	fs.writeFileSync(path.join(featureDir, "worker-3.jsonl"), `${usage(199_000)}\n`);
+	assert.deepEqual(chooseWorkerSession(featureDir, true, 200_000), {
+		file: path.join(featureDir, "worker-3.jsonl"),
+		resumed: true,
+	});
+});
+
+test("chooseWorkerSession_resumeAboveCap_startsFreshWithNotice", () => {
+	const featureDir = tempDir("pipeline-feature-");
+	const line = JSON.stringify({
+		type: "message",
+		message: { role: "assistant", usage: { input: 250_000, cacheRead: 0, cacheWrite: 0 } },
+	});
+	fs.writeFileSync(path.join(featureDir, "worker-4.jsonl"), `${line}\n`);
+	assert.deepEqual(chooseWorkerSession(featureDir, true, 200_000), {
+		file: path.join(featureDir, "worker-5.jsonl"),
+		resumed: false,
+		notice: "resume refused: previous session at 250k tokens; started worker-5",
+	});
+});
+
+test("chooseWorkerSession_noSessions_startsFreshWithNotice", () => {
+	const featureDir = tempDir("pipeline-feature-");
+	assert.deepEqual(chooseWorkerSession(featureDir, true, 200_000), {
+		file: path.join(featureDir, "worker-1.jsonl"),
+		resumed: false,
+		notice: "nothing to resume; started worker-1",
+	});
+	assert.deepEqual(chooseWorkerSession(featureDir, false, 200_000), {
+		file: path.join(featureDir, "worker-1.jsonl"),
+		resumed: false,
+	});
+});
+
+test("lastContextTokens_readsNewestAssistantUsage", () => {
+	const featureDir = tempDir("pipeline-feature-");
+	const file = path.join(featureDir, "worker-1.jsonl");
+	const entry = (role: string, usage: Record<string, number>) =>
+		JSON.stringify({ type: "message", message: { role, usage } });
+	fs.writeFileSync(
+		file,
+		[
+			entry("assistant", { input: 1000, cacheRead: 500, cacheWrite: 250 }),
+			"not json",
+			entry("user", { input: 900_000, cacheRead: 0, cacheWrite: 0 }),
+			entry("assistant", { input: 2000, cacheRead: 700, cacheWrite: 300 }),
+			"",
+		].join("\n"),
+	);
+	assert.equal(lastContextTokens(file), 3000);
+	assert.equal(lastContextTokens(path.join(featureDir, "missing.jsonl")), 0);
+});
+
+test("reviewNumbers_mixedNames_sortsNumbers", () => {
+	const featureDir = tempDir("pipeline-feature-");
+	for (const name of ["review-10.md", "review-2.md", "review-x.md", "scratch-3"]) {
+		fs.writeFileSync(path.join(featureDir, name), "");
+	}
+	assert.deepEqual(reviewNumbers(featureDir, /^(?:review-(\d+)\.(?:md|jsonl)|scratch-(\d+))$/), [2, 3, 10]);
+	assert.deepEqual(reviewNumbers(path.join(featureDir, "missing"), /^x$/), []);
 });
