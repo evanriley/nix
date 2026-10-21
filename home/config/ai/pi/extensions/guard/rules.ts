@@ -25,6 +25,8 @@ const SHELLS = new Set(["bash", "sh", "zsh", "fish", "dash", "ksh"]);
 const KEYWORDS = new Set(["{", "}", "!", "if", "then", "else", "elif", "fi", "do", "done", "while", "until"]);
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
 const PATH_TOKEN_END = "[^\\s'\"`;|&<>()]*";
+const PATH_METACHARACTERS = /[*?[{`$]/;
+const FIND_VALUE_GLOBALS = new Set(["-maxdepth", "-mindepth"]);
 const DOTENV_TEMPLATES = new Set([".env.example", ".env.sample", ".env.template"]);
 const PATH_TOOLS = new Set(["read", "grep", "find", "ls", "edit", "write"]);
 
@@ -779,7 +781,89 @@ function writeDestinations(name: string, args: string[]): string[] {
 	}
 }
 
-function commandFindings(name: string, args: string[], hasSubstitution: boolean): Finding[] {
+function scratchRoot(options: ClassifyOptions): string | undefined {
+	if (options.scratch === undefined || options.scratch === "") return undefined;
+	return normalizePath(options.scratch, options);
+}
+
+function unresolvedOperands(operands: string[]): boolean {
+	return operands.some((operand) => operand === "-" || PATH_METACHARACTERS.test(operand));
+}
+
+function rmFindings(
+	args: string[],
+	hasSubstitution: boolean,
+	cwd: string | undefined,
+	cwdKnown: boolean,
+	options: ClassifyOptions,
+): Finding[] {
+	if (!args.includes("--recursive") && !hasShortFlag(args, "r") && !hasShortFlag(args, "R")) return [];
+	const blocked = [risky("rm -r deletes directories")];
+	const operands = parseOptions(args, {}, {}, EMPTY_OPTIONS).operands;
+	if (operands.length === 0 || cwd === undefined || unresolvedOperands(operands)) return blocked;
+	const targets = operands.map((operand) => normalizePath(operand, { ...options, cwd }));
+	const scratch = scratchRoot(options);
+	if (scratch !== undefined && targets.every((target) => isWithin(target, scratch))) return [];
+	const root = options.cwd === undefined ? undefined : normalizePath(options.cwd, options);
+	if (root === undefined || !cwdKnown || hasSubstitution) return blocked;
+	const contained = targets.every(
+		(target) =>
+			isWithin(target, root) &&
+			target !== root &&
+			target
+				.slice(root.length + 1)
+				.split("/")
+				.every((segment) => !segment.startsWith(".")),
+	);
+	return contained ? [] : blocked;
+}
+
+function findRoots(args: string[]): string[] {
+	let index = 0;
+	while (index < args.length) {
+		const argument = args[index];
+		if (["-H", "-L", "-P"].includes(argument) || /^-O\d*$/.test(argument)) {
+			index++;
+			continue;
+		}
+		if (argument === "-D" || FIND_VALUE_GLOBALS.has(argument)) {
+			index += 2;
+			continue;
+		}
+		break;
+	}
+	const roots: string[] = [];
+	while (index < args.length && !args[index].startsWith("-") && args[index] !== "(" && args[index] !== "!") {
+		roots.push(args[index]);
+		index++;
+	}
+	return roots;
+}
+
+function findDeleteFindings(
+	args: string[],
+	hasSubstitution: boolean,
+	cwd: string | undefined,
+	cwdKnown: boolean,
+	options: ClassifyOptions,
+): Finding[] {
+	const blocked = [risky("find -delete deletes files")];
+	const scratch = scratchRoot(options);
+	const roots = findRoots(args);
+	if (scratch === undefined || !cwdKnown || hasSubstitution || cwd === undefined) return blocked;
+	if (roots.length === 0 || unresolvedOperands(roots)) return blocked;
+	const targets = roots.map((root) => normalizePath(root, { ...options, cwd }));
+	return targets.every((target) => isWithin(target, scratch)) ? [] : blocked;
+}
+
+function commandFindings(
+	name: string,
+	args: string[],
+	hasSubstitution: boolean,
+	cwd: string | undefined,
+	cwdKnown: boolean,
+	options: ClassifyOptions,
+): Finding[] {
 	if (name.startsWith("mkfs")) return [risky(`${name} formats a filesystem`)];
 	switch (name) {
 		case "age":
@@ -799,11 +883,9 @@ function commandFindings(name: string, args: string[], hasSubstitution: boolean)
 				? [secret(`security ${args[0]} reads the keychain`)]
 				: [];
 		case "rm":
-			return args.includes("--recursive") || hasShortFlag(args, "r") || hasShortFlag(args, "R")
-				? [risky("rm -r deletes directories")]
-				: [];
+			return rmFindings(args, hasSubstitution, cwd, cwdKnown, options);
 		case "find":
-			return args.includes("-delete") ? [risky("find -delete deletes files")] : [];
+			return args.includes("-delete") ? findDeleteFindings(args, hasSubstitution, cwd, cwdKnown, options) : [];
 		case "shred":
 			return [risky("shred destroys files")];
 		case "dd":
@@ -908,20 +990,24 @@ function secretPathReason(text: string): string | undefined {
 
 function analyzeBash(command: string, options: ClassifyOptions): Finding[] {
 	const findings: Finding[] = [];
-	const visitSource = (source: string, depth: number, initialCwd = options.cwd) => {
+	const visitSource = (source: string, depth: number, initialCwd = options.cwd, initialCwdKnown = true) => {
 		if (depth > MAX_NESTING) {
 			findings.push(risky("the command nests too deeply to check"));
 			return;
 		}
 		const lexed = lex(source);
 		let cwd = initialCwd;
+		let cwdKnown = initialCwdKnown;
 		lexed.commands.forEach((words, position) => {
 			const hasSubstitution = lexed.substitutedCommands[position] ?? false;
-			visitWords(words, depth, hasSubstitution, lexed.redirectTargets[position] ?? [], cwd);
-			const nextCwd = cdTarget(words, cwd, options, hasSubstitution);
-			if (nextCwd !== undefined) cwd = nextCwd;
+			visitWords(words, depth, hasSubstitution, lexed.redirectTargets[position] ?? [], cwd, cwdKnown);
+			const change = cdChange(words, cwd, options, hasSubstitution);
+			if (change !== undefined) {
+				cwd = change.cwd;
+				cwdKnown = change.known;
+			}
 		});
-		for (const substitution of lexed.substitutions) visitSource(substitution, depth + 1, cwd);
+		for (const substitution of lexed.substitutions) visitSource(substitution, depth + 1, cwd, cwdKnown);
 	};
 	const visitWords = (
 		words: string[],
@@ -929,6 +1015,7 @@ function analyzeBash(command: string, options: ClassifyOptions): Finding[] {
 		hasSubstitution = false,
 		redirectTargets: string[] = [],
 		cwd = options.cwd,
+		cwdKnown = true,
 	) => {
 		const secretReason = secretPathReason(words.join(" "));
 		if (secretReason) findings.push(secret(secretReason));
@@ -940,15 +1027,15 @@ function analyzeBash(command: string, options: ClassifyOptions): Finding[] {
 		const name = basename(command[0]);
 		const args = command.slice(1);
 		const body = shellBody(name, args);
-		if (body !== undefined) visitSource(body, depth + 1, cwd);
-		if (name === "eval") visitSource(args.join(" "), depth + 1, cwd);
+		if (body !== undefined) visitSource(body, depth + 1, cwd, cwdKnown);
+		if (name === "eval") visitSource(args.join(" "), depth + 1, cwd, cwdKnown);
 		if (name === "find") {
 			for (const execCommand of findExecCommands(args)) {
 				if (execCommand.length > 0 && basename(execCommand[0]) === "rm") findings.push(risky("find -exec rm deletes files"));
-				visitWords(execCommand, depth + 1, false, [], cwd);
+				visitWords(execCommand, depth + 1, false, [], cwd, cwdKnown);
 			}
 		}
-		findings.push(...commandFindings(name, args, hasSubstitution));
+		findings.push(...commandFindings(name, args, hasSubstitution, cwd, cwdKnown, options));
 		findings.push(...writeFindings([...redirectTargets, ...writeDestinations(name, args)], cwd, options));
 	};
 	const rawSecretReason = secretPathReason(command);
@@ -980,7 +1067,17 @@ function isScratchPath(filePath: string, options: ClassifyOptions): boolean {
 	return isWithin(filePath, normalizePath(options.scratch, options));
 }
 
-function cdTarget(words: string[], cwd: string | undefined, options: ClassifyOptions, hasSubstitution: boolean): string | undefined {
+interface CdChange {
+	cwd: string | undefined;
+	known: boolean;
+}
+
+function cdChange(
+	words: string[],
+	cwd: string | undefined,
+	options: ClassifyOptions,
+	hasSubstitution: boolean,
+): CdChange | undefined {
 	let index = 0;
 	while (index < words.length && (ASSIGNMENT.test(words[index]) || KEYWORDS.has(words[index]))) index++;
 	if (basename(words[index] ?? "") !== "cd") return undefined;
@@ -995,8 +1092,9 @@ function cdTarget(words: string[], cwd: string | undefined, options: ClassifyOpt
 		if (argument.startsWith("-") && argument !== "-") continue;
 		if (argument !== "") operand = argument;
 	}
-	if (hasSubstitution || operand === undefined || operand === "-") return options.cwd;
-	return normalizePath(operand, { ...options, cwd });
+	if (hasSubstitution || operand === undefined || operand === "-" || PATH_METACHARACTERS.test(operand))
+		return { cwd: options.cwd, known: false };
+	return { cwd: normalizePath(operand, { ...options, cwd }), known: true };
 }
 
 function writeFindings(targets: string[], cwd: string | undefined, options: ClassifyOptions): Finding[] {

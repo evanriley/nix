@@ -44,7 +44,7 @@ const CHILD_ONLY: Expected = { main: "allow", children: "block" };
 
 const cases: Case[] = [
 	bash('rg -n "rm -rf" src', "allow", ["worker"]),
-	bash("cd build && rm -rf out", "block", ["worker"]),
+	bash("cd build && rm -rf out", "allow", ["worker"]),
 	bash("git push", "confirm", ["main"]),
 	bash('git commit -m "fix sudo prompt"', "allow", ["main"]),
 	bash("cat /run/agenix/kagi-key", "block"),
@@ -209,13 +209,31 @@ const cases: Case[] = [
 	bash("gh pr merge --rebase --delete-branch", "allow", ["main"]),
 	bash('echo "$(age -d f)"', "block"),
 
-	bash("rm -rf build", RISKY),
-	bash("rm -fr build", RISKY),
-	bash("rm -Rf build", RISKY),
-	bash("rm -r build", RISKY),
-	bash("rm --recursive build", RISKY),
+	bash("rm -rf build", "allow"),
+	bash("rm -fr build", "allow"),
+	bash("rm -Rf build", "allow"),
+	bash("rm -r build", "allow"),
+	bash("rm --recursive build", "allow"),
+	bash("rm -rf ./build", "allow"),
+	bash("rm -rf build node_modules", "allow"),
+	bash("rm -rf -- build", "allow"),
 	bash("rm -f file.txt", "allow"),
+	bash("rm -rf .git", RISKY),
+	bash("rm -rf .", RISKY),
+	bash("rm -rf ..", RISKY),
+	bash("rm -rf ~/x", RISKY),
+	bash("rm -rf /", RISKY),
+	bash("rm -rf *", RISKY),
+	bash("rm -rf -", RISKY),
+	bash("rm -rf $DIR", RISKY),
+	bash("cd .git && rm -rf objects", RISKY),
+	bash("cd .config && rm -rf x", RISKY),
+	bash("cd $X && rm -rf build", RISKY),
+	bash("cd /etc && rm -rf x", RISKY),
 	bash("find . -name '*.o' -delete", RISKY),
+	bash("find / -delete", RISKY),
+	bash("find -delete", RISKY),
+	bash("find $D -delete", RISKY),
 	bash("find . -name '*.o' -print", "allow"),
 	bash("find . -name x -exec rm {} \\;", RISKY),
 	bash("find . -name x -exec git push \\;", RISKY),
@@ -533,7 +551,12 @@ const cases: Case[] = [
 	bash(`cd ${SCRATCH} && sudo ls`, "block", ["reviewer"], SCRATCH),
 	bash(`cd ${SCRATCH} && git commit -am x`, "block", ["reviewer"], SCRATCH),
 	bash(`cd ${SCRATCH} && cat /run/agenix/x`, "block", ["reviewer"], SCRATCH),
-	bash(`cd ${SCRATCH} && rm -rf build`, "block", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && rm -rf build`, "allow", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && rm -rf out`, "allow", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && rm -rf /`, "block", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && find . -delete`, "allow", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && find -maxdepth 2 . -delete`, "allow", ["reviewer"], SCRATCH),
+	bash(`cd ${SCRATCH} && find $FOO -delete`, "block", ["reviewer"], SCRATCH),
 
 	tool("codemode", undefined, "allow"),
 	bash("", "allow"),
@@ -560,6 +583,21 @@ for (const item of cases) {
 test("classify_relativeGitPathWithoutCwd_blocksWrite", () => {
 	const decision = classify("write", { path: ".git/config" }, "worker", { home: HOME });
 	assert.equal(decision.action, "block");
+});
+
+test("classify_workerWithoutScratch_blocksScratchPathDelete", () => {
+	const options: ClassifyOptions = { home: HOME, cwd: "/home/tester/project" };
+	assert.equal(classify("bash", { command: `rm -rf ${SCRATCH}/out` }, "worker", options).action, "block");
+	assert.equal(classify("bash", { command: `find ${SCRATCH} -delete` }, "worker", options).action, "block");
+});
+
+test("classify_absoluteInRepoDelete_allows", () => {
+	const options: ClassifyOptions = { home: HOME, cwd: "/home/tester/project" };
+	assert.equal(classify("bash", { command: "rm -rf /home/tester/project/build" }, "worker", options).action, "allow");
+});
+
+test("classify_rmRecursiveWithoutCwd_blocks", () => {
+	assert.equal(classify("bash", { command: "rm -rf build" }, "worker", { home: HOME }).action, "block");
 });
 
 test("bashTimeout_childOmitted_defaults", () => {
