@@ -18,6 +18,33 @@ A repository's own `AGENTS.md` takes precedence for that repository.
   the user the exact command instead.
 - System switches are user-run (`nh os switch`). `nh home switch` is allowed.
 
+## Work
+
+- Investigate before changing: read the surrounding code, search for existing
+  helpers and prior art, and check `git log` for why things are the way they
+  are.
+- Match the surrounding code: naming, structure, idiom.
+- Keep changes scoped to the request. Mention unrelated problems instead of
+  fixing them.
+- Fix the class of bug, not only the reported instance; check the sibling
+  cases.
+- Verify by building, testing or running the change before reporting done.
+
+## Skills
+
+Load the skill named here before starting the work it covers:
+
+- `spec-driven-development` before any non-trivial change: write the spec and
+  wait for approval.
+- `code-guidelines` before writing code and `code-review` before reviewing it,
+  including your own diff before reporting done.
+- `debugging` when something fails, crashes, hangs or regresses.
+- `commit` before committing, amending or splitting commits.
+- `writing-docs` before writing or editing documentation.
+- `nix-environment` for tools, dotfiles, services and `.nix` files,
+  `nix-packaging` for packages, hashes and overrides, and
+  `repl-driven-development` for Clojure, OCaml and Python work.
+
 ## Secrets and safety
 
 - Treat every repository as public.
@@ -52,6 +79,21 @@ A repository's own `AGENTS.md` takes precedence for that repository.
   is still unknown after narrowing it; or when I ask.
 - Never consult it solely to choose a worker, and never run two at once.
 - Pass one `thread` slug per feature and reuse it for follow-ups.
+
+## Loop
+
+- `/feature` writes a spec to the plans directory, prints the whole spec, and
+  stops for `/approve`; `/quick` does the same for a one-task change. Neither
+  writes code before the approval.
+- `/approve` covers every task until `spec.md` changes. Any edit to the spec,
+  including an appended task, needs a new approval.
+- The `task` tool runs one task of the spec end to end: worker, Checks,
+  reviewer, up to two fix passes, then the commit.
+- Every task and every fix pass starts a fresh worker with no prior context,
+  so briefs must be self-contained. Only a failed check returns to the same
+  worker.
+- On the context cap, write `status.md` and stop; `/resume-feature <feature>`
+  continues from it. `/ship` when every task is committed.
 
 ## Output style
 
