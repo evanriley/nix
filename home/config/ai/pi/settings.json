@@ -2,7 +2,7 @@
   "defaultProvider": "openrouter",
   "defaultModel": "z-ai/glm-5.3",
   "enabledModels": ["openrouter/z-ai/glm-5.3", "coralbricks/deepseek-v4.1-flash-fast", "openrouter/minimax/minimax-m3.1-flash:free", "openrouter/tencent/hy4-preview"],
-  "defaultThinkingLevel": "max",
+  "defaultThinkingLevel": "high",
   "compaction": { "enabled": false },
   "cacheWarming": "idle",
   "enableInstallTelemetry": false,
