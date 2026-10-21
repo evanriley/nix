@@ -40,6 +40,9 @@ When unsure, write the spec; a short one is cheap.
 In the conversation. Write it to a file only when I ask, outside the
 repository unless I name a path.
 
+In pi, the `/feature` and `/quick` prompts write the spec to the plans
+directory and gate work behind `/approve`; follow the prompt instead.
+
 ## Quality bar
 
 - Current state cites code: `file:line`, real config values, example data.

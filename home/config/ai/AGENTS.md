@@ -48,10 +48,11 @@ in `~/.claude/agents` do the work.
 - When I name a worker role or `oracle`, use it and skip its criteria.
 - Size each worker task to one commit. A worker running past about 40 minutes
   means the task was too big; split the next one.
-- When a hand-back has an execution mistake, return the findings to the same
-  agent once. When its route was wrong, use `worker-deep`. When the cause is
-  unknown, use `worker-deep` with the `debugging` skill to reproduce and narrow
-  it; keep the diagnosis for yourself.
+- Every agent starts with a fresh context: hand-offs are self-contained.
+  Re-engage the same agent only to fix its own execution mistake; when its
+  route was wrong use `worker-deep`. When the cause is unknown, use
+  `worker-deep` with the `debugging` skill to reproduce and narrow it; keep
+  the diagnosis for yourself.
 - Run workers in parallel only for parts with disjoint files, at most three at
   once. Never run oracles in parallel.
 - Use `oracle` before the spec for `worker-high`-grade work, after proposing it
