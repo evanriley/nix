@@ -103,7 +103,7 @@ const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 	},
 	reviewer: {
 		role: "reviewer",
-		model: "openrouter/openai/gpt-6.1-sol",
+		model: "openrouter/minimax/minimax-m3.1-flash:free",
 		thinking: "high",
 		tools: ["read", "grep", "find", "ls", "bash", "mcp__kagi__kagi_search_fetch"],
 		promptFile: path.join(EXTENSION_DIR, "reviewer.md"),
@@ -1395,7 +1395,7 @@ export default function (pi: ExtensionAPI) {
 		name: "task",
 		label: "Task",
 		description: [
-			"Run one task of a feature's spec.md end to end: the DeepSeek V4.1 Flash worker implements it, the spec's Checks run, the GPT-6.1 Sol reviewer reviews it, up to 2 fix passes address blocking findings, then the loop commits it.",
+			"Run one task of a feature's spec.md end to end: the DeepSeek V4.1 Flash worker implements it, the spec's Checks run, the MiniMax M3.1 Flash reviewer reviews it, up to 2 fix passes address blocking findings, then the loop commits it.",
 			"Needs the user's /approve of the current spec.md; the approval covers every task until spec.md changes.",
 			"Needs a clean worktree for tracked files. From the repository's default branch, the first task switches to a branch named after the feature.",
 			"One task runs at a time. Returns `committed <sha> <subject>` with the non-blocking findings, or `blocked: <stage>` with the reason and file paths.",

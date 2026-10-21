@@ -1,8 +1,8 @@
 {
   "defaultProvider": "openrouter",
-  "defaultModel": "anthropic/claude-sonnet-5.5",
-  "enabledModels": ["openrouter/anthropic/claude-sonnet-5.5", "coralbricks/deepseek-v4.1-flash-fast", "openrouter/openai/gpt-6.1-sol"],
-  "defaultThinkingLevel": "high",
+  "defaultModel": "z-ai/glm-5.3",
+  "enabledModels": ["openrouter/z-ai/glm-5.3", "coralbricks/deepseek-v4.1-flash-fast", "openrouter/minimax/minimax-m3.1-flash:free", "openrouter/tencent/hy4-preview"],
+  "defaultThinkingLevel": "max",
   "compaction": { "enabled": false },
   "cacheWarming": "idle",
   "enableInstallTelemetry": false,

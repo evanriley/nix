@@ -20,6 +20,19 @@
             }
           }
         },
+        "z-ai/glm-5.3": {
+          "contextWindow": 1048576,
+          "maxTokens": 131072,
+          "cost": { "input": 0.75, "output": 1, "cacheRead": 0.08, "cacheWrite": 0 },
+          "compat": {
+            "openRouterRouting": {
+              "order": ["sail-research", "novita", "morph", "siliconflow", "gmicloud", "parasail", "coreweave", "z-ai"],
+              "only": ["sail-research", "novita", "morph", "siliconflow", "gmicloud", "parasail", "coreweave", "z-ai"],
+              "allow_fallbacks": false,
+              "quantizations": ["fp8"]
+            }
+          }
+        },
         "deepseek/deepseek-v4.1-flash": {
           "contextWindow": 1048576,
           "maxTokens": 393216,
@@ -34,7 +47,35 @@
             }
           }
         }
-      }
+      },
+      "models": [
+        {
+          "id": "minimax/minimax-m3.1-flash:free",
+          "name": "MiniMax: MiniMax M3.1 Flash (free)",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 1000000,
+          "maxTokens": 524288,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "compat": { "supportsDeveloperRole": false, "thinkingFormat": "openrouter", "supportsStrictMode": true, "sendSessionAffinityHeaders": true }
+        },
+        {
+          "id": "minimax/minimax-m3.1-flash",
+          "name": "MiniMax: MiniMax M3.1 Flash",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 1000000,
+          "maxTokens": 524288,
+          "cost": { "input": 0.15, "output": 0.6, "cacheRead": 0.015, "cacheWrite": 0 },
+          "compat": {
+            "supportsDeveloperRole": false,
+            "thinkingFormat": "openrouter",
+            "supportsStrictMode": true,
+            "sendSessionAffinityHeaders": true,
+            "openRouterRouting": { "order": ["minimax"], "only": ["minimax"], "allow_fallbacks": false }
+          }
+        }
+      ]
     },
     "coralbricks": {
       "name": "CoralBricks",
