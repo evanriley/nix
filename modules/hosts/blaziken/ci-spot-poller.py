@@ -196,7 +196,7 @@ def config_from_env(env: Mapping[str, str]) -> Config:
             f"{error.strerror}; expected meta.ciBuilderStartupScript"
         ) from error
 
-    raw_max = env.get("CI_SPOT_MAX_INSTANCES", "3")
+    raw_max = env.get("CI_SPOT_MAX_INSTANCES", "4")
     try:
         max_instances = int(raw_max)
     except ValueError:

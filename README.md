@@ -232,7 +232,7 @@ The `spot-builders` Buildkite queue runs on GCE Spot VMs booted from the
     metrics API;
   - launches one VM per unserved job, `c4d-highcpu-16` first and then
     `c3d-highcpu-30`, in `us-central1-a`, `-b`, `-c` and `-f`, keeping at most
-    `CI_SPOT_MAX_INSTANCES` (default 3) VMs labelled `maybe-ci=true`;
+    `CI_SPOT_MAX_INSTANCES` (default 4) VMs labelled `maybe-ci=true`;
   - deletes labelled VMs that are stopped, not ready after 15 minutes, or older
     than 6 hours 15 minutes.
 - Each VM receives the ci-builder toplevel that `ci.sh publish` last recorded
