@@ -67,10 +67,9 @@ in
         fallback = true;
       };
 
-      systemd.services.nix-daemon = {
-        environment.AWS_SHARED_CREDENTIALS_FILE = config.age.secrets.ci-cache-reader.path;
-        restartTriggers = [ (builtins.hashFile "sha256" config.age.secrets.ci-cache-reader.file) ];
-      };
+      # Lix's socket runs each connection in a nix-daemon@ instance; nix-daemon.service never starts.
+      systemd.services."nix-daemon@".environment.AWS_SHARED_CREDENTIALS_FILE =
+        config.age.secrets.ci-cache-reader.path;
 
       systemd.services.ci-spot-poller.environment = {
         CI_CACHE_CREDENTIALS_PATH = config.age.secrets.ci-cache-writer.path;
