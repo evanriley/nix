@@ -106,7 +106,7 @@ const ROLE_CONFIG: Record<Role, Omit<ChildConfig, "sessionFile">> = {
 	},
 	reviewer: {
 		role: "reviewer",
-		model: "openrouter/minimax/minimax-m3.1-flash:free",
+		model: "openrouter/minimax/minimax-m3.1-flash",
 		thinking: "high",
 		tools: ["read", "grep", "find", "ls", "bash", "mcp__kagi__kagi_search_fetch"],
 		promptFile: path.join(EXTENSION_DIR, "reviewer.md"),
