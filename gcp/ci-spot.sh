@@ -18,7 +18,6 @@ permissions=(
   compute.instances.list
   compute.instances.setLabels
   compute.instances.setMetadata
-  compute.instances.setTags
   compute.subnetworks.use
   compute.subnetworks.useExternalIp
   compute.zoneOperations.get
@@ -94,8 +93,9 @@ firewall_rule maybe-ci-allow-web-egress EGRESS ALLOW tcp:80,tcp:443 1000 \
   --destination-ranges=0.0.0.0/0
 firewall_rule maybe-ci-deny-egress EGRESS DENY all 65535 \
   --destination-ranges=0.0.0.0/0
-firewall_rule maybe-ci-allow-builder-ssh INGRESS ALLOW tcp:22 1000 \
-  --source-ranges=147.135.1.187/32 --target-tags=ci-remote-builder
+if exists gcloud compute firewall-rules describe maybe-ci-allow-builder-ssh --project="$project"; then
+  gcloud compute firewall-rules delete maybe-ci-allow-builder-ssh --project="$project" --quiet
+fi
 
 echo "--- role $role"
 role_flags=(

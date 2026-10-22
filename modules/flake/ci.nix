@@ -31,7 +31,6 @@ in
             cinderace = toplevel "cinderace";
             blaziken = toplevel "blaziken";
             ci-builder = toplevel "ci-builder";
-            ci-remote-builder = toplevel "ci-remote-builder";
           };
         evalOnly =
           activationPackages (lib.filterAttrs (name: home: !buildsHere name home) homeConfigurations)

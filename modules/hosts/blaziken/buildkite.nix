@@ -111,8 +111,6 @@ in
             export CI_PUBLISHED_COMMIT_FILE=${mainHome}/published-commit
             CI_FULL=$(jq -r '.env.CI_FULL // ""' <<<"$build")
             export CI_FULL
-            export CI_REMOTE_BUILDER_SYSTEM_FILE=${mainHome}/ci-remote-builder-system
-            export CI_REMOTE_BUILDER=1 BUILDKITE_JOB_ID="$job_id"
             exec .buildkite/ci.sh publish
           }
 

@@ -10,7 +10,7 @@ import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -388,13 +388,13 @@ def operation_errors(operation: dict[str, object]) -> str | None:
     return "; ".join(parts) or "the operation reported an error"
 
 
-def read_system(path: Path, host: str) -> tuple[str | None, str]:
+def read_system(path: Path) -> tuple[str | None, str]:
     try:
         raw = path.read_text()
     except FileNotFoundError:
         return None, (
             f"{path} does not exist; the main agent writes it when it "
-            f"publishes a {host} system from main. Run a main build"
+            "publishes a ci-builder system from main. Run a main build"
         )
     except (OSError, UnicodeDecodeError) as error:
         return None, f"reading {path} failed: {error}"
@@ -402,7 +402,7 @@ def read_system(path: Path, host: str) -> tuple[str | None, str]:
     if not SYSTEM_PATTERN.fullmatch(system):
         return None, (
             f"{path} does not hold one /nix/store/<hash>-nixos-system-* "
-            f"path; publish a {host} system from main to rewrite it"
+            "path; publish a ci-builder system from main to rewrite it"
         )
     return system, f"{path} holds {system}"
 
@@ -413,16 +413,12 @@ def instance_body(
     shape: str,
     zone: str,
     metadata: Mapping[str, str],
-    *,
-    label: str,
-    run_duration: int,
-    tags: Sequence[str] = (),
 ) -> dict[str, object]:
     project = account.project
-    body: dict[str, object] = {
+    return {
         "name": name,
         "machineType": f"zones/{zone}/machineTypes/{shape}",
-        "labels": {label: "true"},
+        "labels": {LABEL: "true"},
         "disks": [
             {
                 "boot": True,
@@ -454,7 +450,7 @@ def instance_body(
         "scheduling": {
             "provisioningModel": "SPOT",
             "instanceTerminationAction": "DELETE",
-            "maxRunDuration": {"seconds": str(run_duration)},
+            "maxRunDuration": {"seconds": str(RUN_DURATION)},
             "automaticRestart": False,
             "onHostMaintenance": "TERMINATE",
         },
@@ -464,9 +460,6 @@ def instance_body(
             ]
         },
     }
-    if tags:
-        body["tags"] = {"items": list(tags)}
-    return body
 
 
 class GcpClient:
@@ -808,7 +801,7 @@ class Poller:
         return expect_object(queues[queue], f"metrics {section}.{queue}")
 
     def _system(self) -> str | None:
-        system, state = read_system(self._config.system_file, "ci-builder")
+        system, state = read_system(self._config.system_file)
         if state != self._system_state:
             self._system_state = state
             if system is None:
@@ -1092,15 +1085,7 @@ class Poller:
         deadline: float,
     ) -> Outcome:
         name = f"{LABEL}-{secrets.token_hex(4)}"
-        body = instance_body(
-            account,
-            name,
-            shape,
-            zone,
-            metadata,
-            label=LABEL,
-            run_duration=RUN_DURATION,
-        )
+        body = instance_body(account, name, shape, zone, metadata)
         zone_url = f"{COMPUTE}/projects/{account.project}/zones/{zone}"
         try:
             operation = self._client.request(
