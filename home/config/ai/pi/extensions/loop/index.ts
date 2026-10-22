@@ -338,6 +338,591 @@ function nextReviewNumber(featureDir: string): number {
 	return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
 }
 
+function runGit(cwd: string, args: string[], input?: Buffer, env?: NodeJS.ProcessEnv): Promise<Buffer> {
+	return new Promise((resolve, reject) => {
+		const child = spawn("git", args, { cwd, env, shell: false, stdio: ["pipe", "pipe", "pipe"] });
+		const stdout: Buffer[] = [];
+		let stderr = "";
+		child.stdout.on("data", (data: Buffer) => stdout.push(data));
+		child.stderr.on("data", (data) => {
+			stderr += data.toString();
+		});
+		child.on("error", reject);
+		child.on("close", (code) => {
+			if (code === 0) resolve(Buffer.concat(stdout));
+			else reject(new Error(`git ${args.join(" ")} failed (exit ${code}): ${stderr.trim()}`));
+		});
+		child.stdin.end(input);
+	});
+}
+
+async function gitText(cwd: string, args: string[]): Promise<string | undefined> {
+	const output = await runGit(cwd, args).catch(() => undefined);
+	return output?.toString().trim() || undefined;
+}
+
+async function nextCheckpointNumber(repoRoot: string, feature: string): Promise<number> {
+	const refs = await runGit(repoRoot, ["for-each-ref", "--format=%(refname)", `refs/pi/${feature}/`]);
+	const numbers = refs
+		.toString()
+		.split("\n")
+		.map((ref) => Number(ref.slice(`refs/pi/${feature}/`.length)))
+		.filter((number) => Number.isInteger(number));
+	return numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+}
+
+async function createCheckpoint(repoRoot: string, feature: string): Promise<string> {
+	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-checkpoint-"));
+	try {
+		const indexFile = path.join(tempDir, "index");
+		const realIndex = path.resolve(repoRoot, (await runGit(repoRoot, ["rev-parse", "--git-path", "index"])).toString().trim());
+		if (fs.existsSync(realIndex)) fs.copyFileSync(realIndex, indexFile);
+		const env = {
+			...process.env,
+			GIT_INDEX_FILE: indexFile,
+			GIT_AUTHOR_NAME: "pi",
+			GIT_AUTHOR_EMAIL: "pi@localhost",
+			GIT_COMMITTER_NAME: "pi",
+			GIT_COMMITTER_EMAIL: "pi@localhost",
+		};
+		await runGit(repoRoot, ["add", "-A"], undefined, env);
+		const tree = (await runGit(repoRoot, ["write-tree"], undefined, env)).toString().trim();
+		const number = await nextCheckpointNumber(repoRoot, feature);
+		const ref = `refs/pi/${feature}/${number}`;
+		const hasHead = (await gitText(repoRoot, ["rev-parse", "--verify", "--quiet", "HEAD"])) !== undefined;
+		const parent = hasHead ? ["-p", "HEAD"] : [];
+		const commit = (
+			await runGit(repoRoot, ["commit-tree", tree, ...parent, "-m", `pi checkpoint ${feature} ${number}`], undefined, env)
+		)
+			.toString()
+			.trim();
+		await runGit(repoRoot, ["update-ref", ref, commit]);
+		return ref;
+	} finally {
+		fs.rmSync(tempDir, { recursive: true, force: true });
+	}
+}
+
+async function currentBranch(repoRoot: string): Promise<string | undefined> {
+	return gitText(repoRoot, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
+}
+
+async function defaultBranch(repoRoot: string): Promise<string> {
+	const remoteHead = await gitText(repoRoot, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]);
+	if (remoteHead) return remoteHead.replace(/^origin\//, "");
+	return (await gitText(repoRoot, ["config", "init.defaultBranch"])) ?? "main";
+}
+
+async function branchExists(repoRoot: string, branch: string): Promise<boolean> {
+	return (await gitText(repoRoot, ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`])) !== undefined;
+}
+
+async function ensureFeatureBranch(repoRoot: string, feature: string): Promise<string | undefined> {
+	const enabled = await gitText(repoRoot, ["config", "--type=bool", "pi.featureBranches"]);
+	if (enabled === "false") return undefined;
+	const current = await currentBranch(repoRoot);
+	if (!current) return undefined;
+	const base = await defaultBranch(repoRoot);
+	if (current !== base) return undefined;
+	const args = (await branchExists(repoRoot, feature)) ? ["switch", feature] : ["switch", "-c", feature];
+	await runGit(repoRoot, args);
+	return base;
+}
+
+async function removeScratch(repoRoot: string, scratchDir: string): Promise<void> {
+	if (fs.existsSync(scratchDir)) {
+		await runGit(repoRoot, ["worktree", "remove", "--force", scratchDir]).catch(() => undefined);
+		fs.rmSync(scratchDir, { recursive: true, force: true });
+	}
+	await runGit(repoRoot, ["worktree", "prune"]).catch(() => undefined);
+}
+
+async function createScratch(repoRoot: string, scratchDir: string): Promise<void> {
+	await runGit(repoRoot, ["worktree", "add", "--detach", scratchDir, "HEAD"]);
+	const diff = await runGit(repoRoot, ["diff", "HEAD", "--binary"]);
+	if (diff.length > 0) await runGit(scratchDir, ["apply", "--binary"], diff);
+	const untracked = (await runGit(repoRoot, ["ls-files", "--others", "--exclude-standard", "-z"]))
+		.toString("utf-8")
+		.split("\0")
+		.filter((name) => name.length > 0);
+	for (const name of untracked) {
+		const target = path.join(scratchDir, name);
+		fs.mkdirSync(path.dirname(target), { recursive: true });
+		fs.cpSync(path.join(repoRoot, name), target, { recursive: true, verbatimSymlinks: true });
+	}
+}
+
+function countLines(filePath: string): number {
+	if (!fs.existsSync(filePath)) return 0;
+	return fs.readFileSync(filePath, "utf-8").split("\n").length - 1;
+}
+
+function lastNonEmptyLine(text: string): string | undefined {
+	const lines = text
+		.split("\n")
+		.map((line) => line.replace(/\s+/g, " ").trim())
+		.filter((line) => line.length > 0);
+	return lines.at(-1);
+}
+
+function getPiInvocation(args: string[]): { command: string; args: string[] } {
+	const currentScript = process.argv[1];
+	const isBunVirtualScript = currentScript?.startsWith("/$bunfs/root/");
+	if (currentScript && !isBunVirtualScript && fs.existsSync(currentScript)) {
+		return { command: process.execPath, args: [currentScript, ...args] };
+	}
+	const execName = path.basename(process.execPath).toLowerCase();
+	if (!/^(node|bun)(\.exe)?$/.test(execName)) {
+		return { command: process.execPath, args };
+	}
+	return { command: "pi", args };
+}
+
+function buildChildArgs(config: ChildConfig, message: string): string[] {
+	return [
+		"--mode",
+		"json",
+		"-p",
+		"--session",
+		config.sessionFile,
+		"--model",
+		config.model,
+		"--thinking",
+		config.thinking,
+		"--tools",
+		config.tools.join(","),
+		"--no-extensions",
+		"--extension",
+		path.join(getAgentDir(), "extensions", "guard", "index.ts"),
+		"--extension",
+		path.join(getAgentDir(), "extensions", "vision", "index.ts"),
+		...(config.tools.some((tool) => tool.startsWith("mcp__")) ? ["--extension", "builtin:mcp"] : []),
+		"--no-prompt-templates",
+		"--append-system-prompt",
+		config.promptFile,
+		"--",
+		message,
+	];
+}
+
+function childEnvironment(config: ChildConfig): NodeJS.ProcessEnv {
+	const environment: NodeJS.ProcessEnv = { ...process.env, PI_LOOP_ROLE: config.role };
+	delete environment.PI_LOOP_SCRATCH;
+	if (config.scratch) environment.PI_LOOP_SCRATCH = config.scratch;
+	return environment;
+}
+
+function lastAssistantText(message: Message): string | undefined {
+	if (message.role !== "assistant") return undefined;
+	const texts = message.content.filter((part) => part.type === "text").map((part) => part.text);
+	return texts.length > 0 ? texts.join("\n") : undefined;
+}
+
+function runChild(
+	config: ChildConfig,
+	message: string,
+	cwd: string,
+	signal: AbortSignal | undefined,
+	onProgress: (result: ChildResult) => void,
+): Promise<ChildResult> {
+	const result: ChildResult = {
+		exitCode: 0,
+		finalText: "",
+		stderr: "",
+		turns: 0,
+		toolCalls: 0,
+		usage: emptyUsage(),
+	};
+	const invocation = getPiInvocation(buildChildArgs(config, message));
+
+	return new Promise((resolve) => {
+		const child = spawn(invocation.command, invocation.args, {
+			cwd,
+			env: childEnvironment(config),
+			shell: false,
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+		let buffer = "";
+		let thinkingText = "";
+		let lastProgressAt = 0;
+		let limitTimer: NodeJS.Timeout | undefined;
+
+		const reportProgress = () => {
+			lastProgressAt = Date.now();
+			onProgress(result);
+		};
+
+		const processThinking = (assistantEvent: { type?: string; delta?: string; content?: string }) => {
+			if (assistantEvent.type === "thinking_start") thinkingText = "";
+			else if (assistantEvent.type === "thinking_delta") thinkingText += assistantEvent.delta ?? "";
+			else if (assistantEvent.type === "thinking_end") thinkingText = assistantEvent.content ?? thinkingText;
+			else return;
+			result.thinkingLine = lastNonEmptyLine(thinkingText) ?? result.thinkingLine;
+			if (Date.now() - lastProgressAt >= PROGRESS_INTERVAL_MS) reportProgress();
+		};
+
+		const processLine = (line: string) => {
+			if (!line.trim()) return;
+			let event: {
+				type?: string;
+				message?: Message;
+				assistantMessageEvent?: { type?: string; delta?: string; content?: string };
+			};
+			try {
+				event = JSON.parse(line);
+			} catch {
+				return;
+			}
+			if (event.type === "message_update" && event.assistantMessageEvent) {
+				processThinking(event.assistantMessageEvent);
+				return;
+			}
+			if (event.type !== "message_end" || event.message?.role !== "assistant") return;
+			const assistant = event.message;
+			result.turns++;
+			result.toolCalls += assistant.content.filter((part) => part.type === "toolCall").length;
+			if (assistant.usage) addUsage(result.usage, assistant.usage);
+			if (!result.limit && result.turns >= config.maxTurns) {
+				stopAtLimit({ kind: "turn", value: `${config.maxTurns} turns` });
+			} else if (!result.limit && result.usage.cost.total >= config.maxCost) {
+				stopAtLimit({ kind: "cost", value: `$${config.maxCost.toFixed(2)}` });
+			}
+			result.finalText = lastAssistantText(assistant) ?? result.finalText;
+			if (assistant.stopReason) result.stopReason = assistant.stopReason;
+			if (assistant.errorMessage) result.errorMessage = assistant.errorMessage;
+			reportProgress();
+		};
+
+		child.stdout.on("data", (data) => {
+			buffer += data.toString();
+			const lines = buffer.split("\n");
+			buffer = lines.pop() ?? "";
+			for (const line of lines) processLine(line);
+		});
+		child.stderr.on("data", (data) => {
+			result.stderr += data.toString();
+		});
+		const stop = () => {
+			child.kill("SIGTERM");
+			setTimeout(() => {
+				if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+			}, 5000);
+		};
+
+		const stopAtLimit = (limit: LimitHit) => {
+			result.limit = limit;
+			stop();
+		};
+		limitTimer = setTimeout(
+			() => stopAtLimit({ kind: "time", value: `${config.maxMinutes} min` }),
+			config.maxMinutes * 60_000,
+		);
+
+		child.on("close", (code) => {
+			clearTimeout(limitTimer);
+			signal?.removeEventListener("abort", stop);
+			if (buffer.trim()) processLine(buffer);
+			result.exitCode = code ?? 1;
+			resolve(result);
+		});
+		child.on("error", (error) => {
+			clearTimeout(limitTimer);
+			result.stderr += error.message;
+			result.exitCode = 1;
+			resolve(result);
+		});
+
+		if (signal?.aborted) stop();
+		else signal?.addEventListener("abort", stop, { once: true });
+	});
+}
+
+function isFailed(result: ChildResult): boolean {
+	return result.limit !== undefined || result.exitCode !== 0 || result.stopReason === "error" || result.stopReason === "aborted";
+}
+
+function failureText(role: Role, result: ChildResult): string {
+	if (result.limit) return `The ${role} stopped at its ${result.limit.kind} limit (${result.limit.value})`;
+	const reason = result.errorMessage || result.stderr.trim() || result.finalText || "(no output)";
+	return `The ${role} failed (exit ${result.exitCode}, stop reason ${result.stopReason ?? "none"}): ${reason}`;
+}
+
+function makeDetails(
+	stage: Stage,
+	feature: string,
+	result: ChildResult,
+	transcript: TranscriptRef,
+	reviewPath?: string,
+): LoopDetails {
+	return {
+		stage,
+		feature,
+		turns: result.turns,
+		toolCalls: result.toolCalls,
+		usage: result.usage,
+		transcript,
+		reviewPath,
+	};
+}
+
+async function withLock<T>(onChange: () => Promise<void>, run: () => Promise<T>): Promise<T> {
+	if (taskRunning) {
+		throw new Error("A task is already running; wait for it to finish before starting another.");
+	}
+	taskRunning = true;
+	try {
+		return await run();
+	} finally {
+		taskRunning = false;
+		runningStage = undefined;
+		await onChange();
+	}
+}
+
+type OnUpdate = ((partial: AgentToolResult<LoopDetails>) => void) | undefined;
+
+function progressHeader(details: Pick<LoopDetails, "stage" | "turns" | "toolCalls" | "command">): string {
+	if (details.stage === "checks") return `checks running: ${details.command ?? ""}`;
+	return `${details.stage} running: ${details.turns} turns, ${details.toolCalls} tool calls`;
+}
+
+function progressReporter(
+	stage: Stage,
+	feature: string,
+	transcript: TranscriptRef,
+	onUpdate: OnUpdate,
+): (result: ChildResult) => void {
+	return (result) => {
+		const details = { ...makeDetails(stage, feature, result, transcript), thinkingLine: result.thinkingLine };
+		const thinkText = result.thinkingLine ? `\nthink: ${result.thinkingLine}` : "";
+		onUpdate?.({
+			content: [{ type: "text", text: `${progressHeader(details)}${thinkText}` }],
+			details,
+		});
+	};
+}
+
+function tailToWidth(text: string, width: number): string {
+	const textWidth = visibleWidth(text);
+	if (textWidth <= width) return text;
+	return `…${sliceByColumn(text, textWidth - width + 1, width - 1)}`;
+}
+
+function progressView(details: LoopDetails, theme: Theme): Component {
+	return {
+		invalidate() {},
+		render(width) {
+			const lines = [truncateToWidth(theme.fg("warning", progressHeader(details)), width)];
+			if (details.thinkingLine) {
+				const label = "think: ";
+				const tail = tailToWidth(details.thinkingLine, Math.max(1, width - visibleWidth(label)));
+				lines.push(truncateToWidth(theme.fg("muted", label) + theme.fg("thinkingText", theme.italic(tail)), width));
+			}
+			return lines;
+		},
+	};
+}
+
+function resultText(result: AgentToolResult<LoopDetails | undefined>): string {
+	return result.content
+		.filter((part) => part.type === "text")
+		.map((part) => part.text)
+		.join("\n");
+}
+
+function reportView(text: string, expanded: boolean, theme: Theme): Component {
+	const lines = text.split("\n");
+	const shown = expanded ? lines : lines.slice(0, COLLAPSED_REPORT_LINES);
+	let rendered = shown.map((line) => theme.fg("toolOutput", line)).join("\n");
+	const remaining = lines.length - shown.length;
+	if (remaining > 0) {
+		rendered += `${theme.fg("muted", `\n... (${remaining} more lines,`)} ${keyHint("app.tools.expand", "to expand")}${theme.fg("muted", ")")}`;
+	}
+	return new Text(rendered, 0, 0);
+}
+
+function readDispatchMessages(transcript: TranscriptRef): Message[] | undefined {
+	if (!fs.existsSync(transcript.file)) return undefined;
+	const messages: Message[] = [];
+	for (const line of fs.readFileSync(transcript.file, "utf-8").split("\n").slice(transcript.fromLine)) {
+		if (!line.trim()) continue;
+		let entry: { type?: string; message?: Message };
+		try {
+			entry = JSON.parse(line);
+		} catch {
+			continue;
+		}
+		if (entry.type !== "message" || !entry.message) continue;
+		if (entry.message.role === "user" && messages.some((message) => message.role === "user")) break;
+		messages.push(entry.message);
+	}
+	return messages;
+}
+
+function cachedDispatchMessages(transcript: TranscriptRef, state: { transcript?: TranscriptCache }) {
+	const key = `${transcript.file}:${transcript.fromLine}`;
+	if (state.transcript?.key !== key) state.transcript = { key, messages: readDispatchMessages(transcript) };
+	return state.transcript.messages;
+}
+
+function trimBlock(text: string, theme: Theme): string {
+	const lines = text.replace(/\s+$/, "").split("\n");
+	if (lines.length <= TRANSCRIPT_BLOCK_LINES) return lines.join("\n");
+	const remaining = lines.length - TRANSCRIPT_BLOCK_LINES;
+	return `${lines.slice(0, TRANSCRIPT_BLOCK_LINES).join("\n")}\n${theme.fg("muted", `… ${remaining} more lines`)}`;
+}
+
+function formatArguments(args: Record<string, unknown>): string {
+	return Object.entries(args)
+		.map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value, null, 2)}`)
+		.join("\n");
+}
+
+function transcriptView(messages: Message[], theme: Theme): Component {
+	const container = new Container();
+	const markdownTheme = getMarkdownTheme();
+	const add = (component: Component) => {
+		if (container.children.length > 0) container.addChild(new Spacer(1));
+		container.addChild(component);
+	};
+	for (const message of messages) {
+		if (message.role === "user") {
+			const text =
+				typeof message.content === "string"
+					? message.content
+					: message.content
+							.filter((part) => part.type === "text")
+							.map((part) => part.text)
+							.join("\n");
+			add(new Text(theme.fg("muted", "task\n") + theme.fg("dim", trimBlock(text, theme)), 0, 0));
+		} else if (message.role === "assistant") {
+			for (const part of message.content) {
+				if (part.type === "thinking" && part.thinking.trim()) {
+					add(new Text(theme.fg("thinkingText", theme.italic(part.thinking.trim())), 0, 0));
+				} else if (part.type === "text" && part.text.trim()) {
+					add(new Markdown(part.text.trim(), 0, 0, markdownTheme));
+				} else if (part.type === "toolCall") {
+					const header = theme.fg("muted", "→ ") + theme.fg("toolTitle", theme.bold(part.name));
+					const args = formatArguments(part.arguments);
+					add(new Text(args ? `${header}\n${theme.fg("dim", trimBlock(args, theme))}` : header, 0, 0));
+				}
+			}
+		} else if (message.role === "toolResult") {
+			const text = message.content
+				.filter((part) => part.type === "text")
+				.map((part) => part.text)
+				.join("\n");
+			add(new Text(theme.fg(message.isError ? "error" : "toolOutput", trimBlock(text || "(no output)", theme)), 0, 0));
+		}
+	}
+	if (container.children.length === 0) container.addChild(new Text(theme.fg("muted", "(empty transcript)"), 0, 0));
+	return container;
+}
+
+function callView(label: string, feature: string | undefined, brief: string | undefined, theme: Theme): Component {
+	const header = `${theme.fg("toolTitle", theme.bold(label))} ${theme.fg("accent", feature ?? "...")}`;
+	return new TruncatedText(brief ? `${header} ${theme.fg("muted", brief.replace(/\s+/g, " "))}` : header, 0, 0);
+}
+
+function resultView(
+	result: AgentToolResult<LoopDetails | undefined>,
+	options: { expanded: boolean; isPartial: boolean },
+	theme: Theme,
+	state: { transcript?: TranscriptCache },
+): Component {
+	const details = result.details;
+	if (options.isPartial && details) return progressView(details, theme);
+	if (options.expanded && details?.transcript) {
+		const messages = cachedDispatchMessages(details.transcript, state);
+		if (!messages) return new Text(theme.fg("error", `transcript not found: ${details.transcript.file}`), 0, 0);
+		return transcriptView(messages, theme);
+	}
+	return reportView(resultText(result), options.expanded, theme);
+}
+
+class TaskBlocked extends Error {
+	stage: BlockedStage;
+
+	constructor(stage: BlockedStage, reason: string) {
+		super(reason);
+		this.stage = stage;
+	}
+}
+
+function blocked(stage: BlockedStage, reason: string): never {
+	throw new TaskBlocked(stage, reason);
+}
+
+interface TaskRun {
+	pi: ExtensionAPI;
+	ctx: ExtensionContext;
+	signal: AbortSignal | undefined;
+	onUpdate: OnUpdate;
+	feature: string;
+	featureDir: string;
+	specPath: string;
+	repoRoot: string;
+	task: SpecTask;
+	brief: string;
+	checks: string[];
+	preexisting: string[];
+	earlierReviews: string[];
+	record: TaskRecord;
+	usage: Usage;
+	turns: number;
+	toolCalls: number;
+	notices: string[];
+}
+
+async function enterStage(run: TaskRun, stage: Stage): Promise<void> {
+	runningStage = stage;
+	await refreshStatus(run.pi, run.ctx);
+}
+
+function checkAborted(run: TaskRun): void {
+	if (run.signal?.aborted) blocked("aborted", "The task was aborted.");
+}
+
+function checkBudget(run: TaskRun): void {
+	const cost = featureCost(run.featureDir);
+	if (cost >= FEATURE_MAX_COST) {
+		blocked(
+			"budget",
+			`The feature has spent $${cost.toFixed(2)} of its $${FEATURE_MAX_COST.toFixed(2)} budget; ask the user before spending more.`,
+		);
+	}
+}
+
+function addChildResult(run: TaskRun, result: ChildResult): void {
+	addUsage(run.usage, result.usage);
+	run.turns += result.turns;
+	run.toolCalls += result.toolCalls;
+}
+
+function taskHeader(run: TaskRun): string {
+	return `Spec: ${run.specPath}\nTask ${run.task.number}: ${run.task.subject}`;
+}
+
+async function runWorker(run: TaskRun, session: WorkerSession, message: string): Promise<string> {
+	checkAborted(run);
+	checkBudget(run);
+	await enterStage(run, "worker");
+	if (session.notice) run.notices.push(session.notice);
+	if (!run.record.workers.includes(session.file)) run.record.workers.push(session.file);
+	const transcript = { file: session.file, fromLine: session.resumed ? countLines(session.file) : 0 };
+	const result = await runChild(
+		{ ...ROLE_CONFIG.worker, sessionFile: session.file },
+		message,
+		run.ctx.cwd,
+		run.signal,
+		progressReporter("worker", run.feature, transcript, run.onUpdate),
+	);
+	addChildResult(run, result);
+	checkAborted(run);
+	if (isFailed(result)) blocked("worker", failureText("worker", result));
+	return result.finalText;
+}
+
 function freshWorkerSession(run: TaskRun): WorkerSession {
 	return chooseWorkerSession(run.featureDir, false, ROLE_CONFIG.worker.maxResumeTokens ?? 0);
 }
