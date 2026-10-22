@@ -133,10 +133,15 @@ if ! exists gcloud storage buckets describe "gs://$bucket" --project="$project";
 fi
 lifecycle=$(mktemp)
 trap 'rm -f "$lifecycle"' EXIT
-printf '{"rule": [{"action": {"type": "Delete"}, "condition": {"age": %d}}]}\n' \
-  "$cache_days" >"$lifecycle"
+printf '{"rule": [{"action": {"type": "Delete"}, "condition": {"age": %d, "matchesSuffix": [".narinfo"]}}, {"action": {"type": "Delete"}, "condition": {"age": %d, "matchesPrefix": ["nar/"]}}]}\n' \
+  "$cache_days" "$cache_days" >"$lifecycle"
 gcloud storage buckets update "gs://$bucket" --project="$project" \
   --public-access-prevention --clear-soft-delete --lifecycle-file="$lifecycle"
+if ! exists gcloud storage objects describe "gs://$bucket/nix-cache-info" --project="$project"; then
+  printf 'StoreDir: /nix/store\n' >"$lifecycle"
+  gcloud storage cp --project="$project" --content-type=text/x-nix-cache-info \
+    "$lifecycle" "gs://$bucket/nix-cache-info"
+fi
 
 echo "--- cache service accounts"
 create_service_account maybe-ci-cache-writer "maybe CI cache writer"

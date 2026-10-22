@@ -255,8 +255,10 @@ The `spot-builders` Buildkite queue runs on GCE Spot VMs booted from the
   already in the bucket, signed by `maybe-ci-1`. A failed upload is logged and
   never fails the build. blaziken substitutes from the bucket with the
   `ci-cache-reader` credentials, after cache.nixos.org, and builds a path
-  itself when the bucket lacks it. Objects are deleted 7 days after upload and
-  soft delete is off, so the bucket holds about a week of builds.
+  itself when the bucket lacks it. Narinfo files and NARs are deleted 7 days
+  after upload and soft delete is off, so the bucket holds about a week of
+  builds. `nix-cache-info` stays: the reader may not write, so blaziken cannot
+  use the bucket without it.
 
 The poller logs each launch, deletion and fallback request; read them with
 `journalctl -u ci-spot-poller`. Until `secrets/blaziken/gcp-ci-key.age` holds
