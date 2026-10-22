@@ -3,10 +3,6 @@
     "openrouter": {
       "apiKey": "!cat /run/agenix/openrouter-key",
       "modelOverrides": {
-        "anthropic/claude-sonnet-5.5": {
-          "contextWindow": 1000000,
-          "maxTokens": 128000
-        },
         "z-ai/glm-5.3": {
           "contextWindow": 1048576,
           "maxTokens": 131072,
