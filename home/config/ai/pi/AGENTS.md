@@ -87,13 +87,24 @@ Load the skill named here before starting the work it covers:
   writes code before the approval.
 - `/approve` covers every task until `spec.md` changes. Any edit to the spec,
   including an appended task, needs a new approval.
+- You plan and orchestrate in this session: write the specs, dispatch
+  `task`, and do not implement. Do not spawn a planner either; the user
+  reviews specs here, and a child planner would re-spend a session on work
+  this one has to present anyway.
 - The `task` tool runs one task of the spec end to end: worker, Checks,
   reviewer, up to two fix passes, then the commit.
 - Every task and every fix pass starts a fresh worker with no prior context,
   so briefs must be self-contained. Only a failed check returns to the same
   worker.
+- That resume is the only reuse of a worker session, and only under the
+  200k-token resume cap; above it the loop starts a fresh worker with a
+  notice.
 - On the context cap, write `status.md` and stop; `/resume-feature <feature>`
   continues from it. `/ship` when every task is committed.
+- Planner auto-compaction stays off (`compaction.enabled: false` in
+  `settings.json`). The 350k cap with the `status.md` handoff and
+  `/resume-feature` is the chosen mechanism: deterministic and testable, and
+  auto-compaction would break the handoff.
 
 ## Output style
 
