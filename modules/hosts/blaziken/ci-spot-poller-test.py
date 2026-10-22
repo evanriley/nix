@@ -351,6 +351,7 @@ class Harness:
         system: str | None = SYSTEM,
         key: str | None = None,
         max_instances: int = 3,
+        cache: tuple[str | None, str | None] | None = None,
     ) -> None:
         self.clock = FakeClock()
         self.cloud = FakeCloud(self.clock)
@@ -378,16 +379,26 @@ class Harness:
         script.write_text(STARTUP_SCRIPT)
         (tmp_path / "fallback").mkdir()
         self.request = tmp_path / "fallback" / "request"
-        self.config = poller.config_from_env(
-            {
-                "BUILDKITE_AGENT_TOKEN_PATH": str(token),
-                "GCP_KEY_PATH": str(self.key),
-                "CI_BUILDER_SYSTEM_FILE": str(self.system),
-                "CI_BUILDER_STARTUP_SCRIPT": str(script),
-                "CI_SPOT_FALLBACK_REQUEST": str(self.request),
-                "CI_SPOT_MAX_INSTANCES": str(max_instances),
-            }
-        )
+        env = {
+            "BUILDKITE_AGENT_TOKEN_PATH": str(token),
+            "GCP_KEY_PATH": str(self.key),
+            "CI_BUILDER_SYSTEM_FILE": str(self.system),
+            "CI_BUILDER_STARTUP_SCRIPT": str(script),
+            "CI_SPOT_FALLBACK_REQUEST": str(self.request),
+            "CI_SPOT_MAX_INSTANCES": str(max_instances),
+        }
+        if cache is not None:
+            for variable, name, value in zip(
+                ("CI_CACHE_CREDENTIALS_PATH", "CI_CACHE_SIGNING_KEY_PATH"),
+                ("ci-cache-writer", "ci-cache-signing-key"),
+                cache,
+                strict=True,
+            ):
+                path = tmp_path / name
+                if value is not None:
+                    path.write_text(value + "\n")
+                env[variable] = str(path)
+        self.config = poller.config_from_env(env)
         self.output = io.StringIO()
         self.poller = self.restart()
 
@@ -904,6 +915,77 @@ def test_logs_never_contain_secrets(harness: Harness) -> None:
     assert ACCESS_TOKEN not in harness.log
     for line in PEM.splitlines()[1:-1]:
         assert line not in harness.log
+
+
+CACHE_CREDENTIALS = (
+    "[default]\naws_access_key_id = GOOGTEST\naws_secret_access_key = cache-secret"
+)
+CACHE_SIGNING_KEY = "maybe-ci-1:c2lnbmluZy1rZXk="
+
+
+def cache_metadata(cloud: FakeCloud) -> list[dict[str, str]]:
+    return [
+        {
+            item["key"]: item["value"]
+            for item in body["metadata"]["items"]
+            if item["key"].startswith("ci-cache-")
+        }
+        for body in cloud.inserted
+    ]
+
+
+def test_cycle_cache_secrets_are_sent_to_builders_and_never_logged(
+    tmp_path: Path,
+) -> None:
+    harness = Harness(tmp_path, cache=(CACHE_CREDENTIALS, CACHE_SIGNING_KEY))
+    harness.cloud.scheduled = 1
+    harness.cloud.echo = f"{CACHE_CREDENTIALS} {CACHE_SIGNING_KEY}"
+    harness.cloud.insert_errors[(C4D, "us-central1-a")] = "http"
+
+    harness.cycle()
+
+    sent = cache_metadata(harness.cloud)
+    assert sent and all(
+        metadata
+        == {
+            "ci-cache-credentials": CACHE_CREDENTIALS,
+            "ci-cache-signing-key": CACHE_SIGNING_KEY,
+        }
+        for metadata in sent
+    )
+    assert "Quota exceeded <redacted>" in harness.log
+    assert "cache-secret" not in harness.log
+    assert "c2lnbmluZy1rZXk=" not in harness.log
+
+
+def test_cycle_missing_cache_secret_launches_without_cache_and_reports_once(
+    tmp_path: Path,
+) -> None:
+    harness = Harness(tmp_path, cache=(CACHE_CREDENTIALS, None))
+    harness.cloud.scheduled = 2
+
+    harness.cycles(2)
+
+    assert harness.cloud.inserted
+    assert all(not metadata for metadata in cache_metadata(harness.cloud))
+    assert harness.log.count("do not upload to the CI cache") == 1
+    assert "cache-secret" not in harness.log
+
+
+def test_config_one_cache_path_is_rejected(tmp_path: Path) -> None:
+    script = tmp_path / "startup-script.sh"
+    script.write_text(STARTUP_SCRIPT)
+    with pytest.raises(poller.ConfigError, match="CI_CACHE_SIGNING_KEY_PATH"):
+        poller.config_from_env(
+            {
+                "BUILDKITE_AGENT_TOKEN_PATH": "/run/token",
+                "GCP_KEY_PATH": "/run/key",
+                "CI_BUILDER_SYSTEM_FILE": "/var/lib/system",
+                "CI_BUILDER_STARTUP_SCRIPT": str(script),
+                "CI_SPOT_FALLBACK_REQUEST": "/run/request",
+                "CI_CACHE_CREDENTIALS_PATH": "/run/credentials",
+            }
+        )
 
 
 def test_config_zone_outside_region_is_rejected(tmp_path: Path) -> None:

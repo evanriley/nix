@@ -22,7 +22,10 @@ in
       credentialsDir = "/run/credentials/${agent}.service";
     in
     {
-      imports = [ nixos.ci-builder-base ];
+      imports = [
+        nixos.ci-builder-base
+        nixos.ci-builder-cache
+      ];
 
       ciBuilder.metadataBlockedUsers = [ agent ];
 

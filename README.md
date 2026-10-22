@@ -267,6 +267,18 @@ The `spot-builders` Buildkite queue runs on GCE Spot VMs booted from the
     builds those with the VM as a builder, rebuilds a target that failed on it
     locally, and releases it on every exit. A failed lease builds locally.
 
+- The CI cache is the GCS bucket `ci-builder-512119-maybe-ci-cache`, read and
+  written as an S3 binary cache (`ci-builder/cache.nix`). The poller passes the
+  `ci-cache-writer` HMAC credentials and the `maybe-ci-1` signing key to each
+  VM as metadata; the startup script stores them root-only, and a 404 leaves
+  the VM without the cache. After each build of a `big-parallel` derivation,
+  the root post-build hook copies its outputs and their closure, minus paths
+  already in the bucket, signed by `maybe-ci-1`. A failed upload is logged and
+  never fails the build. blaziken substitutes from the bucket with the
+  `ci-cache-reader` credentials, after cache.nixos.org, and builds a path
+  itself when the bucket lacks it. Objects are deleted 7 days after upload and
+  soft delete is off, so the bucket holds about a week of builds.
+
 The poller logs each launch, deletion and fallback request; read them with
 `journalctl -u ci-spot-poller`. Until `secrets/blaziken/gcp-ci-key.age` holds
 a service-account key, it logs the error and queued jobs run on the fallback
@@ -274,8 +286,8 @@ agent.
 
 One-time setup, in a shell with gcloud (`nix shell nixpkgs#google-cloud-sdk`):
 
-1. Create the network, firewall, custom role and service account in a gcloud
-   project:
+1. Create the network, firewall, custom role and service account, and the CI
+   cache bucket and its writer and reader accounts, in a gcloud project:
 
    ```sh
    gcloud config set project <project>
@@ -287,7 +299,9 @@ One-time setup, in a shell with gcloud (`nix shell nixpkgs#google-cloud-sdk`):
    to the metadata server at 169.254.169.254, including DNS, is not subject to
    VPC firewall rules.
 2. Run the commands the script prints. They create a key for `maybe-ci-spot`,
-   encrypt it into `secrets/blaziken/gcp-ci-key.age` and shred the plaintext.
+   encrypt it into `secrets/blaziken/gcp-ci-key.age` and shred the plaintext,
+   and create the cache HMAC keys for `secrets/blaziken/ci-cache-writer.age`
+   and `ci-cache-reader.age`.
 3. Build the image and add it to the `ci-builder` family through a Cloud
    Storage bucket in the project:
 

@@ -7,6 +7,7 @@ subnet=maybe-ci-us-central1
 subnet_range=10.64.0.0/24
 role=maybeCiSpot
 account=maybe-ci-spot
+cache_days=7
 permissions=(
   compute.disks.create
   compute.images.useReadOnly
@@ -29,12 +30,37 @@ if [ -z "$project" ]; then
   exit 1
 fi
 account_email=$account@$project.iam.gserviceaccount.com
+bucket=$project-maybe-ci-cache
 role_name=projects/$project/roles/$role
 flake_dir=$(cd "$(dirname "$0")/.." && pwd)
 key_file=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/gcp-ci-key.json
 
 exists() {
   "$@" >/dev/null 2>&1
+}
+
+retry_binding() {
+  local attempt
+  for attempt in $(seq 12); do
+    if "$@"; then
+      return 0
+    fi
+    if [ "$attempt" -eq 12 ]; then
+      echo "Binding a role failed 12 times: $*; expected a new service account to become visible to IAM within 2 min. Re-run this script." >&2
+      exit 1
+    fi
+    echo "Retrying the role binding in 10 s; a new service account takes a moment to reach IAM" >&2
+    sleep 10
+  done
+}
+
+create_service_account() {
+  local name=$1 display_name=$2
+  if ! exists gcloud iam service-accounts describe "$name@$project.iam.gserviceaccount.com" \
+    --project="$project"; then
+    gcloud iam service-accounts create "$name" --project="$project" \
+      --display-name="$display_name"
+  fi
 }
 
 echo "--- project $project"
@@ -93,23 +119,36 @@ else
 fi
 
 echo "--- service account $account"
-if ! exists gcloud iam service-accounts describe "$account_email" \
-  --project="$project"; then
-  gcloud iam service-accounts create "$account" --project="$project" \
-    --display-name="maybe CI spot builders"
+create_service_account "$account" "maybe CI spot builders"
+retry_binding gcloud projects add-iam-policy-binding "$project" \
+  --member="serviceAccount:$account_email" --role="$role_name" \
+  --condition=None --format=none
+
+echo "--- bucket gs://$bucket"
+if ! exists gcloud storage buckets describe "gs://$bucket" --project="$project"; then
+  gcloud storage buckets create "gs://$bucket" --project="$project" \
+    --location="$region" --default-storage-class=STANDARD \
+    --uniform-bucket-level-access --public-access-prevention \
+    --soft-delete-duration=0
 fi
-for attempt in $(seq 12); do
-  if gcloud projects add-iam-policy-binding "$project" \
-    --member="serviceAccount:$account_email" --role="$role_name" \
-    --condition=None --format=none; then
-    break
-  fi
-  if [ "$attempt" -eq 12 ]; then
-    echo "Binding $role to $account_email failed 12 times; expected the new service account to become visible to IAM within 2 min. Re-run this script." >&2
-    exit 1
-  fi
-  echo "Retrying the role binding in 10 s; a new service account takes a moment to reach IAM" >&2
-  sleep 10
+lifecycle=$(mktemp)
+trap 'rm -f "$lifecycle"' EXIT
+printf '{"rule": [{"action": {"type": "Delete"}, "condition": {"age": %d}}]}\n' \
+  "$cache_days" >"$lifecycle"
+gcloud storage buckets update "gs://$bucket" --project="$project" \
+  --public-access-prevention --clear-soft-delete --lifecycle-file="$lifecycle"
+
+echo "--- cache service accounts"
+create_service_account maybe-ci-cache-writer "maybe CI cache writer"
+create_service_account maybe-ci-cache-reader "maybe CI cache reader"
+for binding in \
+  maybe-ci-cache-writer:roles/storage.objectCreator \
+  maybe-ci-cache-writer:roles/storage.objectViewer \
+  maybe-ci-cache-reader:roles/storage.objectViewer; do
+  retry_binding gcloud storage buckets add-iam-policy-binding "gs://$bucket" \
+    --project="$project" --role="${binding#*:}" \
+    --member="serviceAccount:${binding%%:*}@$project.iam.gserviceaccount.com" \
+    --format=none
 done
 
 cat <<EOF
@@ -121,5 +160,19 @@ Done. Create a key, encrypt it for blaziken and destroy the plaintext:
   nix develop $flake_dir -c agenix -e blaziken/gcp-ci-key.age < $key_file
   shred -u $key_file
 
-Then commit nix/secrets/blaziken/gcp-ci-key.age and deploy blaziken.
+For the CI cache in gs://$bucket (the store in
+$flake_dir/modules/hosts/ci-builder/cache.nix names it), create an HMAC key for
+each cache account:
+
+  nix shell nixpkgs#google-cloud-sdk -c gcloud storage hmac create maybe-ci-cache-writer@$project.iam.gserviceaccount.com --project=$project
+  nix shell nixpkgs#google-cloud-sdk -c gcloud storage hmac create maybe-ci-cache-reader@$project.iam.gserviceaccount.com --project=$project
+
+Encrypt each key's access id and secret as an AWS credentials file into
+secrets/blaziken/ci-cache-writer.age and ci-cache-reader.age:
+
+  [default]
+  aws_access_key_id = <accessId>
+  aws_secret_access_key = <secret>
+
+Then commit the .age files and deploy blaziken.
 EOF

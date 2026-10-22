@@ -4,6 +4,7 @@ set -euo pipefail
 runtime_dir=/run/ci-builder
 token_file=$runtime_dir/agent-token
 fetched_token_file=$runtime_dir/agent-token.fetched
+cache_files=("$runtime_dir/cache-credentials" "$runtime_dir/cache-signing-key")
 agent_unit=buildkite-agent-ci-builder.service
 system_profile=/nix/var/nix/profiles/system
 system_pattern='^/nix/store/[0-9a-df-np-sv-z]{32}-nixos-system-[0-9A-Za-z+._?=-]+$'
@@ -21,10 +22,32 @@ metadata() {
   fi
 }
 
+optional_metadata() {
+  local path=$1 output=$2 status
+  if ! status=$(curl --silent --show-error \
+    --connect-timeout 5 --max-time 30 \
+    --retry 10 --retry-delay 2 --retry-connrefused \
+    --header 'Metadata-Flavor: Google' \
+    --output "$output" --write-out '%{http_code}' \
+    "http://169.254.169.254/computeMetadata/v1/instance/$path"); then
+    echo "Metadata request for instance/$path failed; expected the metadata server to answer it. Check the instance metadata." >&2
+    return 1
+  fi
+  case $status in
+    200) ;;
+    404) rm -f "$output" ;;
+    *)
+      rm -f "$output"
+      echo "Metadata request for instance/$path returned HTTP $status; expected 200 or, when it is not set, 404. Check the instance metadata." >&2
+      return 1
+      ;;
+  esac
+}
+
 fail_closed() {
   local status=$?
   if ((status != 0)); then
-    rm -f "$fetched_token_file" "$token_file"
+    rm -f "$fetched_token_file" "$token_file" "${cache_files[@]}"
     systemctl stop "$agent_unit"
   fi
 }
@@ -42,6 +65,11 @@ if [[ ! -s $fetched_token_file ]]; then
   exit 1
 fi
 
+(
+  umask 0377
+  optional_metadata attributes/ci-cache-credentials "${cache_files[0]}"
+  optional_metadata attributes/ci-cache-signing-key "${cache_files[1]}"
+)
 nix-store --realise "$system"
 switch_to_configuration=$system/bin/switch-to-configuration
 if [[ ! -f $switch_to_configuration || ! -x $switch_to_configuration ]]; then

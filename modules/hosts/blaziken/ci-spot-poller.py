@@ -166,6 +166,12 @@ class Log:
 
 
 @dataclass(frozen=True, slots=True)
+class CachePaths:
+    credentials: Path
+    signing_key: Path
+
+
+@dataclass(frozen=True, slots=True)
 class Config:
     agent_token_path: Path
     gcp_key_path: Path
@@ -175,6 +181,7 @@ class Config:
     queue: str
     max_instances: int
     zones: tuple[str, ...]
+    cache: CachePaths | None
 
 
 def config_from_env(env: Mapping[str, str]) -> Config:
@@ -216,6 +223,20 @@ def config_from_env(env: Mapping[str, str]) -> Config:
             f"in {REGION}"
         )
 
+    cache_credentials = env.get("CI_CACHE_CREDENTIALS_PATH", "")
+    cache_signing_key = env.get("CI_CACHE_SIGNING_KEY_PATH", "")
+    if bool(cache_credentials) != bool(cache_signing_key):
+        raise ConfigError(
+            "only one of CI_CACHE_CREDENTIALS_PATH and "
+            "CI_CACHE_SIGNING_KEY_PATH is set; expected both, for VMs that "
+            "upload to the CI cache, or neither"
+        )
+    cache = (
+        CachePaths(Path(cache_credentials), Path(cache_signing_key))
+        if cache_credentials
+        else None
+    )
+
     return Config(
         agent_token_path=Path(required("BUILDKITE_AGENT_TOKEN_PATH")),
         gcp_key_path=Path(required("GCP_KEY_PATH")),
@@ -225,6 +246,7 @@ def config_from_env(env: Mapping[str, str]) -> Config:
         queue=env.get("CI_SPOT_QUEUE", "spot-builders"),
         max_instances=max_instances,
         zones=zones,
+        cache=cache,
     )
 
 
@@ -709,6 +731,35 @@ class Poller:
         self._report("buildkite-token", None)
         return token
 
+    def _cache_metadata(self) -> dict[str, str]:
+        paths = self._config.cache
+        if paths is None:
+            return {}
+        values: dict[str, str] = {}
+        for key, path in (
+            ("ci-cache-credentials", paths.credentials),
+            ("ci-cache-signing-key", paths.signing_key),
+        ):
+            try:
+                value = path.read_text().strip()
+            except (OSError, UnicodeDecodeError) as error:
+                value = ""
+                reason = f"reading {path} failed: {error}"
+            else:
+                reason = f"{path} is empty"
+            if not value:
+                self._report(
+                    "ci-cache",
+                    f"{reason}; launching VMs that do not upload to the CI "
+                    "cache. Check the ci-cache-writer and "
+                    "ci-cache-signing-key secrets",
+                )
+                return {}
+            values[key] = value
+        self._log.secret("ci-cache", *values.values())
+        self._report("ci-cache", None)
+        return values
+
     def _metrics(self, token: str) -> Metrics | None:
         queue = self._config.queue
         try:
@@ -989,6 +1040,7 @@ class Poller:
             "startup-script": self._config.startup_script,
             "buildkite-agent-token": token,
             "ci-builder-system": system,
+            **self._cache_metadata(),
             **INSTANCE_METADATA,
         }
         candidates = [

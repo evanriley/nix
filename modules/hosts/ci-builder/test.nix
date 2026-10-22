@@ -22,6 +22,21 @@ in
             echo -n ${agentToken} >$out/computeMetadata/v1/instance/attributes/buildkite-agent-token
           '';
           systemWithoutSwitch = pkgs.runCommand "nixos-system-without-switch" { } "mkdir -p $out/bin";
+          cacheDir = "/var/cache/ci-cache";
+          cacheSigningKey = pkgs.runCommand "test-cache-signing-key" { nativeBuildInputs = [ pkgs.nix ]; } ''
+            nix --extra-experimental-features nix-command key generate-secret --key-name test-cache-1 >$out
+          '';
+          cacheProbe =
+            name: features:
+            pkgs.writeText "${name}.nix" ''
+              derivation {
+                name = "${name}";
+                system = "${system}";
+                builder = "''${builtins.storePath "${pkgs.bash}"}/bin/bash";
+                args = [ "-c" "echo ${name} $builder >$out" ];
+                requiredSystemFeatures = [ ${features} ];
+              }
+            '';
           observeAgentStart = pkgs.writeShellScript "observe-agent-start" ''
             state=idle
             if ! ${pkgs.util-linux}/bin/flock --nonblock /run/nixos/switch-to-configuration.lock true; then
@@ -117,6 +132,10 @@ in
                 locations = {
                   "= /computeMetadata/v1/instance/attributes/ci-builder-system".alias =
                     "${metadataState}/ci-builder-system";
+                  "= /computeMetadata/v1/instance/attributes/ci-cache-credentials".alias =
+                    "${metadataState}/ci-cache-credentials";
+                  "= /computeMetadata/v1/instance/attributes/ci-cache-signing-key".alias =
+                    "${metadataState}/ci-cache-signing-key";
                   "/computeMetadata/v1/instance/guest-attributes/" = {
                     alias = "${metadataState}/guest-attributes/";
                     extraConfig = ''
@@ -161,6 +180,7 @@ in
               pkgs.dnsutils
             ];
             boot.loader.grub.enable = false;
+            ciBuilder.cacheStore = "file://${cacheDir}?compression=zstd";
             virtualisation.additionalPaths = [ systemWithoutSwitch ];
             systemd.services.register-nix-paths.environment.NIX_REMOTE = "local";
             systemd.services.buildkite-agent-ci-builder.serviceConfig.ExecStartPost = "+${observeAgentStart}";
@@ -314,6 +334,12 @@ in
                       reject_system(value, malformed, token_requested=False)
                   reject_system("${systemWithoutSwitch}", "has no executable bin/switch-to-configuration", token_requested=True)
 
+              with subtest("unset cache metadata leaves the VM without cache files"):
+                  log = requests()
+                  for key in ["ci-cache-credentials", "ci-cache-signing-key"]:
+                      assert f"GET /computeMetadata/v1/instance/attributes/{key} 404" in log, log
+                  builder.fail("test -e /run/ci-builder/cache-credentials -o -e /run/ci-builder/cache-signing-key")
+
               with subtest("agent stays down without a token"):
                   builder.fail(f"systemctl is-active {agent_unit}")
                   builder.succeed(f"journalctl -u {agent_unit} | grep -q 'ConditionPathExists'")
@@ -348,7 +374,28 @@ in
                   metadata.fail(f"test -e {ready}")
 
               serve_system(published_system)
+              metadata.succeed(
+                  "printf %s dummy-credentials >${metadataState}/ci-cache-credentials",
+                  "cp ${cacheSigningKey} ${metadataState}/ci-cache-signing-key",
+                  "chmod 644 ${metadataState}/ci-cache-*",
+              )
               boot_until_ready()
+
+              with subtest("cache secrets are root-only"):
+                  for name in ["cache-credentials", "cache-signing-key"]:
+                      assert builder.succeed(f"stat -c '%a %U %G' /run/ci-builder/{name}").strip() == "400 root root"
+                      builder.fail(f"{agent} cat /run/ci-builder/{name}")
+                  builder.succeed("cmp /run/ci-builder/cache-signing-key ${cacheSigningKey}")
+
+              with subtest("only big-parallel outputs are uploaded, signed, with their closure"):
+                  heavy = builder.succeed(f"{agent} nix-build --no-out-link --option substitute false ${cacheProbe "heavy-probe" ''"big-parallel"''}").strip()
+                  light = builder.succeed(f"{agent} nix-build --no-out-link --option substitute false ${cacheProbe "light-probe" ""}").strip()
+                  def narinfo(path):
+                      return "${cacheDir}/" + os.path.basename(path).split("-", 1)[0] + ".narinfo"
+                  info = builder.succeed(f"cat {narinfo(heavy)}")
+                  assert re.search(r"^Sig: test-cache-1:", info, re.MULTILINE), info
+                  builder.succeed(f"test -e {narinfo('${pkgs.bash}')}")
+                  builder.fail(f"test -e {narinfo(light)}")
 
               with subtest("token is root-only and never logged"):
                   assert builder.succeed("stat -c '%a %U %G' /run/ci-builder/agent-token").strip() == "400 root root"
