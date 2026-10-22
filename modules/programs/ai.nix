@@ -235,6 +235,20 @@ in
     { pkgs, ... }:
     let
       roles = builtins.concatStringsSep " " (builtins.attrNames codexRoles);
+
+      nodeTypes = pkgs.stdenv.mkDerivation {
+        pname = "node-types";
+        version = "26.6.5";
+        src = pkgs.fetchurl {
+          url = "https://registry.npmjs.org/@types/node/-/node-26.6.5.tgz";
+          hash = "sha256-5OR9rIYEaapap5BDprgzlimdnNbuI7MPyyB0YlrI298=";
+        };
+        dontUnpack = true;
+        installPhase = ''
+          mkdir -p $out
+          tar -xzf $src -C $out
+        '';
+      };
     in
     {
       checks.ai-config =
@@ -253,6 +267,48 @@ in
               ${./_ai/agent-format} \
               ${./_ai/merge-claude-settings} \
               ${pkgs.lib.escapeShellArg roles}
+            touch $out
+          '';
+
+      checks.ai-extensions =
+        pkgs.runCommand "ai-extensions-check"
+          {
+            nativeBuildInputs = [
+              pkgs.git
+              pkgs.nodejs
+              pkgs.typescript
+            ];
+          }
+          ''
+            cp -r ${../../home/config/ai/pi/extensions} extensions
+            chmod -R u+w extensions
+            cp ${./_ai/extensions-stubs.d.ts} extensions/stubs.d.ts
+            cd extensions
+
+            # The sandbox has no /usr/bin/env, so the hooks the suite writes
+            # could not start bash there.
+            sed -i 's|#!/usr/bin/env bash|#!${pkgs.bash}/bin/bash|' loop/pipeline.test.ts
+
+            tsc --noEmit \
+              --skipLibCheck \
+              --allowImportingTsExtensions \
+              --target esnext \
+              --module esnext \
+              --moduleResolution bundler \
+              --noImplicitAny false \
+              --types node \
+              --typeRoots ${nodeTypes} \
+              stubs.d.ts \
+              guard/index.ts \
+              guard/rules.ts \
+              loop/index.ts \
+              loop/pipeline.ts \
+              oracle/index.ts \
+              vision/index.ts \
+              exit.ts
+
+            node --test guard/rules.test.ts loop/pipeline.test.ts
+
             touch $out
           '';
     };
