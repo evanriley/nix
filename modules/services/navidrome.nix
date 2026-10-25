@@ -8,7 +8,10 @@
     {
       services.navidrome = {
         enable = true;
-        settings.MusicFolder = "/data/Music";
+        settings = {
+          MusicFolder = "/data/Music";
+          Plugins.Enabled = false;
+        };
       };
       systemd.services.navidrome.unitConfig.RequiresMountsFor = [ "/data" ];
 
