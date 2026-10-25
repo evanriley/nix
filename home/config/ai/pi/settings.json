@@ -1,7 +1,7 @@
 {
-  "defaultProvider": "openrouter",
-  "defaultModel": "anthropic/claude-sonnet-5.5",
-  "enabledModels": ["openrouter/moonshotai/kimi-k3.1-pro", "openrouter/anthropic/claude-sonnet-5.5", "coralbricks/deepseek-v4.1-flash-fast", "openrouter/z-ai/glm-5.3-flash", "openrouter/tencent/hy4-preview"],
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-sonnet-5-5",
+  "enabledModels": ["openrouter/moonshotai/kimi-k3.1-pro", "anthropic/claude-sonnet-5-5", "coralbricks/deepseek-v4.1-flash-fast", "openrouter/z-ai/glm-5.3-flash", "openrouter/tencent/hy4-preview"],
   "defaultThinkingLevel": "high",
   "compaction": { "enabled": false },
   "cacheWarming": "idle",

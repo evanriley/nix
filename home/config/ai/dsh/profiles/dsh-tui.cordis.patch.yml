@@ -7,8 +7,8 @@
 
 - id: dsh-tui
   config:
-    provider: openrouter
-    model: anthropic/claude-sonnet-5.5
+    provider: anthropic
+    model: claude-sonnet-5-5
     effort: high
     fullscreen: true
     terminalImages: true

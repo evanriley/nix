@@ -138,7 +138,7 @@ UI on `127.0.0.1:3080`. Both read the same config:
 
 | Role | Model | Route |
 | --- | --- | --- |
-| orchestrator (main session) | Sonnet 5.5 | OpenRouter, account ZDR routing |
+| orchestrator (main session) | Sonnet 5.5 | Anthropic API |
 | worker | DeepSeek V4.1 Flash | CoralBricks |
 | reviewer | GLM 5.3 Flash | OpenRouter, FP8 endpoints with 1.05M context and at least 131K output |
 
@@ -154,7 +154,7 @@ dsh-openrouter-presets --dry-run
 dsh-openrouter-presets
 ```
 
-The wrappers read the OpenRouter, CoralBricks and Kagi keys from
+The wrappers read the Anthropic, OpenRouter, CoralBricks and Kagi keys from
 `/run/agenix`, install the profile's plugins with pnpm when the generated
 manifest changes, and disable telemetry. `dsh-tui` also preloads a script that
 rejects the TUI's own update-check requests, which no setting disables.

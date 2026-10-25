@@ -1,5 +1,8 @@
 {
   "providers": {
+    "anthropic": {
+      "apiKey": "!cat /run/agenix/anthropic-key"
+    },
     "openrouter": {
       "apiKey": "!cat /run/agenix/openrouter-key",
       "modelOverrides": {

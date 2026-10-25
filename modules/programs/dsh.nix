@@ -127,11 +127,12 @@ in
               fi
               cat "$file"
             }
+            ANTHROPIC_API_KEY=$(read_secret anthropic-key)
             OPENROUTER_API_KEY=$(read_secret openrouter-key)
             CORALBRICKS_API_KEY=$(read_secret coralbricks-key)
             KAGI_API_KEY=$(read_secret kagi-key)
             CONTEXT7_API_KEY=$(read_secret context7-key)
-            export OPENROUTER_API_KEY CORALBRICKS_API_KEY KAGI_API_KEY CONTEXT7_API_KEY
+            export ANTHROPIC_API_KEY OPENROUTER_API_KEY CORALBRICKS_API_KEY KAGI_API_KEY CONTEXT7_API_KEY
             export DSH_TELEMETRY_MODE=DISABLED
             export PI_CACHE_RETENTION=long
 

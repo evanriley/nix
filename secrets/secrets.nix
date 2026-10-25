@@ -45,6 +45,7 @@ shared [ "cinderace" "blaziken" ] "evan-password.age"
 // shared (builtins.attrNames hosts) "kagi-key.age"
 // shared (builtins.attrNames hosts) "coralbricks-key.age"
 // shared (builtins.attrNames hosts) "context7-key.age"
+// shared (builtins.attrNames hosts) "anthropic-key.age"
 // shared [ "cinderace" "ninetales" ] "eca-netrc.age"
 // hostSecrets "cinderace" [
   "u2f-mappings.age"
