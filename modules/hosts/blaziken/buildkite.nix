@@ -3,6 +3,7 @@ let
   inherit (config.meta)
     secrets
     gerritKnownHosts
+    domain
     projects
     buildkiteJobPackages
     ;
@@ -78,8 +79,8 @@ in
           git init --quiet --bare "$mirror"
           git -C "$mirror" symbolic-ref HEAD refs/heads/main
           if ! GIT_SSH_COMMAND="${gerritSsh}" git -C "$mirror" fetch --quiet --no-tags \
-            ssh://buildkite@git.maybemaybe.lol:29418/maybe +refs/heads/main:refs/heads/main; then
-            echo "fetching refs/heads/main from Gerrit into $mirror failed; the main agent needs it to tell main commits from patchsets. Check gerrit-ci-key and git.maybemaybe.lol:29418, then retry the job" >&2
+            ssh://buildkite@git.${domain}:29418/maybe +refs/heads/main:refs/heads/main; then
+            echo "fetching refs/heads/main from Gerrit into $mirror failed; the main agent needs it to tell main commits from patchsets. Check gerrit-ci-key and git.${domain}:29418, then retry the job" >&2
             exit 1
           fi
 
@@ -139,7 +140,7 @@ in
               fi
               if ! jq -n --arg verdict "$verdict" --arg icon "$icon" --arg url "$build_url" --argjson vote "$vote" \
                 '{message: "CI: \($verdict) \($icon) \($url)", labels: {Verified: $vote}, reviewers: [{reviewer: "buildkite"}]}' \
-                | ${gerritSsh} -p 29418 buildkite@git.maybemaybe.lol gerrit review --project maybe --branch main --json "$commit"; then
+                | ${gerritSsh} -p 29418 buildkite@git.${domain} gerrit review --project maybe --branch main --json "$commit"; then
                 echo "voting Verified $vote on $commit (change $patchset) failed; expected Gerrit to accept the review. Check gerrit-ci-key and the buildkite account's permissions, then retry the job" >&2
                 exit 1
               fi
@@ -174,8 +175,8 @@ in
           }
 
           if ! refs=$(GIT_SSH_COMMAND="${gerritSsh}" git ls-remote \
-            ssh://buildkite@git.maybemaybe.lol:29418/maybe refs/heads/main); then
-            echo "reading refs/heads/main from Gerrit failed; the nightly build needs main's commit. Check gerrit-ci-key and git.maybemaybe.lol:29418, then start ci-nightly.service again" >&2
+            ssh://buildkite@git.${domain}:29418/maybe refs/heads/main); then
+            echo "reading refs/heads/main from Gerrit failed; the nightly build needs main's commit. Check gerrit-ci-key and git.${domain}:29418, then start ci-nightly.service again" >&2
             exit 1
           fi
           commit=$(cut -f1 <<<"$refs")
@@ -234,7 +235,7 @@ in
           reviewer=$FLAKE_UPDATE_REVIEWER
           read -ra ssh_command <<<"$FLAKE_UPDATE_SSH"
           projects=(${lib.escapeShellArgs (map (project: project.name) projects)})
-          export GIT_AUTHOR_NAME=Buildkite GIT_AUTHOR_EMAIL=buildkite@maybemaybe.lol
+          export GIT_AUTHOR_NAME=Buildkite GIT_AUTHOR_EMAIL=buildkite@${domain}
           export GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
 
           open_update_changes() {
@@ -243,7 +244,7 @@ in
               project:maybe status:open owner:buildkite 'topic:^flake-update-.*') \
               || ! jq -e -s 'all(.type != "error")' <<<"$rows" >/dev/null; then
               printf '%s\n' "''${rows:-}" >&2
-              echo "querying Gerrit for open flake-update changes failed; without it the run could stack a second chain on the open one. Check gerrit-ci-key and git.maybemaybe.lol:29418, then start ci-flake-update.service again" >&2
+              echo "querying Gerrit for open flake-update changes failed; without it the run could stack a second chain on the open one. Check gerrit-ci-key and git.${domain}:29418, then start ci-flake-update.service again" >&2
               return 1
             fi
             jq -r 'select(.type != "stats") | "\(.number) \(.topic)"' <<<"$rows"
@@ -271,7 +272,7 @@ in
 
           rm -rf "$workdir"
           if ! git clone --quiet --branch main -c core.sshCommand="$FLAKE_UPDATE_SSH" "$remote" "$workdir"; then
-            echo "cloning main from $remote into $workdir failed. Check gerrit-ci-key and git.maybemaybe.lol:29418, then start ci-flake-update.service again" >&2
+            echo "cloning main from $remote into $workdir failed. Check gerrit-ci-key and git.${domain}:29418, then start ci-flake-update.service again" >&2
             exit 1
           fi
           cd "$workdir"
@@ -479,8 +480,8 @@ in
             wants = [ "network-online.target" ];
             after = [ "network-online.target" ];
             environment = {
-              FLAKE_UPDATE_REMOTE = "ssh://buildkite@git.maybemaybe.lol:29418/maybe";
-              FLAKE_UPDATE_GERRIT = "ssh://buildkite@git.maybemaybe.lol:29418";
+              FLAKE_UPDATE_REMOTE = "ssh://buildkite@git.${domain}:29418/maybe";
+              FLAKE_UPDATE_GERRIT = "ssh://buildkite@git.${domain}:29418";
               FLAKE_UPDATE_SSH = gerritSsh;
               FLAKE_UPDATE_WORKDIR = "${mainHome}/flake-update";
               FLAKE_UPDATE_REVIEWER = "evan";

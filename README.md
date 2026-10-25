@@ -20,7 +20,7 @@ requests. Report a serious problem, such as a security hole, by email to
 ## Usage
 
 ```sh
-git clone ssh://evan@git.maybemaybe.lol:29418/maybe ~/maybe
+git clone ssh://evan@git.pis.fyi:29418/maybe ~/maybe
 ```
 
 The flake is in `~/maybe/nix`. The root README covers the
@@ -180,23 +180,38 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 
 | Service | Address | Module in `modules/hosts/blaziken/` |
 | --- | --- | --- |
-| nginx, wildcard ACME cert | `*.maybemaybe.lol` | `nginx.nix` |
-| Homepage behind Anubis | `maybemaybe.lol` | `homepage/` |
-| Gerrit behind Anubis, Pocket ID login | `git.maybemaybe.lol` | `gerrit.nix` |
-| cgit behind Anubis | `code.maybemaybe.lol` | `gerrit.nix` |
-| zoekt code search behind Anubis | `cs.maybemaybe.lol` | `code-search.nix` |
-| git-bug read-only web UI behind Anubis | `bugs.maybemaybe.lol` | `git-bug.nix` |
-| git-bug web UI behind Anubis, Pocket ID login | `bugs-edit.maybemaybe.lol` | `git-bug.nix` |
-| Pocket ID (OIDC provider) | `id.maybemaybe.lol` | `pocket-id.nix` |
-| Change short links | `cl.maybemaybe.lol/<n>` | `gerrit.nix` |
-| Bug short links | `b.maybemaybe.lol/<id>` | `git-bug.nix` |
-| Other subdomains redirect home | `*.maybemaybe.lol` | `nginx.nix` |
+| nginx, wildcard ACME cert | `*.pis.fyi` | `nginx.nix` |
+| Homepage behind Anubis | `pis.fyi` | `homepage/` |
+| Gerrit behind Anubis, Pocket ID login | `git.pis.fyi` | `gerrit.nix` |
+| cgit behind Anubis | `code.pis.fyi` | `gerrit.nix` |
+| zoekt code search behind Anubis | `cs.pis.fyi` | `code-search.nix` |
+| git-bug read-only web UI behind Anubis | `bugs.pis.fyi` | `git-bug.nix` |
+| git-bug web UI behind Anubis, Pocket ID login | `bugs-edit.pis.fyi` | `git-bug.nix` |
+| Pocket ID (OIDC provider) | `id.pis.fyi` | `pocket-id.nix` |
+| Change short links | `cl.pis.fyi/<n>` | `gerrit.nix` |
+| Bug short links | `b.pis.fyi/<id>` | `git-bug.nix` |
+| Other subdomains redirect home | `*.pis.fyi` | `nginx.nix` |
 | Buildkite agents (two) | queue `blaziken` | `buildkite.nix` |
 | Gerrit-to-Buildkite webhook | local | `ci-trigger.nix` |
 | Spot builder launcher | GCE, queue `spot-builders` | `ci-spot-poller.nix` |
 | Fallback Buildkite agent, on demand | queue `spot-builders` | `buildkite.nix` |
 | Borg backups | BorgBase | `backup.nix` |
 | RAID, disk and service alerts | healthchecks.io | `monitoring.nix` |
+
+### Domain change
+
+`maybemaybe.lol` and every subdomain 301 to the same path on `pis.fyi`
+(`nginx.nix`, second ACME cert). `git.maybemaybe.lol:29418` still serves SSH
+while its DNS record exists.
+
+Pocket ID passkeys are bound to the hostname, so after the move they must be
+re-registered at `id.pis.fyi` with a one-time access token created on blaziken:
+`pocket-id one-time-access-token <username>`, run with the service's
+environment (see `pocket-id --help`).
+
+The Gerrit and git-bug OIDC clients need callback URLs
+`https://git.pis.fyi/oauth` and `https://bugs-edit.pis.fyi/oauth2/callback`
+added in Pocket ID.
 
 ### Gerrit state outside Nix
 
@@ -221,26 +236,26 @@ recreated by hand. CI depends on:
 Read or edit a project's configuration:
 
 ```sh
-git fetch ssh://evan@git.maybemaybe.lol:29418/<project> refs/meta/config
+git fetch ssh://evan@git.pis.fyi:29418/<project> refs/meta/config
 git checkout FETCH_HEAD
-git push ssh://evan@git.maybemaybe.lol:29418/<project> HEAD:refs/for/refs/meta/config
+git push ssh://evan@git.pis.fyi:29418/<project> HEAD:refs/for/refs/meta/config
 ```
 
 The Access page in the web UI edits the same files.
 
 ### Pocket ID setup
 
-Pocket ID is the OIDC identity provider at `id.maybemaybe.lol`. Its
+Pocket ID is the OIDC identity provider at `id.pis.fyi`. Its
 encryption key is `secrets/blaziken/pocket-id-key.age`; users, passkeys and
 OIDC clients live in its SQLite database, not in this flake. nginx answers
 404 to its first-run signup request (`/api/signup/setup`), because until the
 first user exists that request makes any caller an admin. To set up an empty
 database, remove that location in `pocket-id.nix`, deploy, create the admin
-user and passkey at [the setup page](https://id.maybemaybe.lol/setup) at once,
+user and passkey at [the setup page](https://id.pis.fyi/setup) at once,
 then restore the location and deploy again.
 
 Gerrit logs in through a Pocket ID OIDC client with callback URL
-`https://git.maybemaybe.lol/oauth`. `gerrit.nix` sets the client ID; the client
+`https://git.pis.fyi/oauth`. `gerrit.nix` sets the client ID; the client
 secret is `secrets/blaziken/gerrit-oidc-secret.age`, which Gerrit's `preStart`
 writes into `etc/secure.config`. A Pocket ID login maps to a Gerrit account by
 the external ID `discovery-oauth:<Pocket ID user ID>`; an account created
@@ -253,14 +268,14 @@ because no release of its OIDC discovery provider loads on Gerrit 3.14. When
 nixpkgs ships Gerrit 3.15, replace it with the release `oauth-discovery.jar`
 for that version and update the hash in `gerrit.nix`.
 
-git-bug editing at `bugs-edit.maybemaybe.lol` sits behind oauth2-proxy, which
+git-bug editing at `bugs-edit.pis.fyi` sits behind oauth2-proxy, which
 logs in through a second Pocket ID OIDC client with callback URL
-`https://bugs-edit.maybemaybe.lol/oauth2/callback`. `git-bug.nix` sets the
+`https://bugs-edit.pis.fyi/oauth2/callback`. `git-bug.nix` sets the
 client ID and admits only `evan@evanriley.com`, whose email must be marked
 verified in Pocket ID. The client secret is
 `secrets/blaziken/git-bug-oidc-secret.age` and the cookie secret is
 `secrets/blaziken/oauth2-proxy-cookie-secret.age`. The read-only instance at
-`bugs.maybemaybe.lol` restarts after each sync that pushes new bug refs.
+`bugs.pis.fyi` restarts after each sync that pushes new bug refs.
 
 ### Spot builders
 
@@ -389,7 +404,7 @@ Profiles in `modules/profiles/`:
 
    ```sh
    ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -C evan@ninetales
-   git clone ssh://evan@git.maybemaybe.lol:29418/maybe ~/maybe
+   git clone ssh://evan@git.pis.fyi:29418/maybe ~/maybe
    ```
 
 3. Apply the system, then home:
@@ -414,7 +429,7 @@ Then, by hand:
 ### cinderace
 
 1. Boot the NixOS installer, clone with
-   `git clone ssh://evan@git.maybemaybe.lol:29418/maybe ~/maybe`, and
+   `git clone ssh://evan@git.pis.fyi:29418/maybe ~/maybe`, and
    partition and mount the disks with disko.
 2. Restore the host SSH key and the Secure Boot keys from Borg into `/mnt`
    (see [Restoring from Borg](#restoring-from-borg)). The agenix secrets,

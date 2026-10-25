@@ -1,6 +1,6 @@
 { config, ... }:
 let
-  inherit (config.meta) gerritKnownHosts;
+  inherit (config.meta) gerritKnownHosts domain;
 in
 {
   flake.modules.nixos.blaziken =
@@ -23,6 +23,7 @@ in
           BUILDKITE_REST_TOKEN_PATH = config.age.secrets.buildkite-rest-token.path;
           GERRIT_SSH_KEY_PATH = config.age.secrets.gerrit-ci-key.path;
           GERRIT_KNOWN_HOSTS_PATH = pkgs.writeText "gerrit-known-hosts" "${gerritKnownHosts}\n";
+          GERRIT_SSH_DESTINATION = "buildkite@git.${domain}";
         };
         script = "exec ${pkgs.python3}/bin/python ${receiver}";
       };

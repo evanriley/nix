@@ -1,8 +1,9 @@
 {
+  config,
   ...
 }:
 let
-  domain = "maybemaybe.lol";
+  inherit (config.meta) domain;
   origin = "/var/lib/gerrit/git/maybe.git";
   stateDir = "/var/lib/zoekt";
   clone = "${stateDir}/maybe.git";

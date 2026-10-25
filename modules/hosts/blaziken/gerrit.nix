@@ -1,9 +1,6 @@
 { config, lib, ... }:
 let
-  inherit (config.meta) secrets;
-in
-let
-  domain = "maybemaybe.lol";
+  inherit (config.meta) secrets domain;
   changesQuery = "q/status:open+-is:wip";
   oauthProviderSection = "gerrit-oauth-provider-discovery-oauth";
 in

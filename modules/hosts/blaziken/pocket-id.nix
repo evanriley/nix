@@ -1,7 +1,6 @@
 { config, ... }:
 let
-  inherit (config.meta) secrets;
-  domain = "maybemaybe.lol";
+  inherit (config.meta) secrets domain;
   port = 1411;
 in
 {

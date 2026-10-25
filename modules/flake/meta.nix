@@ -1,4 +1,7 @@
 { lib, ... }:
+let
+  domain = "pis.fyi";
+in
 {
   options.meta = lib.mkOption {
     type = lib.types.lazyAttrsOf lib.types.anything;
@@ -6,6 +9,7 @@
   };
 
   config.meta = {
+    inherit domain;
     user = {
       name = "evan";
       fullName = "Evan Riley";
@@ -41,8 +45,8 @@
           )
         )
       else
-        throw "meta.projects reads projects.json at the maybe monorepo root, which this checkout lacks. Evaluate the flake from the monorepo (ssh://evan@git.maybemaybe.lol:29418/maybe), not the GitHub nix mirror";
-    gerritKnownHosts = "[git.maybemaybe.lol]:29418 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHGOzrLcNC9G05r/TC3Gldb+gKLK+OZwmLN0xKVE2RIO";
+        throw "meta.projects reads projects.json at the maybe monorepo root, which this checkout lacks. Evaluate the flake from the monorepo (ssh://evan@git.${domain}:29418/maybe), not the GitHub nix mirror";
+    gerritKnownHosts = "[git.${domain}]:29418 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHGOzrLcNC9G05r/TC3Gldb+gKLK+OZwmLN0xKVE2RIO";
     location = {
       latitude = 36.08;
       longitude = -78.91;

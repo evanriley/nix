@@ -1,7 +1,6 @@
 { config, ... }:
 let
-  inherit (config.meta) user secrets;
-  domain = "maybemaybe.lol";
+  inherit (config.meta) user secrets domain;
   origin = "/var/lib/gerrit/git/maybe.git";
   editClone = "/var/lib/git-bug/maybe";
   publicClone = "/var/lib/git-bug/public";

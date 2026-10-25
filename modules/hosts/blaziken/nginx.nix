@@ -1,11 +1,15 @@
 { config, ... }:
 let
-  inherit (config.meta) user secrets;
-  domain = "maybemaybe.lol";
+  inherit (config.meta) user secrets domain;
+  oldDomain = "maybemaybe.lol";
 in
 {
   flake.modules.nixos.blaziken =
-    { config, ... }:
+    {
+      config,
+      lib,
+      ...
+    }:
     {
       services.anubis.instances.homepage = {
         # nginx needs to reach the challenge proxy's unix socket.
@@ -55,6 +59,19 @@ in
             proxyPass = "http://unix:/run/anubis/anubis-homepage/anubis.sock";
           };
         };
+
+        virtualHosts.${oldDomain} = {
+          forceSSL = true;
+          useACMEHost = oldDomain;
+          serverAliases = [ "www.${oldDomain}" ];
+          locations."/".return = "301 https://${domain}$request_uri";
+        };
+
+        virtualHosts."~^(?<sub>.+)\\.${lib.escapeRegex oldDomain}$" = {
+          forceSSL = true;
+          useACMEHost = oldDomain;
+          locations."/".return = "301 https://$sub.${domain}$request_uri";
+        };
       };
 
       security.acme = {
@@ -68,6 +85,13 @@ in
           dnsResolver = "1.1.1.1:53,9.9.9.9:53";
           environmentFile = config.age.secrets.cloudflare-dns.path;
           extraDomainNames = [ "*.${domain}" ];
+        };
+        certs.${oldDomain} = {
+          group = "nginx";
+          dnsProvider = "cloudflare";
+          dnsResolver = "1.1.1.1:53,9.9.9.9:53";
+          environmentFile = config.age.secrets.cloudflare-dns.path;
+          extraDomainNames = [ "*.${oldDomain}" ];
         };
       };
 

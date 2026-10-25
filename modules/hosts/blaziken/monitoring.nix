@@ -1,8 +1,6 @@
 { config, ... }:
 let
-  inherit (config.meta) secrets;
-
-  domain = "maybemaybe.lol";
+  inherit (config.meta) secrets domain;
 
   disks = [
     "/dev/disk/by-id/ata-HGST_HUS724020ALA640_PN2134P6HDTRJP"

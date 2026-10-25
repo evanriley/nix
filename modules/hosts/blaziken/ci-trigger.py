@@ -16,6 +16,7 @@ API = os.environ.get(
 TOKEN_PATH = os.environ.get("BUILDKITE_REST_TOKEN_PATH")
 GERRIT_SSH_KEY_PATH = os.environ.get("GERRIT_SSH_KEY_PATH")
 GERRIT_KNOWN_HOSTS_PATH = os.environ.get("GERRIT_KNOWN_HOSTS_PATH")
+GERRIT_SSH_DESTINATION = os.environ.get("GERRIT_SSH_DESTINATION")
 GERRIT_TIMEOUT_SECONDS = 60
 AUTOSUBMIT_QUERY = (
     "project:maybe branch:main status:open label:Autosubmit=+1 is:submittable"
@@ -53,7 +54,8 @@ def trigger(commit: str, branch: str, message: str, env: dict) -> str:
 
 
 def gerrit(
-    *command: str, input: str | None = None
+    *command: str,
+    input: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
@@ -68,7 +70,7 @@ def gerrit(
             "StrictHostKeyChecking=yes",
             "-p",
             "29418",
-            "buildkite@git.maybemaybe.lol",
+            GERRIT_SSH_DESTINATION,
             "gerrit",
             *command,
         ],
@@ -271,11 +273,16 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    if not GERRIT_SSH_KEY_PATH or not GERRIT_KNOWN_HOSTS_PATH:
+    if (
+        not GERRIT_SSH_KEY_PATH
+        or not GERRIT_KNOWN_HOSTS_PATH
+        or not GERRIT_SSH_DESTINATION
+    ):
         sys.exit(
-            "GERRIT_SSH_KEY_PATH and GERRIT_KNOWN_HOSTS_PATH must be set;"
-            " ci-trigger submits Autosubmit changes over Gerrit SSH."
-            " Set them in the ci-trigger service environment"
+            "GERRIT_SSH_KEY_PATH, GERRIT_KNOWN_HOSTS_PATH and"
+            " GERRIT_SSH_DESTINATION must be set; ci-trigger submits"
+            " Autosubmit changes over Gerrit SSH. Set them in the"
+            " ci-trigger service environment"
         )
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
 
