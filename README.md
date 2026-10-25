@@ -191,12 +191,38 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 | Change short links | `cl.pis.fyi/<n>` | `gerrit.nix` |
 | Bug short links | `b.pis.fyi/<id>` | `git-bug.nix` |
 | Other subdomains redirect home | `*.pis.fyi` | `nginx.nix` |
+| Mail (send-only, forwards) | `mail.pis.fyi` | `mail.nix` |
 | Buildkite agents (two) | queue `blaziken` | `buildkite.nix` |
 | Gerrit-to-Buildkite webhook | local | `ci-trigger.nix` |
 | Spot builder launcher | GCE, queue `spot-builders` | `ci-spot-poller.nix` |
 | Fallback Buildkite agent, on demand | queue `spot-builders` | `buildkite.nix` |
 | Borg backups | BorgBase | `backup.nix` |
 | RAID, disk and service alerts | healthchecks.io | `monitoring.nix` |
+
+### Mail
+
+`mail.nix` runs simple-nixos-mailserver on `mail.pis.fyi`. It sends Gerrit's
+mail as `gerrit@pis.fyi` through the local Postfix on `127.0.0.1:25` and
+forwards `postmaster@`, `abuse@` and `gerrit@pis.fyi` to
+`evan@evanriley.com`. There are no mailboxes or login accounts, and no mail
+secrets.
+
+Cloudflare, zone `pis.fyi`, all records DNS-only:
+
+- `A`/`AAAA` for `@`, `*` and `mail`: `147.135.1.187` and
+  `2604:2dc0:100:bb::1`.
+- `MX` for `@`: `10 mail.pis.fyi`.
+- `TXT` for `@`: `v=spf1 mx -all`.
+- `TXT` for `_dmarc`: `v=DMARC1; p=none`.
+- `TXT` for `mail._domainkey`: the contents of `/var/dkim/pis.fyi.mail.txt`,
+  with the quoted `p=` chunks joined and the quotes and spaces removed.
+- PTR for both addresses, set in the OVH panel: `mail.pis.fyi`.
+
+The DKIM key is generated at activation; `/var/dkim` is in the Borg backup. A
+lost key needs a new selector.
+
+`mailserver.localDnsResolver` makes kresd the system resolver. If Tailscale
+MagicDNS names stop resolving on blaziken, set it to `false`.
 
 ### Domain change
 

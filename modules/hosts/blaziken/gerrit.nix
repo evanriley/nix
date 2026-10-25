@@ -32,11 +32,13 @@ in
           "network-online.target"
           "nginx.service"
           "pocket-id.service"
+          "postfix.service"
         ];
         wants = [
           "network-online.target"
           "nginx.service"
           "pocket-id.service"
+          "postfix.service"
         ];
         preStart = ''
           secure_config=/var/lib/gerrit/etc/secure.config
@@ -46,21 +48,12 @@ in
             exit 1
           fi
           umask 077
-          {
-            cat ${config.age.secrets.mailgun-smtp.path}
-            printf '\n[plugin "${oauthProviderSection}"]\n\tclient-secret = %s\n' "$oidc_secret"
-          } > "$secure_config.tmp"
+          printf '[plugin "${oauthProviderSection}"]\n\tclient-secret = %s\n' "$oidc_secret" > "$secure_config.tmp"
           mv "$secure_config.tmp" "$secure_config"
         '';
         restartTriggers = [
-          (builtins.hashFile "sha256" config.age.secrets.mailgun-smtp.file)
           (builtins.hashFile "sha256" config.age.secrets.gerrit-oidc-secret.file)
         ];
-      };
-
-      age.secrets.mailgun-smtp = {
-        file = secrets + "/blaziken/mailgun-smtp.age";
-        owner = "gerrit";
       };
 
       age.secrets.gerrit-oidc-secret = {
@@ -87,7 +80,7 @@ in
             canonicalWebUrl = "https://git.${domain}/";
             defaultBranch = "refs/heads/main";
           };
-          user.email = "gerrit@news.${domain}";
+          user.email = "gerrit@${domain}";
           auth = {
             type = "OAUTH";
             gitBasicAuthPolicy = "HTTP";
@@ -104,11 +97,8 @@ in
           };
           sendemail = {
             enable = true;
-            smtpServer = "smtp.mailgun.org";
-            smtpServerPort = 587;
-            smtpEncryption = "tls";
-            # SMTP password lives in etc/secure.config, outside the store.
-            smtpUser = "postmaster@news.${domain}";
+            smtpServer = "127.0.0.1";
+            smtpServerPort = 25;
           };
         };
       };

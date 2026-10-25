@@ -35,6 +35,7 @@ in
         source_directories = [
           "/var/lib/gerrit"
           "/var/lib/git-bug"
+          "/var/dkim"
           "/var/backup"
           pocketIdDirectory
         ];
