@@ -1,9 +1,15 @@
 {
   flake.modules.nixos.navidrome =
-    { config, lib, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       inherit (config.services.navidrome.settings) Address Port;
       tailscale = lib.getExe config.services.tailscale.package;
+      flock = "${lib.getExe' pkgs.util-linux "flock"} /run/lock/tailscale-serve";
     in
     {
       services.navidrome = {
@@ -28,8 +34,8 @@
           Type = "oneshot";
           RemainAfterExit = true;
           ExecStartPre = "${tailscale} wait --timeout=60s";
-          ExecStart = "${tailscale} serve --bg --https=${toString Port} http://${Address}:${toString Port}";
-          ExecStop = "${tailscale} serve --https=${toString Port} off";
+          ExecStart = "${flock} ${tailscale} serve --bg --https=${toString Port} http://${Address}:${toString Port}";
+          ExecStop = "${flock} ${tailscale} serve --https=${toString Port} off";
           Restart = "on-failure";
           RestartSec = 10;
         };

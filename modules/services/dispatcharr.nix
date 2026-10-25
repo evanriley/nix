@@ -1,6 +1,11 @@
 {
   flake.modules.nixos.dispatcharr =
-    { config, lib, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
     let
       address = "127.0.0.1";
       id = 9191;
@@ -12,6 +17,7 @@
       network = "dispatcharr";
       podman = lib.getExe config.virtualisation.podman.package;
       tailscale = lib.getExe config.services.tailscale.package;
+      flock = "${lib.getExe' pkgs.util-linux "flock"} /run/lock/tailscale-serve";
 
       publish = name: "${address}:${toString ports.${name}}:${toString ports.${name}}";
 
@@ -27,8 +33,8 @@
           Type = "oneshot";
           RemainAfterExit = true;
           ExecStartPre = "${tailscale} wait --timeout=60s";
-          ExecStart = "${tailscale} serve --bg --https=${toString ports.${name}} http://${address}:${toString ports.${name}}";
-          ExecStop = "${tailscale} serve --https=${toString ports.${name}} off";
+          ExecStart = "${flock} ${tailscale} serve --bg --https=${toString ports.${name}} http://${address}:${toString ports.${name}}";
+          ExecStop = "${flock} ${tailscale} serve --https=${toString ports.${name}} off";
           Restart = "on-failure";
           RestartSec = 10;
         };
