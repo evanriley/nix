@@ -8,7 +8,7 @@
 - id: dsh-tui
   config:
     provider: openrouter
-    model: moonshotai/kimi-k3.1-pro@preset/dsh-kimi
+    model: anthropic/claude-sonnet-5.5
     effort: high
     fullscreen: true
     terminalImages: true

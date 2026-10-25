@@ -15,7 +15,7 @@
 - id: agent-default-model
   config:
     provider: openrouter
-    model: moonshotai/kimi-k3.1-pro@preset/dsh-kimi
+    model: anthropic/claude-sonnet-5.5
     reasoningEffort: high
 
 - id: llm-pi-ai
@@ -30,6 +30,19 @@
           supportsStrictMode: true
           thinkingFormat: openrouter
         models:
+          - id: anthropic/claude-sonnet-5.5
+            name: Claude Sonnet 5.5
+            input: [text, image]
+            contextWindow: 1000000
+            maxTokens: 128000
+            reasoningEfforts:
+              off:
+              low: low
+              medium: medium
+              high: high
+            compat:
+              cacheControlFormat: anthropic
+              supportsLongCacheRetention: true
           - id: moonshotai/kimi-k3.1-pro@preset/dsh-kimi
             name: Kimi K3.1 Pro
             input: [text, image]
@@ -176,6 +189,7 @@
 
                 - Any non-trivial change starts with a spec in plan mode. Present it with exit_plan_mode and wait for approval. Do not delegate implementation before the user approves.
                 - A spec has these sections: Goal, Current state (cite `file:line`), Desired state (before and after for each change), Changes, Edge cases (concrete inputs with expected results), Acceptance criteria (commands someone else can run), Alternatives, Risks and rollback, Open questions.
+                - The spec settles the route; the worker follows it without choosing an approach. Answer every question that reading code or docs can answer before writing it. Changes name, per file, the functions, types or config keys touched and the approach, and for external APIs the calls used with a doc or source reference. Open questions are only decisions for the user and questions only an experiment can answer, each with its experiment.
                 - If implementation shows the spec is wrong, stop and present a revision instead of improvising.
 
                 ## Delegation
@@ -232,9 +246,9 @@
 
                     Investigate first with non-mutating reads, searches and checks, so that the spec cites real code. Do not edit files, change configuration, run formatters or generators that rewrite tracked files, commit, or delegate implementation.
 
-                    Resolve discoverable facts by inspection. Use ask_user_question only for choices that belong to the user.
+                    Resolve discoverable facts by inspection before writing the spec; an unchecked question, an unfamiliar API, a large file or crossing repositories is research to do now, not something to leave to the worker. Use ask_user_question only for choices that belong to the user.
 
-                    Write the spec with the sections Goal, Current state (cite `file:line`), Desired state (before and after for each change), Changes, Edge cases (concrete inputs with expected results), Acceptance criteria (commands someone else can run), Alternatives (what was rejected and why), Risks and rollback, and Open questions. Omit a section that does not apply and scale the rest to the change.
+                    Write the spec with the sections Goal, Current state (cite `file:line`), Desired state (before and after for each change), Changes, Edge cases (concrete inputs with expected results), Acceptance criteria (commands someone else can run), Alternatives (what was rejected and why), Risks and rollback, and Open questions. Omit a section that does not apply and scale the rest to the change. Changes name, per file, the functions, types or config keys touched and the approach, and for external APIs the calls used with a doc or source reference. Open questions are only decisions for the user and questions only an experiment can answer, each with its experiment.
 
                     When it is ready, call exit_plan_mode with the complete spec as markdown, starting with a # title. Make it the only and final tool call of that response. Do not paste the spec as a plain reply or ask for approval in prose. If the user rejects it, incorporate the feedback and submit it again.
           - id: compaction

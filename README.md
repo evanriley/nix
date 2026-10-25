@@ -138,7 +138,7 @@ UI on `127.0.0.1:3080`. Both read the same config:
 
 | Role | Model | Route |
 | --- | --- | --- |
-| orchestrator (main session) | Kimi K3.1 Pro | OpenRouter, `moonshotai` only |
+| orchestrator (main session) | Sonnet 5.5 | OpenRouter, account ZDR routing |
 | worker | DeepSeek V4.1 Flash | CoralBricks |
 | reviewer | GLM 5.3 Flash | OpenRouter, FP8 endpoints with 1.05M context and at least 131K output |
 

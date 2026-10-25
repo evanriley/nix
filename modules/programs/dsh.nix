@@ -133,6 +133,7 @@ in
             CONTEXT7_API_KEY=$(read_secret context7-key)
             export OPENROUTER_API_KEY CORALBRICKS_API_KEY KAGI_API_KEY CONTEXT7_API_KEY
             export DSH_TELEMETRY_MODE=DISABLED
+            export PI_CACHE_RETENTION=long
 
             profile_directory="$DSH_HOME/profiles/${profile}"
             mkdir -p "$profile_directory"
