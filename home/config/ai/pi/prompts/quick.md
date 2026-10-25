@@ -6,7 +6,7 @@ Change request: $@
 
 Work through these steps in order. You plan and coordinate; the `task` tool runs the worker, the checks, the review and the commit.
 
-1. Research briefly. Read the relevant code and history (`git log`). Search the web with Kagi only when outside facts matter.
+1. Research briefly. Read the relevant code and history (`git log`). Search the web with Kagi only when outside facts matter. Answer every question that reading code or docs can answer before writing the spec. An unchecked question, an unfamiliar API, a large file or crossing repositories is research to do now, not something to leave to the worker.
 2. Pick a short kebab-case feature slug matching `^[a-z0-9][a-z0-9-]*$`.
 3. Write a short spec to `<plans>/<feature>/spec.md`, where `<plans>` is printed by:
    ```bash
@@ -14,7 +14,7 @@ Work through these steps in order. You plan and coordinate; the `task` tool runs
    ```
    Create the directory if needed. Use these sections:
    - **Goal**: the outcome in one or two sentences.
-   - **Tasks**: `## Tasks` with exactly one heading, `### Task 1: <conventional commit subject>`, followed by the files it owns and what to do.
+   - **Tasks**: `## Tasks` with exactly one heading, `### Task 1: <conventional commit subject>`, followed by the files it owns, the functions, types or config keys it touches, and the approach; for external APIs, the calls used, with a doc or source reference. The worker follows it without choosing an approach.
    - **Checks**: `## Checks` whose first fenced code block holds shell commands, one per line; blank lines and `#` lines are skipped. They run from the repository root, so prefix each with `cd <dir> &&` when it must run elsewhere. Use the repository's AGENTS.md verification commands. Commands must be non-interactive and exit non-zero on failure.
    - **Acceptance**: a demo command or how to see the change.
 4. Show the whole spec in chat, then STOP. Tell the user to approve it with `/approve` or to request changes.

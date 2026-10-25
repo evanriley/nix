@@ -193,7 +193,7 @@ export default function (pi: ExtensionAPI) {
 		description: [
 			"Consult the oracle, Tencent Hy4 preview at high reasoning effort, for complex reasoning on code: approach design, architecture calls, hard failure diagnosis and review of risky diffs.",
 			"It reads the repository and the web but changes nothing, and returns a recommendation with file:line references, risks and what would change its answer.",
-			"Use it when the user asks or approves it, or when the root cause is still unknown after a worker narrowed it. Never consult it only to choose a worker. One call runs at a time.",
+			"Consult it without asking when critical, weakly-verifiable work (concurrency, data loss, security, boot) needs its spec, when a root cause is still unknown after narrowing it, when task is blocked on Checks or review after its fix passes, or when a long-lived decision (schema, on-disk or wire format, public API) has two viable options you cannot choose between; otherwise only when the user asks. One call runs at a time.",
 			"Give the question as a self-contained brief: the problem, the relevant paths, what is already known or tried, and the decision wanted.",
 			"Pass the same `thread` slug on later calls to resume that conversation; use one thread per feature.",
 		].join(" "),

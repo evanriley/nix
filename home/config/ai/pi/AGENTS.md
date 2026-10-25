@@ -73,11 +73,14 @@ Load the skill named here before starting the work it covers:
 
 ## Oracle
 
-- The `oracle` tool consults a read-only reasoning model. Use it before the
-  spec for critical, weakly-verifiable work (concurrency, data loss, security,
-  boot), after proposing it in one line and getting my yes; when a root cause
-  is still unknown after narrowing it; or when I ask.
-- Never consult it solely to choose a worker, and never run two at once.
+- The `oracle` tool consults a read-only reasoning model. Consult it without
+  asking, saying why in one line, when critical, weakly-verifiable work
+  (concurrency, data loss, security, boot) needs its spec; when a root cause
+  is still unknown after narrowing it; when `task` comes back blocked on
+  Checks or review after its fix passes; or when a long-lived decision
+  (schema, on-disk or wire format, public API) has two viable options you
+  cannot choose between. Otherwise consult it only when I ask.
+- Never run two at once.
 - Pass one `thread` slug per feature and reuse it for follow-ups.
 
 ## Loop
@@ -91,6 +94,10 @@ Load the skill named here before starting the work it covers:
   `task`, and do not implement. Do not spawn a planner either; the user
   reviews specs here, and a child planner would re-spend a session on work
   this one has to present anyway.
+- The worker is DeepSeek V4.1 Flash and follows the spec as written. The
+  spec settles the route: answer every question that reading code or docs
+  can answer before writing it, and give each task the functions, types or
+  config keys it touches and the approach.
 - The `task` tool runs one task of the spec end to end: worker, Checks,
   reviewer, up to two fix passes, then the commit.
 - Every task and every fix pass starts a fresh worker with no prior context,
