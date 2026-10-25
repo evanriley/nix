@@ -10,6 +10,10 @@ let
     file = secrets + "/kagi-key.age";
     owner = user.name;
   };
+  context7Key = {
+    file = secrets + "/context7-key.age";
+    owner = user.name;
+  };
   coralbricksKey = {
     file = secrets + "/coralbricks-key.age";
     owner = user.name;
@@ -67,12 +71,14 @@ in
   flake.modules.nixos.ai.age.secrets = {
     openrouter-key = openrouterKey;
     kagi-key = kagiKey;
+    context7-key = context7Key;
     coralbricks-key = coralbricksKey;
   };
 
   flake.modules.darwin.ai.age.secrets = {
     openrouter-key = openrouterKey;
     kagi-key = kagiKey;
+    context7-key = context7Key;
     coralbricks-key = coralbricksKey;
   };
 

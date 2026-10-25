@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+api=https://openrouter.ai/api/v1
+mode=apply
+case "${1:-}" in
+  "") ;;
+  --dry-run) mode=dry-run ;;
+  --verify) mode=verify ;;
+  *)
+    echo "Usage: dsh-openrouter-presets [--dry-run | --verify]" >&2
+    exit 2
+    ;;
+esac
+
+endpoints() {
+  curl --fail --silent --show-error "$api/models/$1/endpoints" | jq '.data.endpoints'
+}
+
+kimi_body() {
+  endpoints moonshotai/kimi-k3.1-pro | jq '
+    [.[] | select(.tag | startswith("moonshotai/"))] as $creator
+    | ($creator | min_by(.pricing.prompt | tonumber)) as $baseline
+    | [$creator[]
+        | select(.quantization == $baseline.quantization
+                 and .context_length == $baseline.context_length
+                 and .max_completion_tokens >= $baseline.max_completion_tokens)]
+    | sort_by(.pricing.prompt | tonumber)
+    | map(.tag) as $tags
+    | {
+        model: "moonshotai/kimi-k3.1-pro",
+        provider: { order: $tags, only: $tags, allow_fallbacks: true },
+        messages: [{ role: "user", content: "preset" }]
+      }'
+}
+
+glm_flash_body() {
+  endpoints z-ai/glm-5.3-flash | jq '
+    [.[] | select(.quantization == "fp8"
+                  and .context_length >= 1048576
+                  and .max_completion_tokens >= 131072)]
+    | sort_by(.pricing.prompt | tonumber)
+    | map(.tag) as $tags
+    | {
+        model: "z-ai/glm-5.3-flash",
+        provider: { order: $tags, only: $tags, allow_fallbacks: false, quantizations: ["fp8"] },
+        messages: [{ role: "user", content: "preset" }]
+      }'
+}
+
+apply_preset() {
+  local slug=$1 body=$2
+  if [ "$(jq '.provider.only | length' <<<"$body")" -eq 0 ]; then
+    echo "No endpoint qualifies for preset $slug; refusing to write an empty allowlist." >&2
+    exit 1
+  fi
+  if [ "$mode" = dry-run ]; then
+    echo "== $slug"
+    jq '{model, provider}' <<<"$body"
+    return
+  fi
+  local key
+  key=$(cat /run/agenix/openrouter-key)
+  curl --fail --silent --show-error \
+    --header "Authorization: Bearer $key" \
+    --header "Content-Type: application/json" \
+    --data "$body" \
+    "$api/presets/$slug/chat/completions" |
+    jq '{slug: .data.slug, version: .data.designated_version.version, provider: .data.designated_version.config.provider}'
+}
+
+verify_preset() {
+  local slug=$1 model=$2 max_tokens=$3 key
+  key=$(cat /run/agenix/openrouter-key)
+  curl --fail --silent --show-error \
+    --header "Authorization: Bearer $key" \
+    --header "Content-Type: application/json" \
+    --data "$(jq -n --arg model "$model@preset/$slug" --argjson max_tokens "$max_tokens" \
+      '{model: $model, max_tokens: $max_tokens, messages: [{role: "user", content: "Reply with the word ok."}]}')" \
+    "$api/chat/completions" |
+    jq --arg slug "$slug" --argjson max_tokens "$max_tokens" '{slug: $slug, max_tokens: $max_tokens, served_by: .provider, model}'
+}
+
+if [ "$mode" = verify ]; then
+  verify_preset dsh-kimi moonshotai/kimi-k3.1-pro 943718
+  verify_preset dsh-glm-flash z-ai/glm-5.3-flash 131072
+  exit 0
+fi
+
+apply_preset dsh-kimi "$(kimi_body)"
+apply_preset dsh-glm-flash "$(glm_flash_body)"

@@ -1,0 +1,18 @@
+- id: dsh-tui-agent-preset-registry
+  config:
+    default: orchestrator
+
+- id: dsh-tui-auth
+  disabled: true
+
+- id: dsh-tui
+  config:
+    provider: openrouter
+    model: moonshotai/kimi-k3.1-pro@preset/dsh-kimi
+    effort: high
+    fullscreen: true
+    terminalImages: true
+    preset: orchestrator
+    workspace: !!js process.env.DSH_TUI_WORKSPACE_TARGET ?? undefined
+    sessionId: !!js process.env.DSH_TUI_RESUME_SESSION ?? undefined
+    backend: !!js process.env.DSH_TUI_BACKEND || undefined

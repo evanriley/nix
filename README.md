@@ -129,6 +129,48 @@ decrypts. Log in once per host:
 atuin login -u <username>
 ```
 
+### DeepSeek Harness
+
+[`dsh`](https://github.com/deepseek-ai/deepseek-harness) runs as a planner,
+worker and reviewer team. `dsh-tui` starts the terminal UI
+([dsh-tui](https://github.com/ccch1mneyyy/dsh-TUI)) and `dsh-web` starts the web
+UI on `127.0.0.1:3080`. Both read the same config:
+
+| Role | Model | Route |
+| --- | --- | --- |
+| orchestrator (main session) | Kimi K3.1 Pro | OpenRouter, `moonshotai` only |
+| worker | DeepSeek V4.1 Flash | CoralBricks |
+| reviewer | GLM 5.3 Flash | OpenRouter, FP8 endpoints with 1.05M context and at least 131K output |
+
+The orchestrator has no edit tools and delegates through the `worker` and
+`reviewer` tools. Specs go through plan mode.
+
+dsh cannot send OpenRouter provider routing, so the OpenRouter models are
+`<model>@preset/<slug>` ids and the presets hold the routing. Create or refresh
+them after the first switch, and whenever OpenRouter's endpoint lists change:
+
+```sh
+dsh-openrouter-presets --dry-run
+dsh-openrouter-presets
+```
+
+The wrappers read the OpenRouter, CoralBricks and Kagi keys from
+`/run/agenix`, install the profile's plugins with pnpm when the generated
+manifest changes, and disable telemetry. `dsh-tui` also preloads a script that
+rejects the TUI's own update-check requests, which no setting disables.
+
+| File | Applies to |
+| --- | --- |
+| `home/config/ai/dsh/cordis.patch.yml` | every profile: models, presets, MCP servers, LSP, hooks bridge |
+| `home/config/ai/dsh/profiles/<profile>.cordis.patch.yml` | one profile |
+| `home/config/ai/dsh/AGENTS.md` | `~/.dsh/AGENTS.md` |
+| `modules/programs/dsh.nix` | wrappers, pinned plugins, `~/.dsh/hooks.json` |
+
+Plugin versions: the `@deepseek-ai/*` packages follow the `dsh` version from the
+`llm-agents` input. `dsh-tui` and `dsh-better-sidebar` are pinned in
+`modules/programs/dsh.nix`; check their peer ranges against the new `dsh`
+version when bumping. Never run `/update` in the TUI.
+
 ## blaziken
 
 A headless server, updated with deploy-rs. It has
@@ -330,8 +372,8 @@ Profiles in `modules/profiles/`:
    `modules/services/syncthing.nix`. On NixOS, also create
    `<host>/syncthing-cert.age` and `<host>/syncthing-key.age`.
 5. Add the host to the machine lists in
-   `home/config/ai/skills/nix-environment/SKILL.md` and
-   `home/config/ai/pi/AGENTS.md`.
+   `home/config/ai/skills/nix-environment/SKILL.md`,
+   `home/config/ai/pi/AGENTS.md` and `home/config/ai/dsh/AGENTS.md`.
 6. Add the host to `legacyPackages.ci` in `modules/flake/ci.nix`: `targets`
    for a NixOS host, which CI builds, or `evalOnly` for a darwin host. For a
    server, also add a deploy-rs node in `modules/flake/deploy.nix`.

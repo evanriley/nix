@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_directory=$1
+presets_script=$2
+
+patch_json() {
+  yq -o=json '.' "$config_directory/$1"
+}
+
+shared=$(patch_json cordis.patch.yml)
+tui=$(patch_json profiles/dsh-tui.cordis.patch.yml)
+web=$(patch_json profiles/web.cordis.patch.yml)
+
+assert() {
+  local description=$1 document=$2 filter=$3
+  if ! jq -e "$filter" <<<"$document" >/dev/null; then
+    echo "dsh config check failed: $description" >&2
+    exit 1
+  fi
+}
+
+definitions='
+  def inserted: [.[] | select(has("insert")) | .insert[]];
+  def preset($id): inserted | map(select(.id == "preset-" + $id)) | .[0].config;
+  def plugin($preset; $id): preset($preset).plugins | map(select(.id == $id)) | .[0];
+  def providers: [.[] | select(.id == "llm-pi-ai")][0].config.providers;
+  def models: providers | to_entries | map(.key as $provider | .value.models[] | {provider: $provider, id: .id, entry: .});
+  def delegation($preset): preset($preset).plugins | map(select(.id == "delegation")) | .[0].config;
+'
+
+assert "every model declares its context window and maximum output" "$shared" \
+  "$definitions"'models | all(.entry | has("contextWindow") and has("maxTokens"))'
+assert "no route sets a default output cap" "$shared" \
+  "$definitions"'providers | to_entries | all(.value | has("defaultMaxTokens") | not)'
+assert "the default model is declared" "$shared" \
+  "$definitions"'[.[] | select(.id == "agent-default-model")][0].config as $default
+    | models | any(.provider == $default.provider and .id == $default.model)'
+for id in orchestrator worker reviewer; do
+  assert "preset $id exists" "$shared" "$definitions"'preset("'"$id"'") | .id == "'"$id"'"'
+done
+
+assert "the orchestrator and reviewer cannot write or edit" "$shared" \
+  "$definitions"'(plugin("orchestrator"; "tool-fs").config | .write == false and .edit == false)
+    and (plugin("reviewer"; "tool-fs").config | .write == false and .edit == false)'
+assert "the worker can write and edit" "$shared" \
+  "$definitions"'plugin("worker"; "tool-fs") | (.config // {}) | (.write != false and .edit != false)'
+assert "only the orchestrator delegates" "$shared" \
+  "$definitions"'. as $root
+    | ($root | delegation("orchestrator") | length > 0)
+    and (["worker", "reviewer"] | all(. as $id | $root | preset($id).plugins | map(select(.id == "delegation")) | length == 0))'
+assert "the worker tool routes to a declared model" "$shared" \
+  "$definitions"'. as $root
+    | ($root | delegation("orchestrator") | map(select(.id == "tool-worker"))[0].config) as $tool
+    | $tool.agentPreset == "worker"
+    and ($tool.agentOptions as $route | $root | models | any(.provider == $route.provider and .id == $route.model))'
+assert "the reviewer tool routes to a declared model" "$shared" \
+  "$definitions"'. as $root
+    | ($root | delegation("orchestrator") | map(select(.id == "tool-reviewer"))[0].config) as $tool
+    | $tool.agentPreset == "reviewer"
+    and ($tool.agentOptions as $route | $root | models | any(.provider == $route.provider and .id == $route.model))'
+assert "no preset mounts the built-in web tool" "$shared" \
+  "$definitions"'[inserted[] | select(.id | startswith("preset-")) | .config.plugins[] | select(.name == "@deepseek-ai/dsh-tool-web")] | length == 0'
+assert "persona text has no template groups" "$shared" \
+  "$definitions"'[inserted[] | select(.id | startswith("preset-")) | .config.plugins[] | select(.id == "persona") | .config.prefix | contains("{{")] | any | not'
+assert "session telemetry is disabled" "$shared" \
+  '[.[] | select(.id == "session-telemetry-otel")][0].disabled == true'
+
+assert "the terminal UI defaults to the orchestrator" "$tui" \
+  '[.[] | select(.id == "dsh-tui-agent-preset-registry")][0].config.default == "orchestrator"
+    and [.[] | select(.id == "dsh-tui")][0].config.preset == "orchestrator"'
+assert "the web UI defaults to the orchestrator" "$web" \
+  '[.[] | select(.id == "agent-preset-registry")][0].config.default == "orchestrator"'
+
+temporary=$(mktemp -d)
+trap 'rm -rf "$temporary"' EXIT
+mkdir "$temporary/bin"
+
+endpoint() {
+  jq -n --arg tag "$1" --arg quantization "$2" --argjson context "$3" --argjson output "$4" --arg price "$5" \
+    '{tag: $tag, quantization: $quantization, context_length: $context, max_completion_tokens: $output, pricing: {prompt: $price}}'
+}
+
+{
+  endpoint moonshotai/highspeed mxfp4 1048576 943718 0.000004
+  endpoint moonshotai/mxfp4 mxfp4 1048576 943718 0.000002
+  endpoint reseller/fp8 fp8 1048576 943718 0.000001
+} | jq -s '{data: {endpoints: .}}' >"$temporary/kimi.json"
+
+{
+  endpoint morph/fp8 fp8 1048576 943718 0.000000248
+  endpoint z-ai/fp8 fp8 1048576 131072 0.00000015
+  endpoint novita/fp8 fp8 1048576 131072 0.000000084
+  endpoint cheap/fp4 fp4 1048576 131072 0.00000001
+  endpoint small/fp8 fp8 1048576 65536 0.00000002
+  endpoint short/fp8 fp8 262144 131072 0.00000003
+} | jq -s '{data: {endpoints: .}}' >"$temporary/glm.json"
+
+jq -n '{data: {endpoints: []}}' >"$temporary/empty.json"
+
+cat >"$temporary/bin/curl" <<EOF
+#!$(command -v bash)
+for argument in "\$@"; do url=\$argument; done
+case "\$url" in
+  */moonshotai/kimi-k3.1-pro/endpoints) cat "$temporary/kimi.json" ;;
+  */z-ai/glm-5.3-flash/endpoints) cat "\${GLM_FIXTURE:-$temporary/glm.json}" ;;
+  *) echo "unexpected request: \$url" >&2; exit 1 ;;
+esac
+EOF
+chmod +x "$temporary/bin/curl"
+
+PATH="$temporary/bin:$PATH" bash "$presets_script" --dry-run >"$temporary/presets.txt"
+awk -v directory="$temporary" '/^== /{name = $2; next} {print > (directory "/" name ".json")}' "$temporary/presets.txt"
+
+assert "kimi preset orders the creator's endpoints cheapest first and allows fallback inside them" \
+  "$(cat "$temporary/dsh-kimi.json")" \
+  '.provider.only == ["moonshotai/mxfp4", "moonshotai/highspeed"] and .provider.order == .provider.only and .provider.allow_fallbacks == true'
+assert "glm preset keeps only FP8 endpoints with enough context and output, cheapest first, without outside fallback" \
+  "$(cat "$temporary/dsh-glm-flash.json")" \
+  '.provider.only == ["novita/fp8", "z-ai/fp8", "morph/fp8"] and .provider.allow_fallbacks == false and .provider.quantizations == ["fp8"]'
+
+if GLM_FIXTURE="$temporary/empty.json" PATH="$temporary/bin:$PATH" bash "$presets_script" --dry-run >/dev/null 2>"$temporary/empty.err"; then
+  echo "expected the presets script to refuse an empty allowlist" >&2
+  exit 1
+fi
+grep -F 'No endpoint qualifies for preset dsh-glm-flash' "$temporary/empty.err" >/dev/null
