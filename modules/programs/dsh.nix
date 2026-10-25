@@ -169,13 +169,13 @@ in
           mkdir -p "$HOME/.dsh-tui"
           [ -e "$HOME/.dsh-tui/onboarding.json" ] || printf '%s\n' '{"completed":true,"version":1}' >"$HOME/.dsh-tui/onboarding.json"
         '';
-        run = ''env NODE_OPTIONS="--require ${blockUpdateCheck} ''${NODE_OPTIONS:-}" dsh --profile dsh-tui "$@"'';
+        run = ''env NODE_OPTIONS="--require ${blockUpdateCheck} ''${NODE_OPTIONS:-}" dsh --profile dsh-tui --patch "$DSH_HOME/patches/dsh-tui.cordis.patch.yml" "$@"'';
       };
 
       dshWeb = mkLauncher {
         name = "dsh-web";
         profile = "web";
-        run = ''dsh --profile web "$@"'';
+        run = ''dsh --profile web --patch "$DSH_HOME/patches/web.cordis.patch.yml" "$@"'';
       };
 
       hooks = pkgs.writeText "dsh-hooks.json" (
@@ -235,9 +235,9 @@ in
         ".dsh/AGENTS.md".source = link "config/ai/dsh/AGENTS.md";
         ".dsh/cordis.patch.yml".source = link "config/ai/dsh/cordis.patch.yml";
         ".dsh/hooks.json".source = hooks;
-        ".dsh/profiles/dsh-tui/cordis.patch.yml".source =
+        ".dsh/patches/dsh-tui.cordis.patch.yml".source =
           link "config/ai/dsh/profiles/dsh-tui.cordis.patch.yml";
-        ".dsh/profiles/web/cordis.patch.yml".source = link "config/ai/dsh/profiles/web.cordis.patch.yml";
+        ".dsh/patches/web.cordis.patch.yml".source = link "config/ai/dsh/profiles/web.cordis.patch.yml";
       };
     };
 
