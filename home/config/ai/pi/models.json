@@ -45,6 +45,22 @@
       },
       "models": [
         {
+          "id": "moonshotai/kimi-k3.1-pro",
+          "name": "MoonshotAI: Kimi K3.1 Pro",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "contextWindow": 1048576,
+          "maxTokens": 131072,
+          "cost": { "input": 2, "output": 10, "cacheRead": 0.2, "cacheWrite": 0 },
+          "compat": {
+            "supportsDeveloperRole": false,
+            "thinkingFormat": "openrouter",
+            "supportsStrictMode": true,
+            "sendSessionAffinityHeaders": true,
+            "openRouterRouting": { "order": ["moonshotai/mxfp4"], "only": ["moonshotai/mxfp4"], "allow_fallbacks": false }
+          }
+        },
+        {
           "id": "minimax/minimax-m3.1-flash:free",
           "name": "MiniMax: MiniMax M3.1 Flash (free)",
           "reasoning": true,
