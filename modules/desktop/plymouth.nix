@@ -24,7 +24,6 @@
       boot.initrd.systemd.contents."/etc/plymouth/plymouthd.conf".source = lib.mkForce plymouthConf;
       environment.etc."plymouth/plymouthd.conf".source = lib.mkForce plymouthConf;
       boot.consoleLogLevel = 3;
-      boot.initrd.verbose = false;
       boot.kernelParams = [
         "quiet"
         "splash"

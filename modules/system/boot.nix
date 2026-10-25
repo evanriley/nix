@@ -4,9 +4,6 @@
     {
       boot.kernelPackages = lib.mkDefault pkgs.linuxPackages_latest;
 
-      # Required for FIDO2 LUKS unlock.
-      boot.initrd.systemd.enable = true;
-
       boot.loader.systemd-boot = {
         enable = true;
         configurationLimit = 20;
