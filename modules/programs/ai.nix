@@ -14,6 +14,26 @@ let
     file = secrets + "/coralbricks-key.age";
     owner = user.name;
   };
+  agentScripts = pkgs: {
+    agent-notify = mkScript pkgs {
+      name = "agent-notify";
+      src = ./_ai/agent-notify;
+      runtimeInputs = [ pkgs.jq ] ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.libnotify;
+    };
+    agent-no-kill = mkScript pkgs {
+      name = "agent-no-kill";
+      src = ./_ai/agent-no-kill;
+      runtimeInputs = [ pkgs.jq ];
+    };
+    agent-format = mkScript pkgs {
+      name = "agent-format";
+      src = ./_ai/agent-format;
+      runtimeInputs = [
+        pkgs.jq
+        pkgs.nixfmt
+      ];
+    };
+  };
   codexRoles = {
     search = {
       model = "gpt-6-luna";
@@ -42,6 +62,8 @@ let
   };
 in
 {
+  flake.lib.agentScripts = agentScripts;
+
   flake.modules.nixos.ai.age.secrets = {
     openrouter-key = openrouterKey;
     kagi-key = kagiKey;
@@ -165,26 +187,9 @@ in
       dotfiles.config = [ "ai" ];
 
       home.packages = [
-        (mkScript pkgs {
-          name = "agent-notify";
-          src = ./_ai/agent-notify;
-          runtimeInputs = [ pkgs.jq ] ++ lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.libnotify;
-        })
-        (mkScript pkgs {
-          name = "agent-no-kill";
-          src = ./_ai/agent-no-kill;
-          runtimeInputs = [ pkgs.jq ];
-        })
-        (mkScript pkgs {
-          name = "agent-format";
-          src = ./_ai/agent-format;
-          runtimeInputs = [
-            pkgs.jq
-            pkgs.nixfmt
-          ];
-        })
         piWithLongCache
-      ];
+      ]
+      ++ lib.attrValues (agentScripts pkgs);
 
       programs.git.includes = [
         {

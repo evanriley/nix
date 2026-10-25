@@ -5,7 +5,7 @@ set -euo pipefail
 input=$(cat)
 event=$(jq -r '.hook_event_name // empty' <<<"$input")
 project=$(basename "$(jq -r '.cwd // empty' <<<"$input")")
-app=$(jq -r '.app // "Claude Code"' <<<"$input")
+app=$(jq -r --arg default "${AGENT_NOTIFY_APP:-Claude Code}" '.app // $default' <<<"$input")
 message=$(jq -r '.message // empty' <<<"$input")
 [ -n "$message" ] || message="Finished"
 [ "$event" = Stop ] && message="Finished"
