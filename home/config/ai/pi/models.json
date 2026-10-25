@@ -3,13 +3,23 @@
     "openrouter": {
       "apiKey": "!cat /run/agenix/openrouter-key",
       "modelOverrides": {
+        "z-ai/glm-5.3-flash": {
+          "contextWindow": 1048576,
+          "maxTokens": 131072,
+          "compat": {
+            "openRouterRouting": {
+              "only": ["gmicloud/fp8", "near-ai/fp8", "novita/fp8", "atlas-cloud/fp8", "baseten/fp8", "baseten/fp8/us", "siliconflow/fp8", "z-ai/fp8", "inceptron/fp8", "morph/fp8"],
+              "allow_fallbacks": false,
+              "quantizations": ["fp8"]
+            }
+          }
+        },
         "z-ai/glm-5.3": {
           "contextWindow": 1048576,
           "maxTokens": 131072,
           "cost": { "input": 0.75, "output": 1, "cacheRead": 0.08, "cacheWrite": 0 },
           "compat": {
             "openRouterRouting": {
-              "order": ["sail-research", "novita", "morph", "siliconflow", "gmicloud", "parasail", "coreweave", "z-ai"],
               "only": ["sail-research", "novita", "morph", "siliconflow", "gmicloud", "parasail", "coreweave", "z-ai"],
               "allow_fallbacks": false,
               "quantizations": ["fp8"]
@@ -21,7 +31,6 @@
           "maxTokens": 64000,
           "compat": {
             "openRouterRouting": {
-              "order": ["tencent", "siliconflow"],
               "only": ["tencent", "siliconflow"],
               "allow_fallbacks": false,
               "quantizations": ["fp8"]
@@ -33,7 +42,6 @@
           "maxTokens": 393216,
           "compat": {
             "openRouterRouting": {
-              "order": ["morph", "novita", "coreweave", "makora", "crusoe", "parasail", "siliconflow"],
               "only": ["coreweave", "crusoe", "makora", "morph", "novita", "parasail", "siliconflow"],
               "allow_fallbacks": false,
               "quantizations": ["fp8"],
@@ -57,7 +65,7 @@
             "thinkingFormat": "openrouter",
             "supportsStrictMode": true,
             "sendSessionAffinityHeaders": true,
-            "openRouterRouting": { "order": ["moonshotai/mxfp4"], "only": ["moonshotai/mxfp4"], "allow_fallbacks": false }
+            "openRouterRouting": { "only": ["moonshotai/mxfp4"], "allow_fallbacks": false }
           }
         },
         {
@@ -83,7 +91,7 @@
             "thinkingFormat": "openrouter",
             "supportsStrictMode": true,
             "sendSessionAffinityHeaders": true,
-            "openRouterRouting": { "order": ["minimax"], "only": ["minimax"], "allow_fallbacks": false }
+            "openRouterRouting": { "only": ["minimax"], "allow_fallbacks": false }
           }
         }
       ]

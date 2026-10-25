@@ -29,7 +29,7 @@ kimi_body() {
     | map(.tag) as $tags
     | {
         model: "moonshotai/kimi-k3.1-pro",
-        provider: { order: $tags, only: $tags, allow_fallbacks: true },
+        provider: { only: $tags, allow_fallbacks: true },
         messages: [{ role: "user", content: "preset" }]
       }'
 }
@@ -43,7 +43,7 @@ glm_flash_body() {
     | map(.tag) as $tags
     | {
         model: "z-ai/glm-5.3-flash",
-        provider: { order: $tags, only: $tags, allow_fallbacks: false, quantizations: ["fp8"] },
+        provider: { only: $tags, allow_fallbacks: false, quantizations: ["fp8"] },
         messages: [{ role: "user", content: "preset" }]
       }'
 }

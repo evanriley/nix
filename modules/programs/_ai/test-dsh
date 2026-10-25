@@ -112,12 +112,12 @@ chmod +x "$temporary/bin/curl"
 PATH="$temporary/bin:$PATH" bash "$presets_script" --dry-run >"$temporary/presets.txt"
 awk -v directory="$temporary" '/^== /{name = $2; next} {print > (directory "/" name ".json")}' "$temporary/presets.txt"
 
-assert "kimi preset orders the creator's endpoints cheapest first and allows fallback inside them" \
+assert "kimi preset allows only the creator's matching endpoints, unordered, with fallback inside them" \
   "$(cat "$temporary/dsh-kimi.json")" \
-  '.provider.only == ["moonshotai/mxfp4", "moonshotai/highspeed"] and .provider.order == .provider.only and .provider.allow_fallbacks == true'
-assert "glm preset keeps only FP8 endpoints with enough context and output, cheapest first, without outside fallback" \
+  '.provider.only == ["moonshotai/mxfp4", "moonshotai/highspeed"] and (.provider | has("order") | not) and .provider.allow_fallbacks == true'
+assert "glm preset keeps only FP8 endpoints with enough context and output, unordered, without outside fallback" \
   "$(cat "$temporary/dsh-glm-flash.json")" \
-  '.provider.only == ["novita/fp8", "z-ai/fp8", "morph/fp8"] and .provider.allow_fallbacks == false and .provider.quantizations == ["fp8"]'
+  '.provider.only == ["novita/fp8", "z-ai/fp8", "morph/fp8"] and (.provider | has("order") | not) and .provider.allow_fallbacks == false and .provider.quantizations == ["fp8"]'
 
 if GLM_FIXTURE="$temporary/empty.json" PATH="$temporary/bin:$PATH" bash "$presets_script" --dry-run >/dev/null 2>"$temporary/empty.err"; then
   echo "expected the presets script to refuse an empty allowlist" >&2
