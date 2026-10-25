@@ -16,7 +16,8 @@ One or two sentences: the problem and the outcome.
 
 ## Changes
 
-- `path/to/file`: what changes and why.
+- `path/to/file`: the functions, types or config keys touched, the approach,
+  and why. For external APIs, the calls used, with a doc or source reference.
 
 ## Edge cases
 
@@ -36,4 +37,6 @@ One or two sentences: the problem and the outcome.
 
 ## Open questions
 
-- Question that needs an answer before or during implementation.
+- Question for the user, or one only an experiment can answer (reproducing a
+  bug, measuring, probing hardware or an external service), with the
+  experiment that answers it.

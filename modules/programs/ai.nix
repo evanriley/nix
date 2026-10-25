@@ -53,13 +53,13 @@ let
     };
     worker = {
       model = "gpt-6.1-sol";
-      effort = "medium";
+      effort = "high";
     };
-    worker-deep = {
+    senior = {
       model = "gpt-6-astra";
-      effort = "medium";
+      effort = "high";
     };
-    worker-high = {
+    principal = {
       model = "gpt-6-astra";
       effort = "xhigh";
     };
@@ -125,8 +125,8 @@ in
           agent = readClaudeAgent role;
           guidelines = lib.optionalString (lib.elem role [
             "worker"
-            "worker-deep"
-            "worker-high"
+            "senior"
+            "principal"
           ]) "Load the `code-guidelines` skill before editing.\n\n";
         in
         lib.nameValuePair ".codex/agents/${role}.toml" {

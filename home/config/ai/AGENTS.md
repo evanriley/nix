@@ -39,27 +39,39 @@ in `~/.claude/agents` do the work.
   multi-step behavioral discovery or findings that must correlate across the
   codebase. Research external code and docs with `librarian`. Recover earlier
   sessions with `read-thread`.
-- The main planner owns routing. Use `worker` (Sonnet, medium) when the
-  implementation route is established. Use `worker-deep` (Opus, medium) when
-  requirements are settled but the implementation route must be determined.
-- Use `worker-high` (Opus, xhigh) only for critical, weakly-verifiable
-  invariants or high-consequence paths such as concurrency, data loss,
-  security or boot. Task size alone does not qualify.
+- The main planner owns routing, and the spec settles the route. Use
+  `worker` (Sonnet, high) by default: the spec names what changes, where and
+  how, and only local choices remain. Most tasks go here, including large and
+  multi-file ones.
+- Use `senior` (Opus, high) only when the route cannot be settled without
+  implementing or experimenting: reproducing and narrowing an unknown cause,
+  redoing a task whose route was wrong, or a design that depends on what an
+  experiment shows. Name that decision and why reading cannot settle it. An
+  unchecked question, an unfamiliar API, a large file or crossing
+  repositories is research for the spec, not a reason to use `senior`.
+- Use `principal` (Opus, max) only when all hold: build and tests cannot prove
+  the change correct; a mistake means data loss, a security hole, a broken
+  boot or a concurrency bug; and the reasoning is hard enough that `senior`
+  would plausibly get it wrong. Also use it when `senior` failed twice on a
+  sound route. Size, file count or an oracle-reviewed spec never qualifies.
 - When I name a worker role or `oracle`, use it and skip its criteria.
 - Size each worker task to one commit. A worker running past about 40 minutes
   means the task was too big; split the next one.
 - Every agent starts with a fresh context: hand-offs are self-contained.
   Re-engage the same agent only to fix its own execution mistake; when its
-  route was wrong use `worker-deep`. When the cause is unknown, use
-  `worker-deep` with the `debugging` skill to reproduce and narrow it; keep
+  route was wrong use `senior`. When the cause is unknown, use
+  `senior` with the `debugging` skill to reproduce and narrow it; keep
   the diagnosis for yourself.
 - Run workers in parallel only for parts with disjoint files, at most three at
   once. Never run oracles in parallel.
-- Use `oracle` before the spec for `worker-high`-grade work, after proposing it
-  in one line and getting my yes; when the cause is still unknown after a
-  debugging worker narrowed it; or when I ask. Never consult oracle solely to
-  choose a worker. If already consulted, oracle should recommend the worker.
-  Use one oracle per feature and resume it for follow-ups.
+- Consult `oracle` without asking, saying why in one line, when a
+  `principal` task needs its spec; when the cause is still unknown after a
+  `senior` narrowed it; when two implementation attempts failed verification
+  on the same task; or when a long-lived decision (schema, on-disk or wire
+  format, public API) has two viable options you cannot choose between.
+  Otherwise consult it only when I ask. Never consult it solely to choose a
+  worker; if already consulted, it recommends the worker. Use one oracle per
+  feature and resume it for follow-ups.
 - Give each worker a self-contained handoff containing the outcome, settled
   requirements, governing pattern and ownership, residual decisions,
   constraints and non-goals, acceptance checks, and critical invariants.

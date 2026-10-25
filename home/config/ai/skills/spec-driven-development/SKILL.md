@@ -27,7 +27,11 @@ When unsure, write the spec; a short one is cheap.
 1. Research. Read the affected code, its callers and tests, `git log` for the
    area, and upstream docs for any library or tool involved. Resolve the full
    shape of every type or config being changed. Record open questions instead
-   of guessing.
+   of guessing. Answer every question that reading code or docs can answer
+   before writing the spec, delegating to research agents where available. An
+   unchecked question, an unfamiliar API, a large file or crossing
+   repositories is research to do now, not something to leave to the
+   implementer.
 2. Write the spec from `assets/spec-template.md`. Omit sections that do not
    apply. Scale it to the change: a small fix gets a few lines per section.
 3. Present the spec and stop. Wait for approval or changes.
@@ -47,6 +51,8 @@ directory and gate work behind `/approve`; follow the prompt instead.
 
 - Current state cites code: `file:line`, real config values, example data.
 - Desired state shows before and after for each behavior change.
+- Changes settle the route: an implementer can follow them without choosing an
+  approach.
 - Edge cases are concrete inputs with expected results, not categories.
 - Acceptance criteria are checks someone else could run.
 - Alternatives name what was rejected and why.

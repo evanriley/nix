@@ -1,8 +1,8 @@
 ---
 name: worker
-description: "Implementation worker for an established route within settled requirements."
+description: "Default implementation worker. Implements a spec whose route is settled: it names what changes, where and how, and leaves only local choices. Use for most work, including large and multi-file tasks."
 model: sonnet
-effort: medium
+effort: high
 disallowedTools: Agent
 skills:
   - code-guidelines
