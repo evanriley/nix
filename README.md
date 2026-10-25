@@ -221,8 +221,10 @@ Cloudflare, zone `pis.fyi`, all records DNS-only:
 The DKIM key is generated at activation; `/var/dkim` is in the Borg backup. A
 lost key needs a new selector.
 
-`mailserver.localDnsResolver` makes kresd the system resolver. If Tailscale
-MagicDNS names stop resolving on blaziken, set it to `false`.
+`mailserver.localDnsResolver` makes kresd the only system resolver. `mail.nix`
+forwards the `ts.net` suffix to Tailscale's resolver at `100.100.100.100` in
+`services.kresd.extraConfig`, a stub zone without DNSSEC validation, to keep
+MagicDNS names resolving.
 
 ### Domain change
 

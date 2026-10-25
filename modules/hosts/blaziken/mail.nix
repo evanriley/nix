@@ -24,6 +24,10 @@ in
         };
       };
 
+      services.kresd.extraConfig = ''
+        policy.add(policy.suffix(policy.STUB('100.100.100.100'), { todname('ts.net.') }))
+      '';
+
       users.users.postfix.extraGroups = [ "nginx" ];
       users.users.dovecot2.extraGroups = [ "nginx" ];
     };
