@@ -329,8 +329,9 @@ The `spot-builders` Buildkite queue runs on GCE Spot VMs booted from the
   the untrusted `buildkite-agent-blaziken` user and never starts at boot.
   While jobs are queued, the poller starts it through `ci-spot-fallback.path`
   when every launch failed with no VM alive, when the ci-builder system file
-  is missing or invalid, or when no VM has been ready for 5 minutes. It exits
-  after 5 idle minutes.
+  is missing or invalid, or when no VM has been ready for 5 minutes. It runs
+  one job per start and exits after it, or after 5 idle minutes. While the
+  poller still needs the fallback, its next request starts the agent again.
 - The CI cache is the GCS bucket `ci-builder-512119-maybe-ci-cache`, read and
   written as an S3 binary cache (`ci-builder/cache.nix`). The poller passes the
   `ci-cache-writer` HMAC credentials and the `maybe-ci-1` signing key to each

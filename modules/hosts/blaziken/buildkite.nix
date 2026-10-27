@@ -371,6 +371,7 @@ in
         name = "%hostname-spot-fallback";
         extraConfig = ''
           spawn=1
+          disconnect-after-job=true
           disconnect-after-idle-timeout=300
         '';
         tags = {
