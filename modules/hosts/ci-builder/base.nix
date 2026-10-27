@@ -110,6 +110,8 @@ in
           };
         };
 
+        systemd.services.systemd-hostnamed.restartIfChanged = false;
+
         networking.firewall = {
           enable = true;
           extraCommands = lib.concatMapStrings startMetadataBlock metadataServers;

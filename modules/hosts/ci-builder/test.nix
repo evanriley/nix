@@ -185,7 +185,20 @@ in
             systemd.services.register-nix-paths.environment.NIX_REMOTE = "local";
             systemd.services.buildkite-agent-ci-builder.serviceConfig.ExecStartPost = "+${observeAgentStart}";
             systemd.services.ci-builder-startup.serviceConfig.ExecStopPost = "${observeStartupEnd}";
+            systemd.services.ci-builder-startup.serviceConfig.ExecStartPre =
+              "${pkgs.systemd}/bin/hostnamectl hostname";
+            systemd.services.hostnamed-probe = {
+              wantedBy = [ "multi-user.target" ];
+              stopIfChanged = false;
+              serviceConfig = {
+                Type = "oneshot";
+                RemainAfterExit = true;
+                ExecStart = "${pkgs.systemd}/bin/hostnamectl hostname";
+              };
+            };
             specialisation.published.configuration = {
+              systemd.services.systemd-hostnamed.environment.CI_BUILDER_TEST = "published";
+              systemd.services.hostnamed-probe.environment.CI_BUILDER_TEST = "published";
               systemd.services.ci-builder-startup.environment.CI_BUILDER_SYSTEM = "published";
               services.buildkite-agents.ci-builder.tags.system = "published";
             };
@@ -445,6 +458,13 @@ in
                   assert invocations == {unit_property(startup_unit, "InvocationID")}, invocations
                   skipped = [line for line in switch_output if line.startswith("NOT restarting the following changed units: ")]
                   assert any(startup_unit in line.split(": ", 1)[1].split(", ") for line in skipped), switch_output
+
+              with subtest("the switch leaves a running hostnamed alone while a restarted unit starts it again"):
+                  switch_line = lambda prefix: next((line.removeprefix(prefix).split(", ") for line in switch_output if line.startswith(prefix)), [])
+                  assert "hostnamed-probe.service" in switch_line("restarting the following units: "), switch_output
+                  assert "systemd-hostnamed.service" in switch_line("NOT restarting the following changed units: "), switch_output
+                  assert not any("systemd-hostnamed" in line for line in switch_output if line.startswith("stopping the following units: ")), switch_output
+                  assert unit_property("systemd-hostnamed.socket", "ActiveState") == "active"
 
               with subtest("killing the whole agent unit powers the VM off"):
                   builder.execute(f"systemctl kill --signal=SIGKILL {agent_unit} >&2 &", check_return=False)
