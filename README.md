@@ -188,6 +188,7 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 | git-bug read-only web UI behind Anubis | `bugs.pis.fyi` | `git-bug.nix` |
 | git-bug web UI behind Anubis, Pocket ID login | `bugs-edit.pis.fyi` | `git-bug.nix` |
 | Pocket ID (OIDC provider) | `id.pis.fyi` | `pocket-id.nix` |
+| KOReader sync (crosspoint-sync), Hardcover connector | `kosync.pis.fyi` | `kosync.nix` |
 | Change short links | `cl.pis.fyi/<n>` | `gerrit.nix` |
 | Bug short links | `b.pis.fyi/<id>` | `git-bug.nix` |
 | Other subdomains redirect home | `*.pis.fyi` | `nginx.nix` |

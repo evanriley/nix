@@ -12,6 +12,10 @@ in
         (uaccessRules pkgs "atk" ''
           SUBSYSTEM=="hidraw", ATTRS{idVendor}=="373b", MODE:="0660", TAG+="uaccess"
         '')
+        # Espressif ESP32 USB serial (WebSerial flashers).
+        (uaccessRules pkgs "espressif" ''
+          SUBSYSTEM=="tty", ATTRS{idVendor}=="303a", MODE:="0660", TAG+="uaccess"
+        '')
       ];
     };
 }

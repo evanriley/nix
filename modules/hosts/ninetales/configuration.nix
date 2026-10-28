@@ -40,6 +40,7 @@ in
       homebrew = {
         enable = true;
         casks = [
+          "calibre"
           "firefox"
           "helium-browser"
           "iina"

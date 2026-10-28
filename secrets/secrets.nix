@@ -79,6 +79,7 @@ shared [ "cinderace" "blaziken" ] "evan-password.age"
   "gerrit-oidc-secret.age"
   "git-bug-oidc-secret.age"
   "oauth2-proxy-cookie-secret.age"
+  "crosspoint-sync-key.age"
 ]
 // hostSecrets "blaziken" mirrorKeys
 // hostSecrets "ninetales" [

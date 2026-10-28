@@ -57,6 +57,7 @@
 
       home.packages = with pkgs; [
         brave
+        calibre
         (chromium.override { enableWideVine = true; })
         iptvnator
         swayimg
