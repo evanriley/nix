@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   flake.modules.homeManager.apps =
     {
@@ -59,6 +60,7 @@
         brave
         calibre
         (chromium.override { enableWideVine = true; })
+        inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.helium
         iptvnator
         swayimg
         nautilus

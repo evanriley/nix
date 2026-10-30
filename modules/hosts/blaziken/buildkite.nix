@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, inputs, ... }:
 let
   inherit (config.meta)
     secrets
@@ -278,6 +278,7 @@ in
           cd "$workdir"
 
           refspecs=()
+          status=0
           for project in "''${projects[@]}"; do
             echo "--- updating $project"
             if ! update_log=$(update_inputs "$project" 2>&1); then
@@ -299,9 +300,28 @@ in
             refspecs+=("$(git rev-parse HEAD):refs/for/main%topic=flake-update-$project,l=Autosubmit+1,r=$reviewer")
           done
 
+          echo "--- updating helium"
+          helium_release=nix/modules/packages/helium.json
+          if ! helium_log=$(${lib.getExe inputs.self.packages.x86_64-linux.helium-update} "$helium_release" 2>&1); then
+            printf '%s\n' "$helium_log" >&2
+            echo "updating helium failed; nothing is pushed for helium, the flake.lock changes still are. Fix the error above, then start ci-flake-update.service again" >&2
+            status=1
+          else
+            printf '%s\n' "$helium_log"
+            if git diff --quiet -- "$helium_release"; then
+              echo "$helium_release matches main"
+            else
+              change_id=I$(od -An -N20 -tx1 /dev/urandom | tr -d ' \n')
+              helium_version=$(jq -r .version "$helium_release")
+              printf 'build(nix): update helium to %s\n\nChange-Id: %s\n' "$helium_version" "$change_id" \
+                | git commit --quiet --file=- -- "$helium_release"
+              refspecs+=("$(git rev-parse HEAD):refs/for/main%topic=flake-update-helium,l=Autosubmit+1,r=$reviewer")
+            fi
+          fi
+
           if [ "''${#refspecs[@]}" -eq 0 ]; then
-            echo "no flake.lock changed; nothing to push"
-            exit 0
+            echo "nothing changed; nothing to push"
+            exit "$status"
           fi
           for refspec in "''${refspecs[@]}"; do
             echo "--- pushing $refspec"
@@ -310,6 +330,7 @@ in
               exit 1
             fi
           done
+          exit "$status"
         '';
       };
 
