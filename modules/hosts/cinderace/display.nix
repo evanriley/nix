@@ -90,7 +90,7 @@ in
           tearing = true;
         };
         keybinds."Mod+Ctrl+M" = {
-          action = "spawn:${config.home.homeDirectory}/.local/bin/display-mode";
+          action = "spawn ${config.home.homeDirectory}/.local/bin/display-mode";
           repeat = false;
         };
       };

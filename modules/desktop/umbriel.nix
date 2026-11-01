@@ -41,12 +41,12 @@ in
       ];
 
       spawn = command: {
-        action = "spawn:${command}";
+        action = "spawn ${command}";
         repeat = false;
       };
       noctalia = command: spawn "noctalia msg ${command}";
       noctaliaWhenLocked = command: {
-        action = "spawn:noctalia msg ${command}";
+        action = "spawn noctalia msg ${command}";
         allow_when_locked = true;
       };
       withCooldown = action: {
@@ -62,8 +62,8 @@ in
               key = toString index;
             in
             [
-              (lib.nameValuePair "Mod+${key}" "workspace-switch:${target}")
-              (lib.nameValuePair "Mod+Shift+${key}" "column-move-to-workspace:${target}")
+              (lib.nameValuePair "Mod+${key}" "workspace-switch ${target}")
+              (lib.nameValuePair "Mod+Shift+${key}" "column-move-to-workspace ${target}")
             ]
           ) (workspaces ++ map toString (lib.range (lib.length workspaces + 1) 9))
         )
@@ -262,7 +262,7 @@ in
             "Mod+O" = "overview-toggle";
             "Mod+Q" = "window-close";
             "Mod+Shift+P" = "window-toggle-pinned";
-            "Mod+Ctrl+Space" = "workspace-set-layout:toggle";
+            "Mod+Ctrl+Space" = "workspace-set-layout toggle";
             "Alt+Tab" = "window-focus-last";
             "Mod+MouseMiddle" = "layout-scroll-drag";
             "Mod+Home" = "column-focus-first";
@@ -276,10 +276,10 @@ in
             "Mod+F" = "window-toggle-maximize";
             "Mod+Shift+F" = "window-toggle-fullscreen";
             "Mod+C" = "column-center";
-            "Mod+Minus" = "window-modify-primary-extent:-0.1";
-            "Mod+Equal" = "window-modify-primary-extent:0.1";
-            "Mod+Shift+Minus" = "window-modify-secondary-extent:-0.1";
-            "Mod+Shift+Equal" = "window-modify-secondary-extent:0.1";
+            "Mod+Minus" = "window-modify-primary-extent -0.1";
+            "Mod+Equal" = "window-modify-primary-extent 0.1";
+            "Mod+Shift+Minus" = "window-modify-secondary-extent -0.1";
+            "Mod+Shift+Equal" = "window-modify-secondary-extent 0.1";
             "Mod+V" = "window-toggle-floating";
             "Mod+Shift+V" = "window-focus-switch-floating";
             "Mod+Shift+Slash" = "cheatsheet-toggle";

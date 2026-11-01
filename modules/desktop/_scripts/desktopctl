@@ -37,8 +37,8 @@ def umbriel_json(command):
     return json.loads(result.stdout)
 
 
-def umbriel_action(action):
-    return subprocess.run(["umbriel", "msg", action], check=False).returncode
+def umbriel_action(*words):
+    return subprocess.run(["umbriel", "msg", *words], check=False).returncode
 
 
 def launch_and_wait(command, find):
@@ -67,7 +67,7 @@ def scratch(name):
     if find() is None and launch_and_wait(command, find) is None:
         print(f"desktopctl: {app_id} did not appear within 3 seconds", file=sys.stderr)
         return 1
-    return umbriel_action(f"scratchpad-toggle:{name}")
+    return umbriel_action("scratchpad-toggle", name)
 
 
 def screenshot(target):
