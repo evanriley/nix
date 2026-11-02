@@ -26,6 +26,15 @@ let
     "buildkite-agent-main.service"
     "zoekt-webserver.service"
     "zoekt-index.timer"
+    "postgresql.service"
+    "redis-newsblur.service"
+    "podman-newsblur-mongo.service"
+    "podman-newsblur-elasticsearch.service"
+    "podman-newsblur-web.service"
+    "podman-newsblur-celery.service"
+    "podman-newsblur-node.service"
+    "podman-newsblur-imageproxy.service"
+    "newsblur-setup.service"
   ];
 
   sites = [
@@ -55,6 +64,10 @@ let
     }
     {
       url = "id.${domain}/.well-known/openid-configuration";
+      expect = 200;
+    }
+    {
+      url = "news.${domain}";
       expect = 200;
     }
   ];

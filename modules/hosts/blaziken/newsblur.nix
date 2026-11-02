@@ -131,6 +131,36 @@ in
           ${extraConfig}
         '';
       };
+      dumpDirectory = "/var/backup/newsblur";
+      dump = pkgs.writeShellApplication {
+        name = "newsblur-dump";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.util-linux
+          config.services.postgresql.package
+          config.virtualisation.podman.package
+        ];
+        text = ''
+          write_dump() {
+            local name="$1" temporary
+            shift
+            temporary="$(mktemp ${dumpDirectory}/."$name".XXXXXX)"
+            if ! "$@" > "$temporary"; then
+              rm -f "$temporary"
+              echo "Failed to write $name with: $*; expected a running database." >&2
+              return 1
+            fi
+            mv "$temporary" ${dumpDirectory}/"$name"
+          }
+
+          status=0
+          write_dump newsblur.pgdump runuser -u postgres -- pg_dump -Fc newsblur || status=1
+          write_dump mongo.archive.gz \
+            podman exec newsblur-mongo mongodump --port ${toString ports.mongo} --archive --gzip || status=1
+          exit "$status"
+        '';
+      };
+
       webUrl = "http://${address}:${toString ports.web}";
       nodeUrl = "http://${address}:${toString ports.node}";
     in
@@ -280,6 +310,35 @@ in
         podman-newsblur-imageproxy.restartTriggers = [
           (builtins.hashFile "sha256" config.age.secrets.newsblur-env.file)
         ];
+        newsblur-dump = {
+          description = "Dump the NewsBlur databases for backup";
+          serviceConfig = {
+            Type = "oneshot";
+            ExecStart = lib.getExe dump;
+          };
+        };
+      };
+
+      services.borgmatic.configurations.home = {
+        source_directories = [ "/var/lib/redis-newsblur" ];
+        commands = [
+          {
+            before = "action";
+            when = [ "create" ];
+            run = [ "${config.systemd.package}/bin/systemctl start newsblur-dump.service" ];
+          }
+        ];
+      };
+
+      services.logrotate.settings."${stateDir}/logs/*.log" = {
+        frequency = "daily";
+        rotate = 14;
+        compress = true;
+        delaycompress = true;
+        missingok = true;
+        notifempty = true;
+        copytruncate = true;
+        su = "newsblur newsblur";
       };
 
       systemd.tmpfiles.rules = [
@@ -290,6 +349,7 @@ in
         "d ${stateDir}/prom 0750 newsblur newsblur -"
         "d ${stateDir}/originals 0750 newsblur newsblur -"
         "d ${stateDir}/static 0755 newsblur newsblur -"
+        "d ${dumpDirectory} 0700 root root -"
       ];
 
       environment.systemPackages = [
