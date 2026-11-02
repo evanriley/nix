@@ -1,0 +1,13 @@
+diff --git a/apps/webfeed/tasks.py b/apps/webfeed/tasks.py
+index 4f36ad09..85611d5f 100644
+--- a/apps/webfeed/tasks.py
++++ b/apps/webfeed/tasks.py
+@@ -118,7 +118,7 @@ def strip_navigation_elements(html_text, gentle=False):
+             combined = classes + " " + el_id
+             if any(indicator in combined for indicator in NAV_INDICATORS):
+                 # Protect main content containers from removal
+-                if el.tag not in ("main", "article", "section"):
++                if el.tag not in ("html", "body", "main", "article", "section"):
+                     if el.getparent() is not None:
+                         el.getparent().remove(el)
+ 
