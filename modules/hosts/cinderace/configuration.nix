@@ -17,6 +17,7 @@ in
       music
       navidrome
       dispatcharr
+      stacks
       backup
       syncthing
       remote
