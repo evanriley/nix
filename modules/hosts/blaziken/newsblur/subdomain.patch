@@ -1,0 +1,12 @@
+diff --git a/apps/reader/views.py b/apps/reader/views.py
+index bff1cc6..fed3315 100644
+--- a/apps/reader/views.py
++++ b/apps/reader/views.py
+@@ -149,6 +149,7 @@ BANNED_URLS = [
+ ]
+ ALLOWED_SUBDOMAINS = [
+     "dev",
++    "news",
+     "www",
+     "hwww",
+     "dwww",

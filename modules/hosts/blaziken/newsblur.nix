@@ -43,6 +43,7 @@ in
           ./newsblur/newsletters.patch
           ./newsblur/r2-storage.patch
           ./newsblur/senders.patch
+          ./newsblur/subdomain.patch
         ];
         postPatch = ''
           cp ${./newsblur/local_settings.py} newsblur_web/local_settings.py
