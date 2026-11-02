@@ -163,6 +163,16 @@ in
 
       webUrl = "http://${address}:${toString ports.web}";
       nodeUrl = "http://${address}:${toString ports.node}";
+
+      newsletterDomain = "newsletters.${host}";
+      newsletterUser = "newsblur-newsletter";
+      newsletterPipe = "newsblur-newsletter";
+      newsletterDeliver = pkgs.writers.writePython3Bin "newsblur-newsletter" { } (
+        builtins.readFile ./newsblur/newsletter.py
+      );
+      newsletterRecipients = pkgs.writeText "newsblur-newsletter-recipients" ''
+        /^\w+[-+.]\w+@${lib.escapeRegex newsletterDomain}$/ OK
+      '';
     in
     {
       age.secrets.newsblur-env.file = secrets + "/blaziken/newsblur.env.age";
@@ -177,6 +187,33 @@ in
         isSystemUser = true;
         uid = id;
         group = "newsblur";
+      };
+
+      users.groups.${newsletterUser} = { };
+      users.users.${newsletterUser} = {
+        isSystemUser = true;
+        group = newsletterUser;
+      };
+
+      services.postfix = {
+        transport = "${newsletterDomain} ${newsletterPipe}:";
+        settings.main = {
+          relay_domains = [ newsletterDomain ];
+          relay_recipient_maps = [ "pcre:${newsletterRecipients}" ];
+          "${newsletterPipe}_destination_recipient_limit" = "1";
+        };
+        settings.master.${newsletterPipe} = {
+          privileged = true;
+          chroot = false;
+          command = "pipe";
+          args = [
+            "flags=R"
+            "user=${newsletterUser}"
+            "argv=${lib.getExe newsletterDeliver}"
+            "\${recipient}"
+            "\${sender}"
+          ];
+        };
       };
 
       services.postgresql = {
@@ -400,6 +437,7 @@ in
 
         virtualHosts.newsblur-internal = {
           serverName = "haproxy";
+          extraConfig = "client_max_body_size 20m;";
           listen = [
             {
               addr = address;
