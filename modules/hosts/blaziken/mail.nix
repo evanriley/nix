@@ -21,6 +21,7 @@ in
           "postmaster@${domain}" = user.email;
           "abuse@${domain}" = user.email;
           "gerrit@${domain}" = user.email;
+          "news@${domain}" = user.email;
         };
       };
 

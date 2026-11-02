@@ -1,0 +1,41 @@
+diff --git a/apps/briefing/models.py b/apps/briefing/models.py
+index b9c48238..a8d66435 100644
+--- a/apps/briefing/models.py
++++ b/apps/briefing/models.py
+@@ -375,8 +375,8 @@ def create_briefing_story(
+             story_title=title,
+             story_content=summary_html,
+             story_author_name="NewsBlur",
+-            story_permalink="https://newsblur.com/briefing/%s/%s"
+-            % (user.pk, briefing_date.strftime("%Y-%m-%d")),
++            story_permalink="%s/briefing/%s/%s"
++            % (settings.NEWSBLUR_URL, user.pk, briefing_date.strftime("%Y-%m-%d")),
+             story_guid=guid,
+         )
+         story.save()
+diff --git a/apps/notifications/models.py b/apps/notifications/models.py
+index d4d1635c..d9439e16 100644
+--- a/apps/notifications/models.py
++++ b/apps/notifications/models.py
+@@ -552,7 +552,7 @@ class MUserFeedNotification(mongo.Document):
+             "favicon_url": favicon_url,
+             "classifier_match_desc": classifier_match_desc,
+         }
+-        from_address = "notifications@newsblur.com"
++        from_address = settings.HELLO_EMAIL
+         to_address = "%s <%s>" % (usersub.user.username, usersub.user.email)
+         with account_translation(usersub.user.profile):
+             text = render_to_string("mail/email_story_notification.txt", params)
+diff --git a/apps/reader/views.py b/apps/reader/views.py
+index bff1cc69..f6cb0851 100644
+--- a/apps/reader/views.py
++++ b/apps/reader/views.py
+@@ -5603,7 +5603,7 @@ def send_story_email(request):
+     email_cc = is_true(request.POST.get("email_cc", "true"))
+     comments = request.POST["comments"]
+     comments = comments[:2048]  # Separated due to PyLint
+-    from_address = "share@newsblur.com"
++    from_address = settings.HELLO_EMAIL
+     share_user_profile = MSocialProfile.get_user(request.user.pk)
+ 
+     quota = 32 if user.profile.is_premium else 1

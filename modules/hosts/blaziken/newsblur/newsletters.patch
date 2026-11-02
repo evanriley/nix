@@ -1,0 +1,27 @@
+diff --git a/apps/newsletters/models.py b/apps/newsletters/models.py
+index 44285e89..68c03017 100644
+--- a/apps/newsletters/models.py
++++ b/apps/newsletters/models.py
+@@ -272,8 +272,7 @@ class EmailNewsletter:
+         logging.user(user, "~BB~FM~SBSending first newsletter email to: %s" % user.email)
+ 
+     def _user_from_email(self, email):
+-        # Support both @newsletters.newsblur.com and @improvmx.newsblur.com
+-        tokens = re.search(r"(\w+)[\+\-\.](\w+)@(?:newsletters|improvmx)\.newsblur\.com", email)
++        tokens = re.search(r"(\w+)[\+\-\.](\w+)@newsletters\.news\.pis\.fyi", email)
+         if not tokens:
+             logging.debug(f" ***> Newsletter email regex failed for: {email}")
+             return
+diff --git a/media/js/newsblur/reader/reader_newsletters.js b/media/js/newsblur/reader/reader_newsletters.js
+index f4bf46f7..d4cd15de 100644
+--- a/media/js/newsblur/reader/reader_newsletters.js
++++ b/media/js/newsblur/reader/reader_newsletters.js
+@@ -24,7 +24,7 @@ _.extend(NEWSBLUR.ReaderNewsletters.prototype, {
+ 
+     make_modal: function () {
+         var self = this;
+-        var email = NEWSBLUR.Globals.username + "-" + NEWSBLUR.Globals.secret_token + "@newsletters.newsblur.com";
++        var email = NEWSBLUR.Globals.username + "-" + NEWSBLUR.Globals.secret_token + "@newsletters.news.pis.fyi";
+ 
+         this.$modal = $.make('div', { className: 'NB-modal-newsletters NB-modal' }, [
+             $.make('h2', { className: 'NB-modal-title' }, [
