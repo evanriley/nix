@@ -1,6 +1,6 @@
 /* Based on toolbars_below_content_v2.css at commit
- * 50f63ed41528d9566ab54536b6b697b023306565:
- * https://github.com/MrOtherGuy/firefox-csshacks/blob/50f63ed41528d9566ab54536b6b697b023306565/chrome/toolbars_below_content_v2.css
+ * b7f38649e089c1ebb2f3e568ddf38cd5c2d29362:
+ * https://github.com/MrOtherGuy/firefox-csshacks/blob/b7f38649e089c1ebb2f3e568ddf38cd5c2d29362/chrome/toolbars_below_content_v2.css
  * Mozilla Public License v. 2.0. The toolbar order below is customized so
  * every visible toolbar sits below the page, with tabs at the screen edge. */
 
@@ -91,6 +91,7 @@
 }
 .urlbar:not([breakout])[open]{
   --urlbarView-margin-block: 0px;
+  --urlbarview-margin-block: 0px;
   > .urlbarView:popover-open{
     position-area: block-start center !important;
     > .urlbarView-background{
@@ -98,11 +99,11 @@
       border-start-start-radius: var(--urlbar-background-border-top-radius-open) !important;
       border-end-end-radius: 0 !important;
       border-end-start-radius: 0 !important;
-      inset-block: calc(-1 * var(--urlbar-joint-background-overlap)) calc(1 * var(--urlbarView-joint-background-outset-block)) !important;
+      inset-block: calc(-1 * var(--urlbar-joint-background-overlap)) calc(1 * var(--urlbarview-joint-background-outset-block,var(--urlbarView-joint-background-outset-block))) !important;
       clip-path: none !important;
     }
     :where(.urlbar:not([noresults])) > & {
-      padding-block: 0 var(--urlbarView-padding) !important;
+      padding-block: 0 var(--urlbarview-padding,var(--urlbarView-padding)) !important;
     }
   }
 }
