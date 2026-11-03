@@ -18,6 +18,10 @@
           filter = "postfix[mode=auth]";
           port = "25,465";
         };
+        roundcube-auth.settings = {
+          enabled = true;
+          port = "80,443";
+        };
       };
     };
   };

@@ -60,6 +60,12 @@ in
       services.nginx.virtualHosts.${fqdn} = {
         enableACME = false;
         useACMEHost = domain;
+        # Roundcube appends these client-supplied headers to its failed-login
+        # log line, which the fail2ban roundcube-auth filter then misses.
+        locations."~* \\.php(/|$)".extraConfig = ''
+          fastcgi_param HTTP_X_FORWARDED_FOR "";
+          fastcgi_param HTTP_X_REAL_IP "";
+        '';
       };
 
       systemd.tmpfiles.rules = [ "d ${dumpDirectory} 0700 root root -" ];
