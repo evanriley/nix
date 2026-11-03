@@ -46,30 +46,45 @@ in
         </clientConfig>
       '';
 
-      discoveryLocations = lib.listToAttrs (
-        map (
-          path:
-          lib.nameValuePair "= ${path}" {
-            alias = autoconfig;
-            extraConfig = "default_type text/xml;";
-          }
-        ) autoconfigPaths
-      );
+      mtaStsPolicy = pkgs.writeText "mta-sts.txt" ''
+        version: STSv1
+        mode: testing
+        mx: ${fqdn}
+        max_age: 86400
+      '';
+
+      discoveryLocations =
+        lib.listToAttrs (
+          map (
+            path:
+            lib.nameValuePair "= ${path}" {
+              alias = autoconfig;
+              extraConfig = "default_type text/xml;";
+            }
+          ) autoconfigPaths
+        )
+        // {
+          "= /.well-known/mta-sts.txt" = {
+            alias = mtaStsPolicy;
+            extraConfig = "default_type text/plain;";
+          };
+        };
     in
     {
       services.nginx.virtualHosts = {
         "autoconfig.${domain}" = {
           forceSSL = true;
           useACMEHost = domain;
+          serverAliases = [ "mta-sts.${domain}" ];
           locations = discoveryLocations;
         };
 
         "autoconfig.${primaryDomain}" = {
           forceSSL = true;
           enableACME = true;
-          serverAliases = map (d: "autoconfig.${d}") (
-            builtins.filter (d: d != primaryDomain) externalDomains
-          );
+          serverAliases =
+            map (d: "autoconfig.${d}") (builtins.filter (d: d != primaryDomain) externalDomains)
+            ++ map (d: "mta-sts.${d}") externalDomains;
           locations = discoveryLocations;
         };
       };
