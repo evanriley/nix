@@ -83,6 +83,7 @@ shared [ "cinderace" "blaziken" ] "evan-password.age"
   "crosspoint-sync-key.age"
   "newsblur.env.age"
   "mail-evan-hash.age"
+  "rustical.env.age"
 ]
 // hostSecrets "blaziken" mirrorKeys
 // hostSecrets "ninetales" [

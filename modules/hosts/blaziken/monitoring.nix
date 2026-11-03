@@ -14,6 +14,7 @@ let
     "git-bug-webui-public.service"
     "oauth2-proxy.service"
     "pocket-id.service"
+    "rustical.service"
     "ci-trigger.service"
     "ci-spot-poller.service"
     "anubis-homepage.service"
@@ -72,6 +73,10 @@ let
     }
     {
       url = "news.${domain}";
+      expect = 200;
+    }
+    {
+      url = "dav.${domain}/frontend/login";
       expect = 200;
     }
   ];

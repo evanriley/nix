@@ -13,6 +13,7 @@ in
       ping = config.age.secrets.healthchecks-ping.path;
       pocketIdDirectory = config.services.pocket-id.dataDir;
       crosspointSyncDirectory = "/var/lib/private/crosspoint-sync";
+      rusticalDirectory = "/var/lib/private/rustical";
       bundleDirectory = "/var/backup/gerrit";
       bundleRepositories = pkgs.writeShellScript "bundle-gerrit-repositories" ''
         set -euo pipefail
@@ -42,6 +43,7 @@ in
           "/var/backup"
           pocketIdDirectory
           crosspointSyncDirectory
+          rusticalDirectory
         ];
         sqlite_databases = [
           {
@@ -52,10 +54,15 @@ in
             name = "crosspoint-sync";
             path = "${crosspointSyncDirectory}/crosspoint.db";
           }
+          {
+            name = "rustical";
+            path = "${rusticalDirectory}/db.sqlite3";
+          }
         ];
         exclude_patterns = [
           "sh:${pocketIdDirectory}/data/pocket-id.db*"
           "sh:${crosspointSyncDirectory}/crosspoint.db*"
+          "sh:${rusticalDirectory}/db.sqlite3*"
           "sh:/var/lib/git-bug/public"
         ];
         commands = [
