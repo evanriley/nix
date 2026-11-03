@@ -15,6 +15,7 @@ let
     "oauth2-proxy.service"
     "pocket-id.service"
     "rustical.service"
+    "phpfpm-roundcube.service"
     "ci-trigger.service"
     "ci-spot-poller.service"
     "anubis-homepage.service"
@@ -77,6 +78,10 @@ let
     }
     {
       url = "dav.${domain}/frontend/login";
+      expect = 200;
+    }
+    {
+      url = "mail.${domain}";
       expect = 200;
     }
   ];
