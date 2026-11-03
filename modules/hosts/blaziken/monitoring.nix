@@ -31,6 +31,7 @@ let
     "postgresql.service"
     "postfix.service"
     "dovecot.service"
+    "fail2ban.service"
     "rspamd.service"
     "redis-rspamd.service"
     "redis-newsblur.service"
