@@ -37,6 +37,8 @@ in
           "/var/lib/gerrit"
           "/var/lib/git-bug"
           "/var/dkim"
+          "/var/vmail"
+          "/var/lib/redis-rspamd"
           "/var/backup"
           pocketIdDirectory
           crosspointSyncDirectory

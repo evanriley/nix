@@ -82,6 +82,7 @@ shared [ "cinderace" "blaziken" ] "evan-password.age"
   "oauth2-proxy-cookie-secret.age"
   "crosspoint-sync-key.age"
   "newsblur.env.age"
+  "mail-evan-hash.age"
 ]
 // hostSecrets "blaziken" mirrorKeys
 // hostSecrets "ninetales" [
