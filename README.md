@@ -66,7 +66,7 @@ git -C ~/maybe checkout HEAD~1 -- nix/flake.lock
 ```
 
 `nh home switch` needs GitHub SSH access to fetch the private
-`evanriley/berkeley-mono` input; `orca` and `manta` live in the monorepo.
+`evanriley/berkeley-mono` input; `orca`, `orca2` and `manta` live in the monorepo.
 
 ### Remote work
 

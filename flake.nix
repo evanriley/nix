@@ -131,6 +131,7 @@
     inputs.flake-parts.lib.mkFlake {
       inputs = inputs // {
         orca = sibling "orca";
+        orca2 = sibling "orca2";
         manta = sibling "manta";
       };
     } (inputs.import-tree ./modules);
