@@ -44,6 +44,7 @@ in
           pkgs.curl
           pkgs.gawk
           pkgs.git
+          pkgs.gnused
           pkgs.jq
           pkgs.openssh
         ];
@@ -106,6 +107,9 @@ in
             CACHIX_AUTH_TOKEN=$(<${secretPath "cachix-token"})
             ORCA_CACHIX_TOKEN=$(<${secretPath "orca-cachix-token"})
             export CACHIX_AUTH_TOKEN ORCA_CACHIX_TOKEN
+            CLOUDFLARE_API_TOKEN=$(sed -n 's/^CLOUDFLARE_API_TOKEN=//p' ${secretPath "cloudflare-workers"})
+            CLOUDFLARE_ACCOUNT_ID=$(sed -n 's/^CLOUDFLARE_ACCOUNT_ID=//p' ${secretPath "cloudflare-workers"})
+            export CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
             ${mirrorKeyExports}
             export GITHUB_KNOWN_HOSTS=${githubKnownHosts}
             export CI_BUILDER_SYSTEM_FILE=${mainHome}/ci-builder-system
@@ -562,6 +566,11 @@ in
 
           cachix-token = {
             file = secrets + "/blaziken/cachix-token.age";
+            owner = mainAgent;
+          };
+
+          cloudflare-workers = {
+            file = secrets + "/blaziken/cloudflare-workers.age";
             owner = mainAgent;
           };
 
