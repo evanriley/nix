@@ -115,6 +115,42 @@ in
           '';
         };
 
+      reverseOctets = address: lib.concatStringsSep "." (lib.reverseList (lib.splitString "." address));
+
+      reverseNibbles =
+        address:
+        lib.concatStringsSep "." (
+          lib.reverseList (
+            lib.stringToCharacters (
+              lib.concatMapStrings (lib.fixedWidthString 4 "0") (
+                lib.splitString ":" (lib.network.ipv6.fromString address).address
+              )
+            )
+          )
+        );
+
+      blocklistQueries =
+        lib.concatMap (
+          { address, ... }:
+          map
+            (zone: {
+              inherit address zone;
+              name = "${reverseOctets address}.${zone}";
+            })
+            [
+              "zen.spamhaus.org"
+              "bl.spamcop.net"
+            ]
+        ) config.networking.interfaces.eth0.ipv4.addresses
+        ++ map (
+          { address, ... }:
+          {
+            inherit address;
+            zone = "zen.spamhaus.org";
+            name = "${reverseNibbles address}.zen.spamhaus.org";
+          }
+        ) config.networking.interfaces.eth0.ipv6.addresses;
+
       heartbeatPing = mkPing "healthchecks-heartbeat-ping" config.age.secrets.healthchecks-heartbeat.path;
       disksPing = mkPing "healthchecks-disks-ping" config.age.secrets.healthchecks-disks.path;
 
@@ -143,7 +179,10 @@ in
         runtimeInputs = [
           pkgs.coreutils
           pkgs.curl
+          pkgs.dig
+          pkgs.jq
           pkgs.systemd
+          config.services.postfix.package
         ];
         text = ''
           failures=()
@@ -182,6 +221,51 @@ in
           ${lib.concatMapStrings (
             site: "check_site ${lib.escapeShellArg site.url} ${toString site.expect}\n"
           ) sites}
+
+          status=0
+          queue="$(postqueue -j)" || status=$?
+          if [ "$status" -ne 0 ]; then
+            failures+=("postqueue -j failed with exit status $status")
+          elif ! stuck="$(jq -rs --argjson cutoff "$(($(date +%s) - 7200))" '
+            map(select(.arrival_time < $cutoff)) | sort_by(.arrival_time)
+            | if length == 0 then empty
+              else "\(length) messages queued over 2h, oldest \(.[0].queue_id) to \(.[0].recipients[0].address)"
+              end
+          ' <<< "$queue")"; then
+            failures+=("postqueue -j returned output jq could not parse")
+          elif [ -n "$stuck" ]; then
+            failures+=("$stuck")
+          fi
+
+          check_blocklist() {
+            local address="$1" name="$2" zone="$3" answer
+            local -a answers=() refused=() listed=()
+            mapfile -t answers < <(dig +short +time=5 +tries=1 @127.0.0.1 "$name" A || true)
+            for answer in "''${answers[@]}"; do
+              if [[ "$answer" =~ ^127\.255\.255\.[0-9]+$ ]]; then
+                refused+=("$answer")
+              elif [[ "$answer" =~ ^127\.0\.0\.([0-9]+)$ ]] \
+                && [ "$((10#''${BASH_REMATCH[1]}))" -ge 2 ] \
+                && [ "$((10#''${BASH_REMATCH[1]}))" -le 254 ]; then
+                listed+=("$answer")
+              fi
+            done
+            if [ "''${#refused[@]}" -gt 0 ]; then
+              failures+=("$zone refused the query: ''${refused[*]}")
+            elif [ "''${#listed[@]}" -gt 0 ]; then
+              failures+=("$address listed on $zone: ''${listed[*]}")
+            fi
+          }
+          ${lib.concatMapStrings (
+            query:
+            "check_blocklist ${
+              lib.escapeShellArgs [
+                query.address
+                query.name
+                query.zone
+              ]
+            }\n"
+          ) blocklistQueries}
 
           ${report "${heartbeatPing}/bin/healthchecks-heartbeat-ping"}
         '';
