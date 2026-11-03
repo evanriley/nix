@@ -10,6 +10,13 @@ in
 
   config.meta = {
     inherit domain;
+    mailDomains = [
+      domain
+      "evanriley.com"
+      "evanriley.dev"
+      "evanriley.me"
+      "evanriley.net"
+    ];
     user = {
       name = "evan";
       fullName = "Evan Riley";

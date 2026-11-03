@@ -1,13 +1,11 @@
 { config, inputs, ... }:
 let
-  inherit (config.meta) domain user secrets;
-  domains = [
+  inherit (config.meta)
     domain
-    "evanriley.com"
-    "evanriley.dev"
-    "evanriley.me"
-    "evanriley.net"
-  ];
+    user
+    secrets
+    ;
+  domains = config.meta.mailDomains;
 in
 {
   flake.modules.nixos.blaziken =
