@@ -27,11 +27,15 @@
             enabled = true;
             port = "80,443";
           };
-          filter.Definition = {
-            journalmatch = "SYSLOG_IDENTIFIER=nginx_kosync";
-            failregex = ''
-              ^<HOST> 401 "(?!-")[^"]+"
-                ^<HOST> 401 "-" "POST /auth/login-kosync"'';
+          filter = {
+            INCLUDES.before = "common.conf";
+            Definition = {
+              _daemon = "nginx_kosync";
+              journalmatch = "SYSLOG_IDENTIFIER=nginx_kosync";
+              failregex = ''
+                ^%(__prefix_line)s<HOST> 401 "(?!-")[^"]+"
+                  ^%(__prefix_line)s<HOST> 401 "-" "POST /auth/login-kosync"'';
+            };
           };
         };
       };
