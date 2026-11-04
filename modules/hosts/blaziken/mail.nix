@@ -27,6 +27,7 @@ in
         x509.useACMEHost = domain;
         enableManageSieve = true;
         srs.enable = true;
+        messageSizeLimit = 50 * 1024 * 1024;
         indexDir = "/var/lib/dovecot/indices";
         fullTextSearch.enable = true;
         mailboxes = {
