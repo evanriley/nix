@@ -121,6 +121,7 @@ in
         LoadCredentialEncrypted = "";
         TimeoutStartSec = "12h";
       };
+      systemd.services.borgmatic.restartIfChanged = false;
 
       systemd.timers.borgmatic.timerConfig = {
         OnCalendar = [
