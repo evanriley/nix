@@ -22,6 +22,18 @@
           enabled = true;
           port = "80,443";
         };
+        kosync = {
+          settings = {
+            enabled = true;
+            port = "80,443";
+          };
+          filter.Definition = {
+            journalmatch = "SYSLOG_IDENTIFIER=nginx_kosync";
+            failregex = ''
+              ^<HOST> 401 "(?!-")[^"]+"
+                ^<HOST> 401 "-" "POST /auth/login-kosync"'';
+          };
+        };
       };
     };
   };

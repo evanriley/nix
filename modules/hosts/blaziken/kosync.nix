@@ -70,9 +70,17 @@ in
         };
       };
 
+      services.nginx.commonHttpConfig = ''
+        log_format kosync_auth '$remote_addr $status "$http_x_auth_user" "$request_method $uri"';
+      '';
+
       services.nginx.virtualHosts."kosync.${domain}" = {
         forceSSL = true;
         useACMEHost = domain;
+        extraConfig = ''
+          access_log /var/log/nginx/access.log;
+          access_log syslog:server=unix:/dev/log,tag=nginx_kosync,nohostname kosync_auth;
+        '';
         locations."/" = {
           proxyPass = "http://127.0.0.1:${toString port}";
           recommendedProxySettings = false;
