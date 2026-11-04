@@ -170,6 +170,7 @@ in
         if [ "''${#failures[@]}" -eq 0 ]; then
           ${ping} ok < /dev/null
         else
+          printf '%s\n' "''${failures[@]}" >&2
           printf '%s\n' "''${failures[@]}" | ${ping} fail
         fi
       '';
@@ -189,9 +190,15 @@ in
 
           ${collectDegraded}
 
-          failed="$(systemctl --failed --plain --no-legend)"
-          if [ -n "$failed" ]; then
-            failures+=("failed units: $failed")
+          failed=()
+          while read -r unit _; do
+            case "$unit" in
+              ci-nightly.service | ci-flake-update.service | nix-daemon@*.service) ;;
+              *) failed+=("$unit") ;;
+            esac
+          done < <(systemctl --failed --plain --no-legend)
+          if [ "''${#failed[@]}" -gt 0 ]; then
+            failures+=("failed units: ''${failed[*]}")
           fi
 
           inactive=()
@@ -294,7 +301,7 @@ in
             md="$(basename "$(readlink -f ${rootArray})")"
             mismatches="$(cat "/sys/block/$md/md/mismatch_cnt")"
             if [ "$mismatches" != 0 ]; then
-              failures+=("$md mismatch_cnt is $mismatches")
+              failures+=("$md mismatch_cnt is $mismatches; run echo repair > /sys/block/$md/md/sync_action, then echo check once it finishes")
             fi
           fi
 
