@@ -168,6 +168,7 @@ in
           scratchpad = [
             { name = "btop"; }
             { name = "rmpc"; }
+            { name = "aerc"; }
           ];
 
           # std::regex has no (?i); spell out case variants.
@@ -233,6 +234,7 @@ in
             } (floating 600 700))
             (rule { app_id = "^scratch_btop$"; } ({ default_scratchpad = "btop"; } // floating 1920 1080))
             (rule { app_id = "^scratch_rmpc$"; } ({ default_scratchpad = "rmpc"; } // floating 1920 1080))
+            (rule { app_id = "^scratch_aerc$"; } ({ default_scratchpad = "aerc"; } // floating 1920 1080))
           ];
 
           keybinds = {
@@ -249,6 +251,7 @@ in
             "Mod+Alt+L" = noctalia "session lock";
             "Mod+Ctrl+T" = spawn "${bin}/desktopctl scratch btop";
             "Mod+Ctrl+R" = spawn "${bin}/desktopctl scratch rmpc";
+            "Mod+Ctrl+E" = spawn "${bin}/desktopctl scratch aerc";
             "Mod+Ctrl+N" = noctalia "panel-toggle control-center notifications";
             "Mod+Ctrl+B" = noctalia "bar-toggle";
             "Mod+Alt+V" = noctalia "panel-toggle clipboard";

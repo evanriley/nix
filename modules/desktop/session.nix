@@ -45,6 +45,7 @@ in
           runtimeInputs = [
             config.programs.btop.package
             config.programs.rmpc.package
+            config.programs.aerc.package
           ]
           ++ (with pkgs; [
             (umbrielPackage pkgs)

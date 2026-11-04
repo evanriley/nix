@@ -11,6 +11,7 @@ import time
 SCRATCH_APPS = {
     "btop": ("scratch_btop", ["foot", "--app-id=scratch_btop", "btop"]),
     "rmpc": ("scratch_rmpc", ["foot", "--app-id=scratch_rmpc", "rmpc"]),
+    "aerc": ("scratch_aerc", ["foot", "--app-id=scratch_aerc", "aerc"]),
 }
 SCREENSHOT_DIR = os.path.expanduser("~/Pictures/Screenshots")
 
