@@ -431,7 +431,7 @@ in
             "/original_page/" = proxy nodeUrl "limit_except GET { deny all; }";
             "/imageproxy/" = proxy "http://${address}:${toString ports.imageproxy}$newsblur_imageproxy_uri" "";
             "/rss_feeds/original_text_fetcher".return = "404";
-            "= /newsletters/receive".return = "404";
+            "~ ^/newsletters/receive".return = "404";
             "~ ^/(account|api|reader)/signup".return = "404";
             "~ ^/signup/?$".return = "404";
             "~ ^/(account|api)/social/".return = "404";
