@@ -35,11 +35,13 @@ in
             auto = "no";
             special_use = "\\Trash";
             fts_autoindex = false;
+            autoexpunge = "30d";
           };
           Junk = {
             auto = "subscribe";
             special_use = "\\Junk";
             fts_autoindex = false;
+            autoexpunge = "30d";
           };
           Drafts = {
             auto = "subscribe";
