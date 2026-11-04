@@ -35,9 +35,10 @@ in
           "Developer/Strata/Strata-data"
         ]
         ++ [
-          "sh:${home}/Developer/**/.zig-cache"
-          "sh:${home}/Developer/**/zig-out"
-          "sh:${home}/Developer/**/.claude/worktrees"
+          "sh:${home}/**/.zig-cache"
+          "sh:${home}/**/zig-out"
+          "sh:${home}/**/.claude/worktrees"
+          "sh:${home}/**/orca2/build"
         ];
 
       services.snapper.configs.home = {
