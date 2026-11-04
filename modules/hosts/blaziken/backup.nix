@@ -6,6 +6,7 @@ in
   flake.modules.nixos.blaziken =
     {
       config,
+      lib,
       pkgs,
       ...
     }:
@@ -15,6 +16,31 @@ in
       crosspointSyncDirectory = "/var/lib/private/crosspoint-sync";
       rusticalDirectory = "/var/lib/private/rustical";
       bundleDirectory = "/var/backup/gerrit";
+      sqlite3 = lib.getExe' pkgs.sqlite "sqlite3";
+      dynamicUser = name: {
+        DynamicUser = true;
+        User = name;
+        StateDirectory = name;
+      };
+      sqliteBackups = {
+        pocket-id = {
+          database = "${pocketIdDirectory}/data/pocket-id.db";
+          serviceConfig = {
+            User = "pocket-id";
+            Group = "pocket-id";
+            ProtectSystem = "strict";
+            ReadWritePaths = [ "${pocketIdDirectory}/data" ];
+          };
+        };
+        crosspoint-sync = {
+          database = "/var/lib/crosspoint-sync/crosspoint.db";
+          serviceConfig = dynamicUser "crosspoint-sync";
+        };
+        rustical = {
+          database = "/var/lib/rustical/db.sqlite3";
+          serviceConfig = dynamicUser "rustical";
+        };
+      };
       bundleRepositories = pkgs.writeShellScript "bundle-gerrit-repositories" ''
         set -euo pipefail
         for repository in /var/lib/gerrit/git/*.git; do
@@ -45,20 +71,6 @@ in
           crosspointSyncDirectory
           rusticalDirectory
         ];
-        sqlite_databases = [
-          {
-            name = "pocket-id";
-            path = "${pocketIdDirectory}/data/pocket-id.db";
-          }
-          {
-            name = "crosspoint-sync";
-            path = "${crosspointSyncDirectory}/crosspoint.db";
-          }
-          {
-            name = "rustical";
-            path = "${rusticalDirectory}/db.sqlite3";
-          }
-        ];
         exclude_patterns = [
           "sh:${pocketIdDirectory}/data/pocket-id.db*"
           "sh:${crosspointSyncDirectory}/crosspoint.db*"
@@ -71,21 +83,48 @@ in
             when = [ "create" ];
             run = [ "${bundleRepositories}" ];
           }
+          {
+            before = "action";
+            when = [ "create" ];
+            run = [
+              "${config.systemd.package}/bin/systemctl start ${
+                lib.concatMapStringsSep " " (name: "${name}-sqlite-backup.service") (lib.attrNames sqliteBackups)
+              }"
+            ];
+          }
         ];
         hooks = {
           on_error = [ "curl --retry 3 $(cat ${ping})/fail" ];
         };
       };
 
-      # after_backup fires per attempt, mid-retry, which would ping success on
-      # a failing run; ExecStartPost only runs when the service actually
-      # succeeded.
-      systemd.services.borgmatic.serviceConfig.ExecStartPost = [
-        "${pkgs.bash}/bin/sh -c 'curl --retry 3 $$(cat ${ping})'"
-      ];
-
       systemd.tmpfiles.rules = [ "d ${bundleDirectory} 0700 root root -" ];
 
-      systemd.services.borgmatic.path = [ pkgs.curl ];
+      systemd.services =
+        lib.mapAttrs' (
+          name:
+          { database, serviceConfig }:
+          lib.nameValuePair "${name}-sqlite-backup" {
+            description = "Back up the ${name} SQLite database";
+            serviceConfig = serviceConfig // {
+              Type = "oneshot";
+              ExecStart = ''${sqlite3} -bail ${database} ".backup '${dirOf database}/backup.sqlite3'"'';
+              UMask = "0077";
+              PrivateTmp = true;
+              NoNewPrivileges = true;
+            };
+          }
+        ) sqliteBackups
+        // {
+          # after_backup fires per attempt, mid-retry, which would ping success on
+          # a failing run; ExecStartPost only runs when the service actually
+          # succeeded.
+          borgmatic = {
+            path = [ pkgs.curl ];
+            serviceConfig.ExecStartPost = [
+              "${pkgs.bash}/bin/sh -c 'curl --retry 3 $$(cat ${ping})'"
+            ];
+          };
+        };
     };
 }

@@ -526,21 +526,62 @@ NoteDb), bugs (`refs/bugs/*`), accounts (All-Users) and access rules
 
 ### Pocket ID
 
-blaziken backs up `/var/lib/pocket-id` with a borgmatic SQLite dump of
-`data/pocket-id.db` in place of the live database file.
+blaziken backs up `/var/lib/pocket-id` live, except for the database files.
+Before each run, `pocket-id-sqlite-backup.service` writes a consistent copy of
+`data/pocket-id.db` to `data/backup.sqlite3` with SQLite's online backup.
 
 1. Stop Pocket ID: `sudo systemctl stop pocket-id`.
-2. Extract the data directory, restore the dump and give it back to
-   `pocket-id`:
+2. Extract the data directory, replace the database with the backup copy and
+   give it back to `pocket-id`:
 
    ```sh
    sudo borgmatic extract --archive latest --path var/lib/pocket-id --destination /
    sudo rm -f /var/lib/pocket-id/data/pocket-id.db-wal /var/lib/pocket-id/data/pocket-id.db-shm
-   sudo borgmatic restore --archive latest --database pocket-id
+   sudo cp /var/lib/pocket-id/data/backup.sqlite3 /var/lib/pocket-id/data/pocket-id.db
    sudo chown pocket-id:pocket-id /var/lib/pocket-id/data/pocket-id.db
    ```
 
 3. Start Pocket ID: `sudo systemctl start pocket-id`.
+
+### RusTiCal
+
+blaziken backs up `/var/lib/private/rustical` live, except for the database
+files. Before each run, `rustical-sqlite-backup.service` writes a consistent
+copy of `db.sqlite3` to `backup.sqlite3`.
+
+1. Stop RusTiCal: `sudo systemctl stop rustical`.
+2. Extract the state directory and replace the database with the backup copy.
+   `mv` keeps the owner that the archive stored for `backup.sqlite3`, which
+   is the service's dynamic user; systemd fixes the ownership of the directory
+   when the service starts.
+
+   ```sh
+   sudo borgmatic extract --archive latest --path var/lib/private/rustical --destination /
+   sudo rm -f /var/lib/private/rustical/db.sqlite3-wal /var/lib/private/rustical/db.sqlite3-shm
+   sudo mv /var/lib/private/rustical/backup.sqlite3 /var/lib/private/rustical/db.sqlite3
+   ```
+
+3. Start RusTiCal: `sudo systemctl start rustical`.
+
+### crosspoint-sync
+
+blaziken backs up `/var/lib/private/crosspoint-sync` live, except for the
+database files. Before each run, `crosspoint-sync-sqlite-backup.service`
+writes a consistent copy of `crosspoint.db` to `backup.sqlite3`.
+
+1. Stop crosspoint-sync: `sudo systemctl stop crosspoint-sync`.
+2. Extract the state directory and replace the database with the backup copy.
+   `mv` keeps the owner that the archive stored for `backup.sqlite3`, which
+   is the service's dynamic user; systemd fixes the ownership of the directory
+   when the service starts.
+
+   ```sh
+   sudo borgmatic extract --archive latest --path var/lib/private/crosspoint-sync --destination /
+   sudo rm -f /var/lib/private/crosspoint-sync/crosspoint.db-wal /var/lib/private/crosspoint-sync/crosspoint.db-shm
+   sudo mv /var/lib/private/crosspoint-sync/backup.sqlite3 /var/lib/private/crosspoint-sync/crosspoint.db
+   ```
+
+3. Start crosspoint-sync: `sudo systemctl start crosspoint-sync`.
 
 ## Inspiration and resources
 
