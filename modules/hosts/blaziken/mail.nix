@@ -65,6 +65,21 @@ in
         };
       };
 
+      services.rspamd.locals."settings.conf".text = ''
+        loopback {
+          priority = high;
+          ip = [ "127.0.0.1", "::1" ];
+          apply {
+            actions {
+              reject = null;
+              "add header" = null;
+              "rewrite subject" = null;
+              greylist = null;
+            }
+          }
+        }
+      '';
+
       services.kresd.extraConfig = ''
         policy.add(policy.suffix(policy.STUB('100.100.100.100'), { todname('ts.net.') }))
       '';
