@@ -112,14 +112,7 @@
 
       services.borgmatic.configurations.home = {
         source_directories = [ "/var/lib/stacks" ];
-        sqlite_databases = [
-          {
-            name = "stacks";
-            path = "/var/lib/stacks/config/queue.db";
-          }
-        ];
         exclude_patterns = [
-          "sh:/var/lib/stacks/config/queue.db*"
           "/var/lib/stacks/logs"
           "/var/lib/stacks/cache"
         ];
