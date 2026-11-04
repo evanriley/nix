@@ -73,7 +73,17 @@ in
       services.nginx.virtualHosts."kosync.${domain}" = {
         forceSSL = true;
         useACMEHost = domain;
-        locations."/".proxyPass = "http://127.0.0.1:${toString port}";
+        locations."/" = {
+          proxyPass = "http://127.0.0.1:${toString port}";
+          recommendedProxySettings = false;
+          extraConfig = ''
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header CF-Connecting-IP "";
+          '';
+        };
         # Registration happens through localhost only.
         locations."= /users/create".return = "404";
         locations."= /auth/signup".return = "404";

@@ -30,7 +30,16 @@ in
       services.nginx.virtualHosts."id.${domain}" = {
         forceSSL = true;
         useACMEHost = domain;
-        locations."/".proxyPass = "http://127.0.0.1:${toString port}";
+        locations."/" = {
+          proxyPass = "http://127.0.0.1:${toString port}";
+          recommendedProxySettings = false;
+          extraConfig = ''
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_set_header X-Forwarded-Proto $scheme;
+          '';
+        };
         # Until the first user exists, this endpoint makes anyone who calls it an admin.
         locations."= /api/signup/setup".return = "404";
       };
