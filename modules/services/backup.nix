@@ -116,8 +116,11 @@ in
           };
       };
 
-      # The upstream unit loads an encrypted credential for the passphrase; agenix provides it instead.
-      systemd.services.borgmatic.serviceConfig.LoadCredentialEncrypted = "";
+      systemd.services.borgmatic.serviceConfig = {
+        # The upstream unit loads an encrypted credential for the passphrase; agenix provides it instead.
+        LoadCredentialEncrypted = "";
+        TimeoutStartSec = "12h";
+      };
 
       systemd.timers.borgmatic.timerConfig = {
         OnCalendar = [
