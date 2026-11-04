@@ -38,7 +38,7 @@ in
 shared [ "cinderace" "blaziken" ] "evan-password.age"
 // shared [ "cinderace" ] "listenbrainz-token.age"
 // shared [ "cinderace" "ninetales" ] "nextdns.conf.age"
-// shared [ "cinderace" "ninetales" ] "fastmail-mail.age"
+// shared [ "cinderace" "ninetales" ] "mail-evan.age"
 // shared [ "cinderace" "ninetales" ] "fastmail-authinfo.age"
 // shared (builtins.attrNames hosts) "atuin-key.age"
 // shared (builtins.attrNames hosts) "openrouter-key.age"

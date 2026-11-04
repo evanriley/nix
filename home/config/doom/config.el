@@ -92,10 +92,10 @@ them explicitly before enabling."
 
 (after! mu4e
   (setq mu4e-maildir "~/.mail"
-        mu4e-sent-folder "/fastmail/Sent"
-        mu4e-drafts-folder "/fastmail/Drafts"
-        mu4e-trash-folder "/fastmail/Trash"
-        mu4e-refile-folder "/fastmail/Archive"
+        mu4e-sent-folder "/evanriley/Sent"
+        mu4e-drafts-folder "/evanriley/Drafts"
+        mu4e-trash-folder "/evanriley/Trash"
+        mu4e-refile-folder "/evanriley/Archive"
         mu4e-get-mail-command "mbsync -a"
         mu4e-update-interval nil
         mu4e-mu-binary (or (getenv "MU4E_MU_BINARY") (executable-find "mu"))

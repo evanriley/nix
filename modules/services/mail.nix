@@ -8,12 +8,12 @@ let
 in
 {
   flake.modules.nixos.mail.age.secrets = {
-    fastmail-mail = secret "fastmail-mail";
+    mail-evan = secret "mail-evan";
     fastmail-authinfo = secret "fastmail-authinfo";
   };
 
   flake.modules.darwin.mail.age.secrets = {
-    fastmail-mail = secret "fastmail-mail";
+    mail-evan = secret "mail-evan";
     fastmail-authinfo = secret "fastmail-authinfo";
   };
 
@@ -42,29 +42,29 @@ in
         name = "mail-notify";
         runtimeInputs = [ pkgs.mu ] ++ lib.optional isLinux pkgs.libnotify;
         text = ''
-          message=$(mu find --fields "f s" --sortfield=date --reverse --maxnum 1 'maildir:/fastmail/Inbox' 2>/dev/null || true)
+          message=$(mu find --fields "f s" --sortfield=date --reverse --maxnum 1 'maildir:/evanriley/Inbox' 2>/dev/null || true)
           [ -n "$message" ] || message="New mail in INBOX"
           if [ "$(uname)" = Darwin ]; then
-            /usr/bin/osascript - "Fastmail" "$message" <<'APPLESCRIPT' >/dev/null 2>&1 || true
+            /usr/bin/osascript - "Mail" "$message" <<'APPLESCRIPT' >/dev/null 2>&1 || true
           on run argv
             display notification (item 2 of argv) with title (item 1 of argv)
           end run
           APPLESCRIPT
           else
-            notify-send --app-name "Fastmail" "Fastmail" "$message"
+            notify-send --app-name "Mail" "Mail" "$message"
           fi
         '';
       };
       goimapnotifyConfig = pkgs.writeText "goimapnotify.yaml" ''
         configurations:
-          - host: imap.fastmail.com
+          - host: mail.pis.fyi
             port: 993
             tls: true
             tlsOptions:
               rejectUnauthorized: true
               starttls: false
             username: evan@evanriley.com
-            passwordCMD: 'cat /run/agenix/fastmail-mail'
+            passwordCMD: 'cat /run/agenix/mail-evan'
             boxes:
               - mailbox: INBOX
                 onNewMail: '${lib.getExe mailSync}'
@@ -75,19 +75,19 @@ in
       accounts.email = {
         maildirBasePath = "${config.home.homeDirectory}/.mail";
         certificatesFile = lib.mkIf (!isLinux) "/etc/ssl/cert.pem";
-        accounts.fastmail = {
+        accounts.evanriley = {
           primary = true;
           address = "evan@evanriley.com";
           realName = user.fullName;
           userName = "evan@evanriley.com";
-          passwordCommand = "cat /run/agenix/fastmail-mail";
+          passwordCommand = "cat /run/agenix/mail-evan";
           imap = {
-            host = "imap.fastmail.com";
+            host = "mail.pis.fyi";
             port = 993;
             tls.enable = true;
           };
           smtp = {
-            host = "smtp.fastmail.com";
+            host = "mail.pis.fyi";
             port = 465;
             tls.enable = true;
           };
@@ -100,14 +100,6 @@ in
           };
           msmtp.enable = true;
           mu.enable = true;
-          # The maildir folder names Fastmail exposes (not the IMAP-style
-          # home-manager defaults).
-          folders = {
-            inbox = "Inbox";
-            sent = "Sent";
-            drafts = "Drafts";
-            trash = "Trash";
-          };
           aerc = {
             enable = true;
             extraAccounts = {
@@ -195,7 +187,7 @@ in
 
       systemd.user.services.goimapnotify = lib.mkIf isLinux {
         Unit = {
-          Description = "IMAP IDLE push mail for Fastmail";
+          Description = "IMAP IDLE push mail";
           After = [ "network-online.target" ];
         };
         Service = {
