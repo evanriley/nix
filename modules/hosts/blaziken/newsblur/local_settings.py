@@ -31,6 +31,7 @@ ADMINS = (("Evan Riley", "evan@evanriley.com"),)
 
 AUTO_PREMIUM_NEW_USERS = True
 AUTO_ENABLE_NEW_USERS = True
+SOCIAL_APPLE_CLIENT_IDS = []
 
 BACKED_BY_AWS = {
     "pages_on_node": True,

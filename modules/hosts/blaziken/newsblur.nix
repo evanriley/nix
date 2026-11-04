@@ -434,6 +434,7 @@ in
             "= /newsletters/receive".return = "404";
             "~ ^/(account|api|reader)/signup".return = "404";
             "~ ^/signup/?$".return = "404";
+            "~ ^/(account|api)/social/".return = "404";
           };
         };
 
