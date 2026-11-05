@@ -48,9 +48,9 @@ in
 
       mtaStsPolicy = pkgs.writeText "mta-sts.txt" ''
         version: STSv1
-        mode: testing
+        mode: enforce
         mx: ${fqdn}
-        max_age: 86400
+        max_age: 604800
       '';
 
       discoveryLocations =
