@@ -245,7 +245,7 @@ in
           open_update_changes() {
             local rows
             if ! rows=$("''${ssh_command[@]}" "$gerrit_destination" gerrit query --format=JSON \
-              project:maybe status:open owner:buildkite 'topic:^flake-update-.*') \
+              project:maybe status:open owner:buildkite 'intopic:^flake-update-.*') \
               || ! jq -e -s 'all(.type != "error")' <<<"$rows" >/dev/null; then
               printf '%s\n' "''${rows:-}" >&2
               echo "querying Gerrit for open flake-update changes failed; without it the run could stack a second chain on the open one. Check gerrit-ci-key and git.${domain}:29418, then start ci-flake-update.service again" >&2
