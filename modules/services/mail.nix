@@ -9,12 +9,12 @@ in
 {
   flake.modules.nixos.mail.age.secrets = {
     mail-evan = secret "mail-evan";
-    fastmail-authinfo = secret "fastmail-authinfo";
+    rustical-authinfo = secret "rustical-authinfo";
   };
 
   flake.modules.darwin.mail.age.secrets = {
     mail-evan = secret "mail-evan";
-    fastmail-authinfo = secret "fastmail-authinfo";
+    rustical-authinfo = secret "rustical-authinfo";
   };
 
   flake.modules.homeManager.mail =

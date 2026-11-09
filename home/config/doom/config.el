@@ -123,12 +123,12 @@ them explicitly before enabling."
 (use-package! org-caldav
   :after org
   :config
-  (setq org-caldav-url "https://caldav.fastmail.com/dav/calendars/user/evan@evanriley.com"
-        org-caldav-calendar-id "3DD1602A-2EA4-11F1-9E75-8227B75D5C6B"
+  (setq org-caldav-url "https://dav.pis.fyi/caldav/principal/evan"
+        org-caldav-calendar-id "a757d2b5-9ef2-4402-95cf-8852a494d7d7"
         org-caldav-inbox (expand-file-name "~/sync/notes/calendar/inbox.org")
         org-caldav-files (list (expand-file-name "~/sync/notes/calendar/calendar.org"))
         org-caldav-save-directory (expand-file-name "~/sync/notes/calendar/")
         org-icalendar-timezone "America/New_York"
-        auth-sources (cons "/run/agenix/fastmail-authinfo" auth-sources))
+        auth-sources (cons "/run/agenix/rustical-authinfo" auth-sources))
   (with-demoted-errors "org-caldav setup: %S"
     (make-directory org-caldav-save-directory t)))

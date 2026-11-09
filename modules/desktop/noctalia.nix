@@ -1,6 +1,7 @@
 { config, inputs, ... }:
 let
   inherit (config.meta)
+    domain
     user
     repoDir
     location
@@ -23,8 +24,8 @@ in
         rules.auth.u2f.order = 13500;
       };
 
-      age.secrets.fastmail-caldav = {
-        file = secrets + "/${config.networking.hostName}/fastmail-caldav.age";
+      age.secrets.rustical-noctalia = {
+        file = secrets + "/${config.networking.hostName}/rustical-noctalia.age";
         owner = user.name;
         mode = "0400";
       };
@@ -265,15 +266,15 @@ in
 
           calendar = {
             enabled = true;
-            account.fastmail = {
+            account.rustical = {
               type = "caldav";
-              name = "Fastmail";
+              name = "RustiCal";
               provider = "custom";
-              server_url = "https://caldav.fastmail.com/dav/";
-              username = user.email;
+              server_url = "https://dav.${domain}/caldav/";
+              username = user.name;
               calendars = [ ];
               credential_source = "file";
-              password_file = "/run/agenix/fastmail-caldav";
+              password_file = "/run/agenix/rustical-noctalia";
             };
           };
 
