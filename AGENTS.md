@@ -21,9 +21,9 @@ standalone as `homeConfigurations."evan@<host>"`.
 - Deploying blaziken (`nix develop -c deploy .#blaziken`) is user-run, like
   system switches. Check it with
   `nix build .#nixosConfigurations.blaziken.config.system.build.toplevel`.
-  blaziken also deploys the newest passed `main` build nightly at 06:30
-  (`modules/hosts/blaziken/deploy.nix`, `nix/README.md`); agents never start
-  or stop that unit.
+  blaziken also deploys the tip of `main` nightly at 06:30, once a Buildkite
+  build of the tip passed (`modules/hosts/blaziken/deploy.nix`,
+  `nix/README.md`); agents never start or stop that unit.
 - On blaziken over `ssh blaziken`, the login shell is fish and there is no
   `rg` or `xxd`: wrap commands in `bash -c '...'` and use `grep` and `od`.
   As evan, `journalctl -u <unit>` and `systemctl status` work;

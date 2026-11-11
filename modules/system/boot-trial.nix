@@ -18,6 +18,7 @@
       healthyMarker = "/run/boot-trial-healthy";
       # switch-to-configuration starts inactive wanted units, so without this marker the failing unit reruns during the redeploy's switch, which then exits 4 and rolls back
       checkedMarker = "/run/boot-trial-fallback-checked";
+      stopOnReboot = "watchdog.stop_on_reboot=0";
       microseconds = seconds: toString (seconds * 1000000);
 
       requireConfirmed = ''
@@ -164,6 +165,30 @@
             echo "already attempted $kernel; not retrying. Remove its line from ${attempted} to retry"
             exit 0
           fi
+          unarmed=()
+          if ! grep -qE '(^| )${stopOnReboot}( |$)' /proc/cmdline; then
+            unarmed+=("the running kernel's /proc/cmdline lacks ${stopOnReboot}, so it stops the hardware watchdog when systemd closes it; reboot into a system that has it")
+          fi
+          if ! grep -qE '(^| )${stopOnReboot}( |$)' "$candidate/kernel-params"; then
+            unarmed+=("$candidate/kernel-params lacks ${stopOnReboot}; import nixos.boot-trial in that system")
+          fi
+          if [ ! -e "$candidate/etc/systemd/system/boot-trial-confirm.service" ]; then
+            unarmed+=("$candidate has no boot-trial-confirm.service, so its trial boot cannot confirm itself; import nixos.boot-trial in that system")
+          fi
+          kexec_watchdog=$(busctl get-property org.freedesktop.systemd1 /org/freedesktop/systemd1 \
+            org.freedesktop.systemd1.Manager KExecWatchdogUSec 2>&1 || true)
+          if [ "$kexec_watchdog" != "t ${microseconds cfg.trialSeconds}" ]; then
+            unarmed+=("systemd's KExecWatchdogUSec is '$kexec_watchdog', expected 't ${microseconds cfg.trialSeconds}'; the running systemd was started from a system.conf without KExecWatchdogSec=${toString cfg.trialSeconds}s")
+          fi
+          watchdog_state=$(cat /sys/class/watchdog/${cfg.watchdogDevice}/state 2>&1 || true)
+          if [ "$watchdog_state" != active ]; then
+            unarmed+=("/sys/class/watchdog/${cfg.watchdogDevice}/state is '$watchdog_state', expected 'active'; systemd must hold the watchdog open through RuntimeWatchdogSec")
+          fi
+          if [ "''${#unarmed[@]}" -gt 0 ]; then
+            echo "refusing to trial $kernel: the hardware watchdog would not be armed across the kexec; nothing was recorded in ${attempted}" >&2
+            printf -- '- %s\n' "''${unarmed[@]}" >&2
+            exit 1
+          fi
           boot-trial-pin
           kexec --load "$candidate/kernel" --initrd="$candidate/initrd" \
             --append="init=$candidate/init $(cat "$candidate/kernel-params") ${lib.concatStringsSep " " trialKernelParams}"
@@ -264,6 +289,11 @@
           example = "intel_oc_wdt.heartbeat";
           description = "Kernel parameter that sets the hardware watchdog driver's timeout in seconds.";
         };
+        watchdogDevice = lib.mkOption {
+          type = lib.types.str;
+          default = "watchdog0";
+          description = "Device under /sys/class/watchdog that systemd's KExecWatchdogSec arms; it must be active before a trial starts.";
+        };
         runtimeWatchdogSeconds = lib.mkOption {
           type = lib.types.ints.positive;
           default = 60;
@@ -306,7 +336,7 @@
         ];
 
         boot.loader.grub.default = "\"\${saved_entry}\"";
-        boot.kernelParams = [ "watchdog.stop_on_reboot=0" ];
+        boot.kernelParams = [ stopOnReboot ];
 
         systemd.settings.Manager = {
           RuntimeWatchdogSec = "${toString cfg.runtimeWatchdogSeconds}s";

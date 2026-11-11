@@ -35,7 +35,7 @@ in
           repo=$state/maybe.git
           stamp=$state/backup-succeeded
           profile=/nix/var/nix/profiles/system
-          builds_url="https://api.buildkite.com/v2/organizations/riley-industries/pipelines/maybe/builds?branch=main&state=passed&per_page=1"
+          main_builds_url="https://api.buildkite.com/v2/organizations/riley-industries/pipelines/maybe/builds?branch=main&per_page=100"
           health_check=${config.blaziken.healthCheck}/bin/blaziken-health-check
           max_backup_age_seconds=$((36 * 3600))
           settle_seconds=300
@@ -82,36 +82,39 @@ in
             new=$toplevel
             label=$toplevel
           else
-            if ! builds=$(printf 'Authorization: Bearer %s\n' "$(<${secretPath "buildkite-rest-token"})" \
-              | curl -fsS -m 30 --retry 3 -H @- "$builds_url"); then
-              echo "fetching the newest passed main build from the Buildkite REST API failed; the deploy needs its commit. Check buildkite-rest-token and api.buildkite.com, then start blaziken-deploy.service again" >&2
-              exit 1
-            fi
-            commit=$(jq -r '.[0].commit // ""' <<< "$builds")
-            if ! [[ $commit =~ ^[0-9a-f]{40}$ ]]; then
-              echo "Buildkite returned commit '$commit' for the newest passed main build, expected a full 40-character sha. Check that the maybe pipeline has a passed build on main, then start blaziken-deploy.service again" >&2
-              exit 1
-            fi
-
             git init --quiet --bare "$repo"
             git -C "$repo" symbolic-ref HEAD refs/heads/main
             if ! GIT_SSH_COMMAND="${gerritSsh}" git -C "$repo" fetch --quiet --no-tags \
               ssh://buildkite@git.${domain}:29418/maybe +refs/heads/main:refs/heads/main; then
-              echo "fetching refs/heads/main from Gerrit into $repo failed; the deploy needs commit $commit. Check gerrit-ci-key and git.${domain}:29418, then start blaziken-deploy.service again" >&2
+              echo "fetching refs/heads/main from Gerrit into $repo failed; the deploy needs the tip of main. Check gerrit-ci-key and git.${domain}:29418, then start blaziken-deploy.service again" >&2
+              exit 1
+            fi
+            commit=$(git -C "$repo" rev-parse refs/heads/main)
+            if ! [[ $commit =~ ^[0-9a-f]{40}$ ]]; then
+              echo "git rev-parse refs/heads/main in $repo printed '$commit', expected a full 40-character sha. Check $repo, then start blaziken-deploy.service again" >&2
               exit 1
             fi
 
-            if git -C "$repo" merge-base --is-ancestor "$commit" refs/heads/main; then
-              :
-            else
-              status=$?
-              if [ "$status" -ne 1 ]; then
-                echo "checking whether $commit is on Gerrit main failed with status $status, expected 0 or 1. Check $repo, then start blaziken-deploy.service again" >&2
-                exit 1
-              fi
-              echo "commit $commit passed in Buildkite but is not an ancestor of Gerrit main, expected a main commit. Check the build's branch on buildkite.com; nothing was deployed" >&2
+            if ! builds=$(printf 'Authorization: Bearer %s\n' "$(<${secretPath "buildkite-rest-token"})" \
+              | curl -fsS -m 30 --retry 3 -H @- "$main_builds_url&commit=$commit"); then
+              echo "fetching the Buildkite builds of main tip $commit from the Buildkite REST API failed; the deploy needs their states. Check buildkite-rest-token and api.buildkite.com, then start blaziken-deploy.service again" >&2
               exit 1
             fi
+            if ! states=$(jq -r --arg commit "$commit" '[.[] | select(.commit == $commit) | .state] | unique | join(" ")' <<< "$builds"); then
+              echo "Buildkite returned '$builds' for the builds of main tip $commit, expected a JSON array of builds. Check buildkite-rest-token, then start blaziken-deploy.service again" >&2
+              exit 1
+            fi
+            case " $states " in
+              *" passed "*) ;;
+              *" creating "* | *" scheduled "* | *" running "* | *" failing "* | *" canceling "*)
+                echo "main tip $commit is still building in Buildkite (states: $states); nothing was deployed"
+                exit 0
+                ;;
+              *)
+                echo "main tip $commit has no passed Buildkite build (states: ''${states:-none}); expected the tip of main to have passed. Retry its build on buildkite.com or merge a fix, then start blaziken-deploy.service again" >&2
+                exit 1
+                ;;
+            esac
 
             if ! new=$(nix build --no-link --print-out-paths \
               "git+file://$repo?dir=nix&rev=$commit#nixosConfigurations.blaziken.config.system.build.toplevel"); then
@@ -214,7 +217,7 @@ in
       systemd.tmpfiles.rules = [ "d ${stateDirectory} 0700 root root -" ];
 
       systemd.services.blaziken-deploy = {
-        description = "Deploy the newest passed main build to blaziken";
+        description = "Deploy the tip of main to blaziken once its Buildkite build passed";
         wants = [ "network-online.target" ];
         after = [ "network-online.target" ];
         restartIfChanged = false;

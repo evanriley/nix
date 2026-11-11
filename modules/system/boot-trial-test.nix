@@ -30,8 +30,8 @@ in
               imports = [
                 "${modulesPath}/testing/test-instrumentation.nix"
                 "${modulesPath}/profiles/qemu-guest.nix"
-                nixos.boot-trial
-              ];
+              ]
+              ++ lib.optional (variant != "no-module") nixos.boot-trial;
 
               config = lib.mkMerge [
                 {
@@ -39,26 +39,6 @@ in
                   networking.hostName = "target";
                   documentation.enable = false;
                   nix.package = pkgs.lix;
-
-                  bootTrial = {
-                    healthCheck = pkgs.writeShellApplication {
-                      name = "target-health-check";
-                      text = ''
-                        if grep -q boot.variant=unhealthy /proc/cmdline; then
-                          echo "failed unit: unhealthy.service"
-                          exit 1
-                        fi
-                      '';
-                    };
-                    healthCheckTimeoutSeconds = 20;
-                    healthCheckIntervalSeconds = 5;
-                    inherit trialSeconds;
-                    heartbeatParameter = "i6300esb.heartbeat";
-                    runtimeWatchdogSeconds = 30;
-                    rebootWatchdogSeconds = 300;
-                    stateDirectory = "/var/lib/boot-trial";
-                    redeployUnit = "target-redeploy.service";
-                  };
 
                   systemd.services.target-redeploy = {
                     serviceConfig = {
@@ -105,6 +85,28 @@ in
                   environment.systemPackages = [ pkgs.util-linux ];
                 }
 
+                (lib.optionalAttrs (variant != "no-module") {
+                  bootTrial = {
+                    healthCheck = pkgs.writeShellApplication {
+                      name = "target-health-check";
+                      text = ''
+                        if grep -q boot.variant=unhealthy /proc/cmdline; then
+                          echo "failed unit: unhealthy.service"
+                          exit 1
+                        fi
+                      '';
+                    };
+                    healthCheckTimeoutSeconds = 20;
+                    healthCheckIntervalSeconds = 5;
+                    inherit trialSeconds;
+                    heartbeatParameter = "i6300esb.heartbeat";
+                    runtimeWatchdogSeconds = 30;
+                    rebootWatchdogSeconds = 300;
+                    stateDirectory = "/var/lib/boot-trial";
+                    redeployUnit = "target-redeploy.service";
+                  };
+                })
+
                 (lib.mkIf (variant == "good2-userspace") { environment.etc.boot-trial-variant.text = variant; })
 
                 (lib.mkIf (variant == "panic") { boot.kernelParams = [ "rdinit=/does-not-exist" ]; })
@@ -137,6 +139,7 @@ in
                 "stage2-hang"
                 "initrd-hang"
                 "unhealthy"
+                "no-module"
               ]
               (
                 variant:
@@ -238,6 +241,7 @@ in
             stage2_hang = "${systems.stage2-hang}"
             initrd_hang = "${systems.initrd-hang}"
             unhealthy = "${systems.unhealthy}"
+            no_module = "${systems.no-module}"
             trial_seconds = ${toString trialSeconds}
             lastgood_submenu = "NixOS - Profile 'lastgood'>"
             attempted = "/var/lib/boot-trial/boot-attempted"
@@ -414,6 +418,44 @@ in
                 assert lastgood() == good2_userspace
                 assert unit_state("boot-trial-fallback.service")[0] == "inactive"
                 assert "already the pinned" in show("boot-trial-pin")
+
+            with subtest("a trial without the armed watchdog is refused and not recorded"):
+                attempted_before = target.succeed(f"cat {attempted}")
+                saved_before = saved_entry()
+                lastgood_before = lastgood()
+                target.succeed(f"nix-env -p /nix/var/nix/profiles/system --set {no_module}")
+                show(f"{no_module}/bin/switch-to-configuration switch")
+                show("busctl get-property org.freedesktop.systemd1 /org/freedesktop/systemd1 org.freedesktop.systemd1.Manager KExecWatchdogUSec")
+                show("cat /sys/class/watchdog/watchdog0/state")
+                refuse = f"{good2_userspace}/sw/bin/boot-trial-start {no_module}"
+
+                def assert_refused_untouched():
+                    assert target.succeed(f"cat {attempted}") == attempted_before
+                    assert saved_entry() == saved_before, saved_entry()
+                    assert lastgood() == lastgood_before, lastgood()
+                    assert target.succeed("cat /sys/kernel/kexec_loaded").strip() == "0"
+
+                status, out = target.execute(f"{refuse} 2>&1")
+                print(f"$ {refuse}\n{out}")
+                assert status == 1, status
+                assert "refusing to trial" in out and "nothing was recorded" in out, out
+                assert "has no boot-trial-confirm.service" in out, out
+                assert f"{no_module}/kernel-params lacks watchdog.stop_on_reboot=0" in out, out
+                assert "KExecWatchdogUSec is" in out, out
+                assert "running kernel's /proc/cmdline lacks" not in out, out
+                assert_refused_untouched()
+
+                target.succeed("sed 's/watchdog.stop_on_reboot=0//' /proc/cmdline > /run/cmdline-without-stop-on-reboot")
+                target.succeed("mount --bind /run/cmdline-without-stop-on-reboot /proc/cmdline")
+                try:
+                    status, out = target.execute(f"{refuse} 2>&1")
+                    print(f"$ {refuse}  (with /proc/cmdline lacking the parameter)\n{out}")
+                finally:
+                    target.succeed("umount /proc/cmdline")
+                assert status == 1, status
+                assert "running kernel's /proc/cmdline lacks watchdog.stop_on_reboot=0" in out, out
+                assert_refused_untouched()
+                assert "watchdog.stop_on_reboot=0" in target.succeed("cat /proc/cmdline")
 
             print("\n".join(console_lines("trying /nix/store|Kernel panic - not syncing|health check still failing|rebooting into|GNU GRUB  version|pinned /nix/store|boot confirmed|fell back from")))
           '';

@@ -55,9 +55,16 @@ Update inputs with `nix flake update --flake ~/maybe/nix`; `berkeley-mono`,
 ### Nightly deploy
 
 `blaziken-deploy.timer` starts `blaziken-deploy.service` daily at 06:30. It
-deploys the newest `main` commit whose Buildkite build passed: it fetches
-Gerrit `main` into `/var/lib/blaziken-deploy/maybe.git`, builds the blaziken
-toplevel for that commit, and switches to it.
+deploys the tip of Gerrit `main` once one of its Buildkite builds passed: it
+fetches Gerrit `main` into `/var/lib/blaziken-deploy/maybe.git`, lists the
+Buildkite builds of the tip commit, builds the blaziken toplevel for the tip,
+and switches to it.
+
+- The deploy never picks an older commit. While a build of the tip is still
+  running, it exits successfully without deploying. When no build of the tip
+  passed (all failed, canceled or blocked, or none exists), it fails and the
+  heartbeat reports the unit; retry the build on buildkite.com or merge a fix,
+  then start `blaziken-deploy.service`.
 
 - The deploy refuses to run unless borgmatic succeeded within the last 36
   hours (the stamp `/var/lib/blaziken-deploy/backup-succeeded`).
@@ -104,6 +111,15 @@ watchdog (`intel_oc_wdt`) armed across the jump:
 
 - `boot-trial-pin` and `boot-trial-start <toplevel>` refuse to run on a trial
   boot that has not been confirmed.
+- `boot-trial-start` refuses, before pinning or loading a kernel and without
+  recording an attempt, unless the watchdog will be armed across the kexec. It
+  prints every unmet condition and exits 1, so `blaziken-deploy` fails:
+  - the running kernel has `watchdog.stop_on_reboot=0` on its command line;
+  - the candidate's `kernel-params` has `watchdog.stop_on_reboot=0`;
+  - the candidate has `boot-trial-confirm.service`, so its trial boot confirms
+    itself;
+  - systemd's `KExecWatchdogUSec` equals `bootTrial.trialSeconds`;
+  - `/sys/class/watchdog/<bootTrial.watchdogDevice>/state` is `active`.
 
 A trial needs `watchdog.stop_on_reboot=0` on the kernel it starts from. After
 the first deploy of this mechanism, reboot once with the OVH manager open, then
@@ -124,7 +140,8 @@ trialling, remove `nixos.boot-trial` from `modules/hosts/blaziken/configuration.
 and the `bootTrial` block from `deploy.nix`.
 
 `nix build .#blaziken-boot-trial-test -L` runs the trial scenarios (panic,
-stage 2 hang, initrd hang, failed health check, healthy trial) in a VM with a
+stage 2 hang, initrd hang, failed health check, healthy trial, refused trial
+without an armed watchdog) in a VM with a
 2-disk md RAID1 and EFI GRUB; CI does not run it.
 
 Run it by hand, or deploy a toplevel already in blaziken's store (the backup
