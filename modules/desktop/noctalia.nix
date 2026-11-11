@@ -427,7 +427,8 @@ in
           plugin_settings = {
             "mindnbytes/nix-status".flake_dir = "${config.home.homeDirectory}/${repoDir}";
             "noctalia/screen_recorder" = {
-              video_source = "focused";
+              video_source = "portal";
+              restore_portal = true;
               video_codec = "av1";
               directory = "${config.home.homeDirectory}/Videos/Recordings";
               replay_enabled = false;
