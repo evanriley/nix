@@ -26,7 +26,8 @@ in
           pkgs.openssh
           pkgs.util-linux
           config.nix.package
-        ];
+        ]
+        ++ lib.attrValues config.bootTrial.commands;
         text = ''
           export LC_ALL=C
 
@@ -39,6 +40,17 @@ in
           max_backup_age_seconds=$((36 * 3600))
           settle_seconds=300
           settle_interval_seconds=30
+
+          settle_boot() {
+            boot-trial-fallback
+            if [ "$(boot-identity /run/booted-system)" = "$(boot-identity /run/current-system)" ]; then
+              echo "--- the booted system has the kernel, initrd, modules and parameters of $(readlink -f /run/current-system); pinning it"
+              boot-trial-pin
+            else
+              echo "--- the booted system differs in kernel, initrd, modules or parameters from $(readlink -f /run/current-system); starting a kernel trial"
+              boot-trial-start "$(readlink -f /run/current-system)"
+            fi
+          }
 
           usage() {
             echo "usage: blaziken-deploy [--toplevel PATH]" >&2
@@ -115,6 +127,7 @@ in
 
           if [ "$(readlink -f "$new")" = "$(readlink -f /run/current-system)" ]; then
             echo "already running $label"
+            settle_boot
             exit 0
           fi
 
@@ -183,10 +196,19 @@ in
           fi
 
           echo "deployed $label"
+          settle_boot
         '';
       };
     in
     {
+      bootTrial = {
+        healthCheck = config.blaziken.healthCheck;
+        trialSeconds = 900;
+        heartbeatParameter = "intel_oc_wdt.heartbeat";
+        inherit stateDirectory;
+        redeployUnit = "blaziken-deploy.service";
+      };
+
       environment.systemPackages = [ deploy ];
 
       systemd.tmpfiles.rules = [ "d ${stateDirectory} 0700 root root -" ];

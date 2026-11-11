@@ -68,6 +68,64 @@ toplevel for that commit, and switches to it.
   for 5 minutes after it, switches blaziken back to the previous system and
   fails the unit. The heartbeat reports the failed unit.
 - A commit that is already running is a no-op.
+- After the switch, the deploy compares the booted system with the new one by
+  kernel, initrd, kernel modules and kernel parameters. When they match, it
+  pins the running system as the last-good boot entry. When they differ, it
+  boots the new kernel by kexec as a trial ([kernel trials](#kernel-trials)).
+
+#### Kernel trials
+
+blaziken has no IPMI or console, so a kernel that does not boot would need a
+rescue on site. A trial boots the new kernel by `kexec` with the hardware
+watchdog (`intel_oc_wdt`) armed across the jump:
+
+- The trial kernel has `boot_trial=1` on its command line and a 900 s hardware
+  watchdog timeout (`intel_oc_wdt.heartbeat`). systemd's own watchdog is off
+  until the trial is confirmed.
+- `boot-trial-confirm.service` runs `blaziken-health-check` every 30 s for up
+  to 5 minutes. When it passes, the booted system becomes the last-good entry
+  (profile `system-profiles/lastgood`, submenu `NixOS - Profile 'lastgood'`,
+  GRUB `saved_entry`) and the systemd watchdogs come back. When it keeps
+  failing, the unit reboots the machine.
+- A kernel panic (`panic=10`), a hang in the initrd or stage 2, or a failed
+  health check ends in a platform reset. GRUB boots `saved_entry`, the last
+  confirmed system, and `boot-trial-fallback.service` fails with `fell back
+  from <kernel>` and starts `blaziken-deploy.service`, which redeploys `main`
+  on the old kernel. The deploy unit then fails at its end until the kernel
+  line is removed, so the heartbeat reports it.
+- Each trialled boot identity is appended to
+  `/var/lib/blaziken-deploy/boot-attempted`, and the same identity is never
+  trialled twice automatically. To retry a kernel, remove its line:
+
+  ```sh
+  sudoedit /var/lib/blaziken-deploy/boot-attempted
+  sudo systemctl start blaziken-deploy
+  ```
+
+- `boot-trial-pin` and `boot-trial-start <toplevel>` refuse to run on a trial
+  boot that has not been confirmed.
+
+A trial needs `watchdog.stop_on_reboot=0` on the kernel it starts from. After
+the first deploy of this mechanism, reboot once with the OVH manager open, then
+pin the new boot:
+
+```sh
+sudo reboot
+sudo boot-trial-pin
+```
+
+`boot-trial-pin` pins the running system when it has the booted kernel, initrd,
+modules and parameters, and the booted system otherwise. It is a no-op when
+that system is already pinned. The pinned profile keeps 2 generations.
+
+Trials need the saved GRUB entry, so `boot.loader.grub.default` is
+`${saved_entry}`; never write `saved_entry` with `grub-reboot`. To stop
+trialling, remove `nixos.boot-trial` from `modules/hosts/blaziken/configuration.nix`
+and the `bootTrial` block from `deploy.nix`.
+
+`nix build .#blaziken-boot-trial-test -L` runs the trial scenarios (panic,
+stage 2 hang, initrd hang, failed health check, healthy trial) in a VM with a
+2-disk md RAID1 and EFI GRUB; CI does not run it.
 
 Run it by hand, or deploy a toplevel already in blaziken's store (the backup
 gate applies to both):

@@ -23,6 +23,7 @@ in
       imports = [
         nixos.server
         nixos.backup
+        nixos.boot-trial
       ];
       networking.hostName = "blaziken";
 
