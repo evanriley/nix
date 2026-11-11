@@ -33,6 +33,7 @@ in
 
       boot = {
         kernelPackages = pkgs.linuxPackages_latest;
+        kernelParams = [ "panic=10" ];
 
         swraid = {
           enable = true;
