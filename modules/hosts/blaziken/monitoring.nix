@@ -44,6 +44,15 @@ let
     "newsblur-setup.service"
   ];
 
+  ports = [
+    22
+    25
+    465
+    993
+    4190
+    29418
+  ];
+
   sites = [
     {
       url = domain;
@@ -175,31 +184,37 @@ in
         fi
       '';
 
-      heartbeat = pkgs.writeShellApplication {
-        name = "blaziken-heartbeat";
+      healthCheck = pkgs.writeShellApplication {
+        name = "blaziken-health-check";
         runtimeInputs = [
+          pkgs.bash
           pkgs.coreutils
           pkgs.curl
-          pkgs.dig
           pkgs.jq
           pkgs.systemd
-          config.services.postfix.package
+          config.services.tailscale.package
         ];
         text = ''
+          deploy=false
+          case "''${1:-}" in
+            "") ;;
+            --deploy) deploy=true ;;
+            *) echo "usage: blaziken-health-check [--deploy]" >&2; exit 2 ;;
+          esac
+
           failures=()
 
-          ${collectDegraded}
-
-          failed=()
           while read -r unit _; do
             case "$unit" in
               ci-nightly.service | ci-flake-update.service | nix-daemon@*.service) ;;
-              *) failed+=("$unit") ;;
+              blaziken-deploy.service)
+                if [ "$deploy" = false ]; then
+                  failures+=("failed unit: $unit")
+                fi
+                ;;
+              *) failures+=("failed unit: $unit") ;;
             esac
           done < <(systemctl --failed --plain --no-legend)
-          if [ "''${#failed[@]}" -gt 0 ]; then
-            failures+=("failed units: ''${failed[*]}")
-          fi
 
           inactive=()
           for unit in ${lib.escapeShellArgs units}; do
@@ -228,6 +243,50 @@ in
           ${lib.concatMapStrings (
             site: "check_site ${lib.escapeShellArg site.url} ${toString site.expect}\n"
           ) sites}
+
+          for port in ${lib.escapeShellArgs (map toString ports)}; do
+            if ! timeout 5 bash -c "exec 3<>/dev/tcp/127.0.0.1/\$1" _ "$port" 2> /dev/null; then
+              failures+=("127.0.0.1:$port did not accept a TCP connection within 5s")
+            fi
+          done
+
+          if ! tailscale_json="$(tailscale status --json 2> /dev/null)"; then
+            failures+=("tailscale status --json failed; run it by hand to see why")
+          elif ! backend_state="$(jq -r '.BackendState // ""' <<< "$tailscale_json")"; then
+            failures+=("tailscale status --json returned output jq could not parse")
+          elif [ "$backend_state" != Running ]; then
+            failures+=("tailscale BackendState is '$backend_state', expected Running")
+          fi
+
+          if [ "''${#failures[@]}" -gt 0 ]; then
+            printf '%s\n' "''${failures[@]}"
+            exit 1
+          fi
+        '';
+      };
+
+      heartbeat = pkgs.writeShellApplication {
+        name = "blaziken-heartbeat";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.dig
+          pkgs.jq
+          config.services.postfix.package
+        ];
+        text = ''
+          failures=()
+
+          ${collectDegraded}
+
+          health_status=0
+          health_output="$(${healthCheck}/bin/blaziken-health-check)" || health_status=$?
+          if [ -n "$health_output" ]; then
+            while IFS= read -r line; do
+              failures+=("$line")
+            done <<< "$health_output"
+          elif [ "$health_status" -ne 0 ]; then
+            failures+=("blaziken-health-check exited with status $health_status and printed no failure")
+          fi
 
           status=0
           queue="$(postqueue -j)" || status=$?
@@ -340,61 +399,72 @@ in
       };
     in
     {
-      age.secrets.healthchecks-heartbeat.file = secrets + "/blaziken/healthchecks-heartbeat.age";
-      age.secrets.healthchecks-disks.file = secrets + "/blaziken/healthchecks-disks.age";
+      options.blaziken.healthCheck = lib.mkOption {
+        type = lib.types.package;
+        readOnly = true;
+        default = healthCheck;
+        description = "The blaziken-health-check script, shared with blaziken-deploy.";
+      };
 
-      boot.swraid.mdadmConf = "PROGRAM ${mdadmAlert}/bin/blaziken-mdadm-alert";
+      config = {
+        environment.systemPackages = [ healthCheck ];
 
-      services.smartd = {
-        enable = true;
-        notifications.mail = {
+        age.secrets.healthchecks-heartbeat.file = secrets + "/blaziken/healthchecks-heartbeat.age";
+        age.secrets.healthchecks-disks.file = secrets + "/blaziken/healthchecks-disks.age";
+
+        boot.swraid.mdadmConf = "PROGRAM ${mdadmAlert}/bin/blaziken-mdadm-alert";
+
+        services.smartd = {
           enable = true;
-          mailer = "${smartdMailer}/bin/blaziken-smartd-mailer";
+          notifications.mail = {
+            enable = true;
+            mailer = "${smartdMailer}/bin/blaziken-smartd-mailer";
+          };
         };
-      };
 
-      systemd.services.blaziken-heartbeat = {
-        description = "Ping healthchecks.io when blaziken is healthy";
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = "${heartbeat}/bin/blaziken-heartbeat";
+        systemd.services.blaziken-heartbeat = {
+          description = "Ping healthchecks.io when blaziken is healthy";
+          serviceConfig = {
+            Type = "oneshot";
+            ExecStart = "${heartbeat}/bin/blaziken-heartbeat";
+          };
         };
-      };
-      systemd.timers.blaziken-heartbeat = {
-        wantedBy = [ "timers.target" ];
-        timerConfig = {
-          OnBootSec = "5min";
-          OnUnitActiveSec = "5min";
+        systemd.timers.blaziken-heartbeat = {
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnBootSec = "5min";
+            OnUnitActiveSec = "5min";
+          };
         };
-      };
 
-      systemd.services.blaziken-disk-health = {
-        description = "Ping healthchecks.io when disks and arrays are healthy";
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = "${diskHealth}/bin/blaziken-disk-health";
+        systemd.services.blaziken-disk-health = {
+          description = "Ping healthchecks.io when disks and arrays are healthy";
+          serviceConfig = {
+            Type = "oneshot";
+            ExecStart = "${diskHealth}/bin/blaziken-disk-health";
+          };
         };
-      };
-      systemd.timers.blaziken-disk-health = {
-        wantedBy = [ "timers.target" ];
-        timerConfig = {
-          OnCalendar = "daily";
-          Persistent = true;
+        systemd.timers.blaziken-disk-health = {
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnCalendar = "daily";
+            Persistent = true;
+          };
         };
-      };
 
-      systemd.services.blaziken-raid-scrub = {
-        description = "Scrub the root RAID array";
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = "${scrub}/bin/blaziken-raid-scrub";
+        systemd.services.blaziken-raid-scrub = {
+          description = "Scrub the root RAID array";
+          serviceConfig = {
+            Type = "oneshot";
+            ExecStart = "${scrub}/bin/blaziken-raid-scrub";
+          };
         };
-      };
-      systemd.timers.blaziken-raid-scrub = {
-        wantedBy = [ "timers.target" ];
-        timerConfig = {
-          OnCalendar = "monthly";
-          Persistent = true;
+        systemd.timers.blaziken-raid-scrub = {
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnCalendar = "monthly";
+            Persistent = true;
+          };
         };
       };
     };

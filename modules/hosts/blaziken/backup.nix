@@ -123,6 +123,7 @@ in
             path = [ pkgs.curl ];
             serviceConfig.ExecStartPost = [
               "${pkgs.bash}/bin/sh -c 'curl --retry 3 $$(cat ${ping})'"
+              "${pkgs.coreutils}/bin/touch /var/lib/blaziken-deploy/backup-succeeded"
             ];
           };
         };

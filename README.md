@@ -52,6 +52,39 @@ nix build ~/maybe/nix#nixosConfigurations.blaziken.config.system.build.toplevel
 Update inputs with `nix flake update --flake ~/maybe/nix`; `berkeley-mono`,
 `monobiome` and `lanzaboote` are updated by hand.
 
+### Nightly deploy
+
+`blaziken-deploy.timer` starts `blaziken-deploy.service` daily at 06:30. It
+deploys the newest `main` commit whose Buildkite build passed: it fetches
+Gerrit `main` into `/var/lib/blaziken-deploy/maybe.git`, builds the blaziken
+toplevel for that commit, and switches to it.
+
+- The deploy refuses to run unless borgmatic succeeded within the last 36
+  hours (the stamp `/var/lib/blaziken-deploy/backup-succeeded`).
+- `blaziken-health-check` runs before and after the switch. It checks failed
+  units, the units and sites listed in `monitoring.nix`, the TCP ports 22, 25,
+  465, 993, 4190 and 29418 on localhost, and the Tailscale backend state.
+- A failed switch, or a failure absent from the pre-switch check that persists
+  for 5 minutes after it, switches blaziken back to the previous system and
+  fails the unit. The heartbeat reports the failed unit.
+- A commit that is already running is a no-op.
+
+Run it by hand, or deploy a toplevel already in blaziken's store (the backup
+gate applies to both):
+
+```sh
+sudo systemctl start blaziken-deploy
+sudo blaziken-deploy --toplevel /nix/store/<hash>-nixos-system-blaziken-<version>
+```
+
+Stop the nightly deploy:
+
+```sh
+sudo systemctl disable --now blaziken-deploy.timer
+```
+
+`sudo blaziken-health-check` runs the shared check by hand.
+
 CI runs on [Buildkite](https://buildkite.com/riley-industries/maybe) on the
 `blaziken` agents and builds what changed in `legacyPackages.x86_64-linux.ci`
 ([how the pipeline works](../README.md#ci)): the flake checks, the
@@ -173,7 +206,7 @@ version when bumping. Never run `/update` in the TUI.
 
 ## blaziken
 
-A headless server, updated with deploy-rs. It has
+A headless server, updated with deploy-rs and a nightly deploy. It has
 key-only SSH and is administered over Tailscale. Its disks are an mdadm RAID1
 pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 `nixos.backup`; secrets are in `secrets/blaziken/`.
@@ -198,6 +231,7 @@ pair (`disko.nix`) with GRUB on both. It imports `nixos.server` and
 | Spot builder launcher | GCE, queue `spot-builders` | `ci-spot-poller.nix` |
 | Fallback Buildkite agent, on demand | queue `spot-builders` | `buildkite.nix` |
 | Borg backups | BorgBase | `backup.nix` |
+| Nightly deploy, health check | 06:30 timer | `deploy.nix`, `monitoring.nix` |
 | RAID, disk and service alerts | healthchecks.io | `monitoring.nix` |
 
 ### Mail
