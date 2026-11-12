@@ -9,7 +9,7 @@ let
 in
 {
   flake.modules.nixos.blaziken =
-    { config, ... }:
+    { config, lib, ... }:
     {
       imports = [ inputs.nixos-mailserver.nixosModules.default ];
 
@@ -82,6 +82,18 @@ in
           }
         }
       '';
+
+      services.postfix.settings.main = {
+        smtpd_relay_restrictions = lib.mkForce [
+          "permit_sasl_authenticated"
+          "reject_unauth_destination"
+        ];
+        mynetworks = [
+          "127.0.0.0/8"
+          "[::1]/128"
+        ];
+        authorized_submit_users = [ "root" ];
+      };
 
       services.kresd.extraConfig = ''
         policy.add(policy.suffix(policy.STUB('100.100.100.100'), { todname('ts.net.') }))
