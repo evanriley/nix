@@ -13,6 +13,18 @@ in
     let
       inherit (config.mailserver) fqdn;
       dumpDirectory = "/var/backup/roundcube";
+      minimumVersion = "1.7.6";
+      roundcube =
+        if lib.versionOlder pkgs.roundcube.version minimumVersion then
+          pkgs.roundcube.overrideAttrs {
+            version = minimumVersion;
+            src = pkgs.fetchurl {
+              url = "https://github.com/roundcube/roundcubemail/releases/download/${minimumVersion}/roundcubemail-${minimumVersion}-complete.tar.gz";
+              sha256 = "sha256-AWgIW/C/7rXU7KO5cw7/vmENvbOApoVn0pL+xR8J2zY=";
+            };
+          }
+        else
+          pkgs.roundcube;
       dump = pkgs.writeShellApplication {
         name = "roundcube-dump";
         runtimeInputs = [
@@ -35,7 +47,7 @@ in
       services.roundcube = {
         enable = true;
         hostName = fqdn;
-        package = pkgs.roundcube.withPlugins (p: [
+        package = (pkgs.roundcube.override { inherit roundcube; }).withPlugins (p: [
           p.carddav
           p.persistent_login
         ]);
