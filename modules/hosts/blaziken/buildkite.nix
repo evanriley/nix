@@ -361,12 +361,19 @@ in
         };
       };
 
-      loopbackServicePorts = "1411,1414,4180,6070,8080,8081,8082,8083,8084,8470";
+      loopbackAllowedPorts = "53,80,443,29418";
       blockLoopbackRules = map (
         agent:
-        "OUTPUT -o lo -p tcp -m multiport --dports ${loopbackServicePorts} -m owner --uid-owner ${agent} -j REJECT --reject-with tcp-reset"
+        "OUTPUT -o lo -p tcp -m tcp --dport 1:32767 --syn -m multiport ! --dports ${loopbackAllowedPorts} -m owner --uid-owner ${agent} -j REJECT --reject-with tcp-reset"
       ) agents;
-      deleteRule = rule: "iptables -w -D ${rule} 2>/dev/null || true\n";
+      firewallTools = [
+        "iptables"
+        "ip6tables"
+      ];
+      deleteRule =
+        rule: lib.concatMapStrings (tool: "${tool} -w -D ${rule} 2>/dev/null || true\n") firewallTools;
+      insertRule =
+        rule: deleteRule rule + lib.concatMapStrings (tool: "${tool} -w -I ${rule}\n") firewallTools;
 
       untrustedAgentSettings = {
         tokenPath = config.age.secrets.buildkite-token.path;
@@ -540,9 +547,7 @@ in
       };
 
       networking.firewall = {
-        extraCommands = lib.concatMapStrings (
-          rule: deleteRule rule + "iptables -w -I ${rule}\n"
-        ) blockLoopbackRules;
+        extraCommands = lib.concatMapStrings insertRule blockLoopbackRules;
         extraStopCommands = lib.concatMapStrings deleteRule blockLoopbackRules;
       };
 
