@@ -7,6 +7,7 @@ SENTRY_DSN = ""
 
 NEWSBLUR_URL = "https://news.pis.fyi"
 SESSION_COOKIE_DOMAIN = "news.pis.fyi"
+CSRF_COOKIE_SECURE = True
 IMAGES_URL = "https://news.pis.fyi/imageproxy"
 PUSH_DOMAIN = "news.pis.fyi"
 ENABLE_PUSH = True
