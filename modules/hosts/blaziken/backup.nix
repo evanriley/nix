@@ -75,7 +75,6 @@ in
           "sh:${pocketIdDirectory}/data/pocket-id.db*"
           "sh:${crosspointSyncDirectory}/crosspoint.db*"
           "sh:${rusticalDirectory}/db.sqlite3*"
-          "sh:/var/lib/git-bug/public"
         ];
         commands = [
           {

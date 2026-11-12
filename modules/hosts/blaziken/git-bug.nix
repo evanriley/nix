@@ -3,7 +3,7 @@ let
   inherit (config.meta) user secrets domain;
   origin = "/var/lib/gerrit/git/maybe.git";
   editClone = "/var/lib/git-bug/maybe";
-  publicClone = "/var/lib/git-bug/public";
+  publicClone = "/var/lib/git-bug-public/public";
   editPort = 8083;
   publicPort = 8084;
   oauth2ProxyPort = 4180;
@@ -38,9 +38,45 @@ in
         git repack -adq
       '';
 
+      safeDirectory = path: {
+        GIT_CONFIG_COUNT = "1";
+        GIT_CONFIG_KEY_0 = "safe.directory";
+        GIT_CONFIG_VALUE_0 = path;
+      };
+
+      sandbox = {
+        NoNewPrivileges = true;
+        CapabilityBoundingSet = "";
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        PrivateTmp = true;
+        PrivateDevices = true;
+        ProtectProc = "invisible";
+        ProcSubset = "pid";
+        ProtectClock = true;
+        ProtectHostname = true;
+        ProtectKernelTunables = true;
+        ProtectKernelModules = true;
+        ProtectKernelLogs = true;
+        ProtectControlGroups = true;
+        RestrictNamespaces = true;
+        RestrictRealtime = true;
+        RestrictSUIDSGID = true;
+        LockPersonality = true;
+        MemoryDenyWriteExecute = true;
+        SystemCallArchitectures = "native";
+        SystemCallFilter = [
+          "@system-service"
+          "~@privileged @resources"
+        ];
+        UMask = "0027";
+        TemporaryFileSystem = "/var/lib/gerrit:ro";
+      };
+
       webui =
         {
           description,
+          user,
           clone,
           port,
           extraArgs,
@@ -50,6 +86,7 @@ in
         }:
         {
           inherit description preStart;
+          environment = safeDirectory origin;
           after = [ "network.target" ];
           wantedBy = [ "multi-user.target" ];
           startLimitIntervalSec = 300;
@@ -59,10 +96,19 @@ in
             pkgs.gawk
           ];
           serviceConfig = {
-            User = "gerrit";
-            Group = "gerrit";
-            StateDirectory = "git-bug";
+            User = user;
+            Group = user;
+            SupplementaryGroups = [ "gerrit" ];
+            StateDirectory = user;
             StateDirectoryMode = "750";
+            BindReadOnlyPaths = [ origin ];
+            RestrictAddressFamilies = [
+              "AF_UNIX"
+              "AF_INET"
+              "AF_INET6"
+            ];
+            IPAddressDeny = "any";
+            IPAddressAllow = "localhost";
             # The clone is created in preStart, after systemd has already applied
             # WorkingDirectory, so the service itself changes directory.
             ExecStart = "${pkgs.bash}/bin/bash -c 'cd ${clone} && exec ${gitBug}/bin/git-bug webui --bind 127.0.0.1 --port ${toString port} --no-open${extraArgs}'";
@@ -71,7 +117,8 @@ in
             Restart = "always";
             RestartSec = restartSec;
             RuntimeMaxSec = runtimeMaxSec;
-          };
+          }
+          // sandbox;
         };
 
       restartPublicWebuiIfPushed = pkgs.writeShellScript "restart-git-bug-webui-public-if-pushed" ''
@@ -81,6 +128,19 @@ in
       '';
     in
     {
+      users.users.git-bug = {
+        isSystemUser = true;
+        group = "git-bug";
+      };
+      users.groups.git-bug = { };
+      users.users.git-bug-public = {
+        isSystemUser = true;
+        group = "git-bug-public";
+      };
+      users.groups.git-bug-public = { };
+
+      systemd.tmpfiles.rules = [ "R /var/lib/git-bug/public - - - -" ];
+
       # git-bug 0.11's repository browser cannot read bare repositories, so the
       # web UI runs on a clone of the monorepo. Issues are stored in the
       # refs/bugs and refs/identities namespaces. git-bug pull merges diverged
@@ -89,6 +149,7 @@ in
       # and fails.
       systemd.services.git-bug-webui = webui {
         description = "git-bug web UI";
+        user = "git-bug";
         clone = editClone;
         port = editPort;
         extraArgs = "";
@@ -115,6 +176,7 @@ in
       # instance has its own clone. It never writes, so it needs no identity.
       systemd.services.git-bug-webui-public = webui {
         description = "git-bug read-only web UI";
+        user = "git-bug-public";
         clone = publicClone;
         port = publicPort;
         extraArgs = " --read-only";
@@ -129,14 +191,20 @@ in
       systemd.services.git-bug-sync = {
         description = "Push git-bug refs back to the Gerrit repository";
         path = [ pkgs.git ];
+        environment = safeDirectory editClone;
         after = [ "git-bug-webui.service" ];
         serviceConfig = {
           User = "gerrit";
           Group = "gerrit";
+          SupplementaryGroups = [ "git-bug" ];
           Type = "oneshot";
           RuntimeDirectory = "git-bug-sync";
           ExecStartPost = "+${restartPublicWebuiIfPushed}";
-        };
+          BindPaths = [ origin ];
+          PrivateNetwork = true;
+          RestrictAddressFamilies = [ "AF_UNIX" ];
+        }
+        // sandbox;
         script = ''
           [ -d ${editClone}/.git ] || exit 0
           cd ${editClone}
