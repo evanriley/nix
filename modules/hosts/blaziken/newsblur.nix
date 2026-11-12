@@ -22,8 +22,8 @@ in
         node = 8008;
         imageproxy = 8088;
       };
-      mongoUid = 999;
-      elasticsearchUid = 1000;
+      elasticsearchId = 7741;
+      mongoId = 7742;
 
       images = {
         python = "docker.io/newsblur/newsblur_python3:latest@sha256:87b282d2d94bc672f38a52724c97ed1c7005f9715c4a3469e96b28fdb632a016";
@@ -41,6 +41,7 @@ in
         };
         patches = [
           ./newsblur/newsletters.patch
+          ./newsblur/node-loopback.patch
           ./newsblur/r2-storage.patch
           ./newsblur/senders.patch
           ./newsblur/subdomain.patch
@@ -54,6 +55,7 @@ in
       };
 
       podman = lib.getExe config.virtualisation.podman.package;
+      chown = lib.getExe' pkgs.coreutils "chown";
       user = "${toString id}:${toString id}";
       envFile = config.age.secrets.newsblur-env.path;
       anthropicKeyFile = config.age.secrets.anthropic-key.path;
@@ -191,6 +193,20 @@ in
         group = "newsblur";
       };
 
+      users.groups.newsblur-es.gid = elasticsearchId;
+      users.users.newsblur-es = {
+        isSystemUser = true;
+        uid = elasticsearchId;
+        group = "newsblur-es";
+      };
+
+      users.groups.newsblur-mongo.gid = mongoId;
+      users.users.newsblur-mongo = {
+        isSystemUser = true;
+        uid = mongoId;
+        group = "newsblur-mongo";
+      };
+
       users.groups.${newsletterUser} = { };
       users.users.${newsletterUser} = {
         isSystemUser = true;
@@ -253,7 +269,10 @@ in
               "1"
             ];
             volumes = [ "${stateDir}/mongo:/data/db" ];
-            extraOptions = [ "--network=host" ];
+            extraOptions = [
+              "--network=host"
+              "--user=${toString mongoId}:${toString mongoId}"
+            ];
           };
           newsblur-elasticsearch = {
             image = "docker.elastic.co/elasticsearch/elasticsearch:8.19.23@sha256:b6339612c7c680390be5c5472456a84ffbd6881e0216922ab3597c9c573950db";
@@ -265,7 +284,10 @@ in
               ES_JAVA_OPTS = "-Xms1g -Xmx1g";
             };
             volumes = [ "${stateDir}/elasticsearch:/usr/share/elasticsearch/data" ];
-            extraOptions = [ "--network=host" ];
+            extraOptions = [
+              "--network=host"
+              "--user=${toString elasticsearchId}:0"
+            ];
           };
           newsblur-web = app [
             "gunicorn"
@@ -313,7 +335,10 @@ in
               "memory:200:4h"
             ];
             environmentFiles = [ envFile ];
-            extraOptions = [ "--network=host" ];
+            extraOptions = [
+              "--network=host"
+              "--user=65534:65534"
+            ];
           };
         };
       };
@@ -343,6 +368,12 @@ in
             TimeoutStartSec = "30min";
           };
         };
+        podman-newsblur-mongo.preStart = lib.mkBefore ''
+          ${chown} -R --from=999:999 ${toString mongoId}:${toString mongoId} ${stateDir}/mongo
+        '';
+        podman-newsblur-elasticsearch.preStart = lib.mkBefore ''
+          ${chown} -R --from=1000:0 ${toString elasticsearchId}:0 ${stateDir}/elasticsearch
+        '';
         podman-newsblur-web = afterSetup;
         podman-newsblur-celery = afterSetup;
         podman-newsblur-node = afterSetup;
@@ -382,8 +413,8 @@ in
 
       systemd.tmpfiles.rules = [
         "d ${stateDir} 0755 root root -"
-        "d ${stateDir}/mongo 0700 ${toString mongoUid} ${toString mongoUid} -"
-        "d ${stateDir}/elasticsearch 0750 ${toString elasticsearchUid} 0 -"
+        "d ${stateDir}/mongo 0700 ${toString mongoId} ${toString mongoId} -"
+        "d ${stateDir}/elasticsearch 0750 ${toString elasticsearchId} 0 -"
         "d ${stateDir}/logs 0750 newsblur newsblur -"
         "d ${stateDir}/prom 0750 newsblur newsblur -"
         "d ${stateDir}/originals 0750 newsblur newsblur -"

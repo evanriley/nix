@@ -1,0 +1,18 @@
+--- a/node/newsblur.js
++++ b/node/newsblur.js
+@@ -74,6 +74,6 @@
+ 
+   log.debug(`Starting NewsBlur Node Server: ${process.env.SERVER_NAME || 'localhost'}`);
+ 
+-  server.listen(8008);
++  server.listen(8008, "127.0.0.1");
+ 
+ }).call(this);
+--- a/node/newsblur.coffee
++++ b/node/newsblur.coffee
+@@ -44,4 +44,4 @@
+ unread_counts server
+ 
+ log.debug "Starting NewsBlur Node Server: #{process.env.SERVER_NAME || 'localhost'}"
+-server.listen(8008)
++server.listen(8008, "127.0.0.1")
