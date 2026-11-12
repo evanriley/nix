@@ -106,10 +106,8 @@ in
       services.cgit.code = {
         enable = true;
         nginx.virtualHost = "code-upstream";
-        # Runs as gerrit so git-http-backend owns the repositories it serves;
-        # the module merges its user definition with ours.
-        user = "gerrit";
-        group = "gerrit";
+        user = "cgit";
+        group = "cgit";
         scanPath = "/var/lib/gerrit/git";
         gitHttpBackend.checkExportOkFiles = false;
         settings = {
@@ -123,6 +121,45 @@ in
             "ssh://git.${domain}:29418/\$GIT_URL"
           ];
           enable-git-config = true;
+        };
+      };
+
+      systemd.services.fcgiwrap-cgit-code = {
+        environment = {
+          GIT_CONFIG_COUNT = "1";
+          GIT_CONFIG_KEY_0 = "safe.directory";
+          GIT_CONFIG_VALUE_0 = "*";
+        };
+        serviceConfig = {
+          SupplementaryGroups = [ "gerrit" ];
+          TemporaryFileSystem = "/var/lib/gerrit:ro";
+          BindReadOnlyPaths = [ "/var/lib/gerrit/git" ];
+          UMask = "0077";
+          NoNewPrivileges = true;
+          CapabilityBoundingSet = "";
+          ProtectSystem = "strict";
+          ProtectHome = true;
+          PrivateTmp = true;
+          PrivateDevices = true;
+          PrivateNetwork = true;
+          ProtectProc = "invisible";
+          ProcSubset = "pid";
+          ProtectClock = true;
+          ProtectHostname = true;
+          ProtectKernelTunables = true;
+          ProtectKernelModules = true;
+          ProtectKernelLogs = true;
+          ProtectControlGroups = true;
+          RestrictAddressFamilies = [ "AF_UNIX" ];
+          RestrictNamespaces = true;
+          RestrictRealtime = true;
+          RestrictSUIDSGID = true;
+          LockPersonality = true;
+          SystemCallArchitectures = "native";
+          SystemCallFilter = [
+            "@system-service"
+            "~@privileged @resources"
+          ];
         };
       };
 
