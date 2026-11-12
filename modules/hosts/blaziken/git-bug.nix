@@ -117,6 +117,7 @@ in
             Restart = "always";
             RestartSec = restartSec;
             RuntimeMaxSec = runtimeMaxSec;
+            TimeoutStartSec = "15min";
           }
           // sandbox;
         };
