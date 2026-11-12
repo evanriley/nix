@@ -80,13 +80,13 @@ in
           address = "147.135.1.254";
           interface = "eth0";
         };
-        # ssh, http, https, gerrit over ssh
+        # http, https, gerrit over ssh
         firewall.allowedTCPPorts = [
-          22
           80
           443
           29418
         ];
+        firewall.interfaces.tailscale0.allowedTCPPorts = [ 22 ];
         interfaces.eth0 = {
           ipv4.addresses = [
             {
@@ -117,6 +117,7 @@ in
 
       services.openssh = {
         enable = true;
+        openFirewall = false;
         settings = {
           PasswordAuthentication = false;
           KbdInteractiveAuthentication = false;
