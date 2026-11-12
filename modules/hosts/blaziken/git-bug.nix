@@ -193,11 +193,7 @@ in
         reverseProxy = true;
         trustedProxyIP = [ "127.0.0.1" ];
         cookie.secretFile = config.age.secrets.oauth2-proxy-cookie-secret.path;
-        cookie.domain = ".${domain}";
-        extraConfig = {
-          client-secret-file = oauth2ProxyClientSecret;
-          whitelist-domain = ".${domain}";
-        };
+        extraConfig.client-secret-file = oauth2ProxyClientSecret;
         nginx = {
           domain = "bugs-edit.${domain}";
           virtualHosts."bugs-edit.${domain}" = { };

@@ -13,6 +13,7 @@ let
     "git-bug-webui.service"
     "git-bug-webui-public.service"
     "oauth2-proxy.service"
+    "oauth2-proxy-rspamd.service"
     "pocket-id.service"
     "rustical.service"
     "phpfpm-roundcube.service"
