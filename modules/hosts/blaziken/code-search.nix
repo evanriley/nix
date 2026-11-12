@@ -38,10 +38,40 @@ in
         path = [ pkgs.git ];
         environment.CTAGS_COMMAND = "${ctags}";
         serviceConfig = {
-          User = "gerrit";
-          Group = "gerrit";
+          User = "zoekt-index";
+          Group = "zoekt";
+          SupplementaryGroups = [ "gerrit" ];
           Type = "oneshot";
           StateDirectory = "zoekt";
+          StateDirectoryMode = "0750";
+          UMask = "0027";
+          TemporaryFileSystem = [ "/var/lib/gerrit:ro" ];
+          BindReadOnlyPaths = [ origin ];
+          PrivateNetwork = true;
+          NoNewPrivileges = true;
+          CapabilityBoundingSet = "";
+          ProtectSystem = "strict";
+          ProtectHome = true;
+          PrivateTmp = true;
+          PrivateDevices = true;
+          ProtectProc = "invisible";
+          ProcSubset = "pid";
+          ProtectClock = true;
+          ProtectHostname = true;
+          ProtectKernelTunables = true;
+          ProtectKernelModules = true;
+          ProtectKernelLogs = true;
+          ProtectControlGroups = true;
+          RestrictAddressFamilies = [ "AF_UNIX" ];
+          RestrictNamespaces = true;
+          RestrictRealtime = true;
+          RestrictSUIDSGID = true;
+          LockPersonality = true;
+          SystemCallArchitectures = "native";
+          SystemCallFilter = [
+            "@system-service"
+            "~@privileged @resources"
+          ];
         };
         # zoekt reads repositories with go-git, which cannot read the packs
         # Gerrit's JGit writes, so it indexes a copy written by C git.
@@ -73,13 +103,55 @@ in
         after = [ "network.target" ];
         wantedBy = [ "multi-user.target" ];
         serviceConfig = {
-          User = "gerrit";
-          Group = "gerrit";
-          StateDirectory = "zoekt";
+          User = "zoekt";
+          Group = "zoekt";
           ExecStart = "${pkgs.zoekt}/bin/zoekt-webserver -index ${indexDir} -listen ${listenAddress}";
           Restart = "always";
+          UMask = "0077";
+          PrivateUsers = true;
+          NoNewPrivileges = true;
+          CapabilityBoundingSet = "";
+          ProtectSystem = "strict";
+          ProtectHome = true;
+          PrivateTmp = true;
+          PrivateDevices = true;
+          ProtectProc = "invisible";
+          ProcSubset = "pid";
+          ProtectClock = true;
+          ProtectHostname = true;
+          ProtectKernelTunables = true;
+          ProtectKernelModules = true;
+          ProtectKernelLogs = true;
+          ProtectControlGroups = true;
+          RestrictAddressFamilies = [
+            "AF_UNIX"
+            "AF_INET"
+            "AF_INET6"
+          ];
+          RestrictNamespaces = true;
+          RestrictRealtime = true;
+          RestrictSUIDSGID = true;
+          LockPersonality = true;
+          MemoryDenyWriteExecute = true;
+          SystemCallArchitectures = "native";
+          SystemCallFilter = [
+            "@system-service"
+            "~@privileged @resources"
+          ];
+          IPAddressDeny = "any";
+          IPAddressAllow = "localhost";
         };
       };
+
+      users.users.zoekt-index = {
+        isSystemUser = true;
+        group = "zoekt";
+      };
+      users.users.zoekt = {
+        isSystemUser = true;
+        group = "zoekt";
+      };
+      users.groups.zoekt = { };
 
       services.anubis.instances.search = {
         group = "nginx";
