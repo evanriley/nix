@@ -52,7 +52,7 @@
       flake = false;
     };
     monobiome = {
-      url = "github:endofunctorio/monobiome/2f2d196a71ec885e836a9c1cdd04bfd01b2fb0f4";
+      url = "github:endofunctorio/monobiome";
       flake = false;
     };
     nvf = {

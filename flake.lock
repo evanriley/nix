@@ -502,17 +502,16 @@
     "monobiome": {
       "flake": false,
       "locked": {
-        "lastModified": 1773448646,
-        "narHash": "sha256-sJizR3d3mSVFnnilHJE/lBPxMHS6fkoiJCBPOU1p6Tg=",
+        "lastModified": 1793583094,
+        "narHash": "sha256-aig7iTIAvG34Kf0WWlkBr/5sTApi6NmkdXiMY/Z2Ha0=",
         "owner": "endofunctorio",
         "repo": "monobiome",
-        "rev": "2f2d196a71ec885e836a9c1cdd04bfd01b2fb0f4",
+        "rev": "29ee324b7440d4a54356183b1c84be45cad33611",
         "type": "github"
       },
       "original": {
         "owner": "endofunctorio",
         "repo": "monobiome",
-        "rev": "2f2d196a71ec885e836a9c1cdd04bfd01b2fb0f4",
         "type": "github"
       }
     },
