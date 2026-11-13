@@ -222,6 +222,26 @@ in
         '';
       };
 
+      scapectlUpdate = pkgs.writeShellApplication {
+        name = "scapectl-update";
+        runtimeInputs = [
+          pkgs.nix-update
+          config.nix.package
+        ];
+        text = ''
+          before=$(nix eval --raw ./nix#scapectl.version)
+          if ! output=$(cd nix && nix-update --flake --version=branch scapectl 2>&1); then
+            printf '%s\n' "$output" >&2
+            echo "nix-update of scapectl failed; the working tree may be partly updated. Check the error above, then run scapectl-update again" >&2
+            exit 1
+          fi
+          after=$(nix eval --raw ./nix#scapectl.version)
+          if [ "$before" != "$after" ]; then
+            echo "scapectl $before -> $after"
+          fi
+        '';
+      };
+
       flakeUpdate = pkgs.writeShellApplication {
         name = "ci-flake-update";
         runtimeInputs = [
@@ -267,6 +287,39 @@ in
             nix flake update --flake "./$project" "''${inputs[@]}"
           }
 
+          run_update() {
+            local topic=$1 log change_id items=() item_name item_new message
+            shift
+            echo "--- updating $topic"
+            if ! log=$("$@" 2>&1); then
+              printf '%s\n' "$log" >&2
+              echo "updating $topic failed; nothing is pushed for $topic, the other changes still are. Fix the error above, then start ci-flake-update.service again" >&2
+              git reset --quiet --hard HEAD
+              status=1
+              return
+            fi
+            printf '%s\n' "$log"
+
+            if git diff --quiet HEAD; then
+              echo "$topic matches main"
+              return
+            fi
+
+            mapfile -t items < <(grep -F ' -> ' <<<"$log" || true)
+            message="build(nix): update $topic"
+            if [ "''${#items[@]}" -eq 1 ]; then
+              read -r item_name _ _ item_new <<<"''${items[0]}"
+              message="build(nix): update $item_name to $item_new"
+            elif [ "''${#items[@]}" -gt 1 ]; then
+              message+=$'\n\n'$(printf '%s\n' "''${items[@]}")
+            fi
+
+            change_id=I$(od -An -N20 -tx1 /dev/urandom | tr -d ' \n')
+            printf '%s\n\nChange-Id: %s\n' "$message" "$change_id" \
+              | git commit --quiet -a --file=-
+            refspecs+=("$(git rev-parse HEAD):refs/for/main%topic=flake-update-$topic,l=Autosubmit+1,r=$reviewer")
+          }
+
           open_changes=$(open_update_changes)
           if [ -n "$open_changes" ]; then
             echo "flake-update changes are still open; skipping this run until they merge or are abandoned:"
@@ -304,23 +357,17 @@ in
             refspecs+=("$(git rev-parse HEAD):refs/for/main%topic=flake-update-$project,l=Autosubmit+1,r=$reviewer")
           done
 
-          echo "--- updating helium"
-          helium_release=nix/modules/packages/helium.json
-          if ! helium_log=$(${lib.getExe inputs.self.packages.x86_64-linux.helium-update} "$helium_release" 2>&1); then
-            printf '%s\n' "$helium_log" >&2
-            echo "updating helium failed; nothing is pushed for helium, the flake.lock changes still are. Fix the error above, then start ci-flake-update.service again" >&2
-            status=1
+          run_update helium ${lib.getExe inputs.self.packages.x86_64-linux.helium-update} nix/modules/packages/helium.json
+          run_update eca-server ${lib.getExe inputs.self.packages.x86_64-linux.pin-update} nix/modules/programs/eca-server.json
+          run_update eca-desktop ${lib.getExe inputs.self.packages.x86_64-linux.pin-update} nix/modules/programs/eca-desktop.json
+          run_update node-types ${lib.getExe inputs.self.packages.x86_64-linux.pin-update} nix/modules/programs/node-types.json
+          run_update scapectl ${lib.getExe scapectlUpdate}
+
+          if dsh_version=$(nix eval --raw --impure --expr "(builtins.getFlake \"git+file://$PWD?dir=nix\").inputs.llm-agents.packages.x86_64-linux.dsh.version"); then
+            run_update dsh-plugins ${lib.getExe inputs.self.packages.x86_64-linux.dsh-plugins-update} nix/modules/programs/dsh-plugins.json "$dsh_version"
           else
-            printf '%s\n' "$helium_log"
-            if git diff --quiet -- "$helium_release"; then
-              echo "$helium_release matches main"
-            else
-              change_id=I$(od -An -N20 -tx1 /dev/urandom | tr -d ' \n')
-              helium_version=$(jq -r .version "$helium_release")
-              printf 'build(nix): update helium to %s\n\nChange-Id: %s\n' "$helium_version" "$change_id" \
-                | git commit --quiet --file=- -- "$helium_release"
-              refspecs+=("$(git rev-parse HEAD):refs/for/main%topic=flake-update-helium,l=Autosubmit+1,r=$reviewer")
-            fi
+            echo "reading the dsh version from the llm-agents input failed; nothing is pushed for dsh-plugins, the other changes still are. Fix the error above, then start ci-flake-update.service again" >&2
+            status=1
           fi
 
           if [ "''${#refspecs[@]}" -eq 0 ]; then
@@ -509,7 +556,7 @@ in
           };
 
           ci-flake-update = {
-            description = "Open Gerrit changes that update the flake.lock files";
+            description = "Open Gerrit changes that update flake inputs and pinned packages";
             wants = [ "network-online.target" ];
             after = [ "network-online.target" ];
             environment = {
