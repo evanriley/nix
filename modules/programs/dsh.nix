@@ -2,13 +2,14 @@
 let
   inherit (config.flake.lib) agentScripts mkScript;
 
-  tui = {
+  pluginVersions = builtins.fromJSON (builtins.readFile ./dsh-plugins.json);
+  tui = rec {
     name = "@deepseek-harness-tui/dsh-tui";
-    version = "0.17.0";
+    version = pluginVersions.${name};
   };
-  sidebar = {
+  sidebar = rec {
     name = "dsh-better-sidebar";
-    version = "0.28.0";
+    version = pluginVersions.${name};
   };
   lockstepPackages = [
     "dsh-hook-protocol"
@@ -244,7 +245,80 @@ in
 
   perSystem =
     { pkgs, ... }:
+    let
+      newestCompatible = pkgs.writeText "dsh-plugins-newest-compatible.cjs" ''
+        const semver = require("${pkgs.nodejs}/lib/node_modules/npm/node_modules/semver");
+        const [current, dshVersion] = process.argv.slice(2);
+        let input = "";
+        process.stdin.on("data", (chunk) => (input += chunk));
+        process.stdin.on("end", () => {
+          const compatible = Object.entries(JSON.parse(input).versions)
+            .filter(([version, manifest]) => {
+              if (!semver.valid(version) || semver.prerelease(version)) return false;
+              return Object.entries(manifest.peerDependencies ?? {})
+                .filter(([name]) => name.startsWith("@deepseek-ai/dsh-"))
+                .every(([, range]) => semver.satisfies(dshVersion, range));
+            })
+            .map(([version]) => version)
+            .sort(semver.compare);
+          const newest = compatible.at(-1);
+          console.log(newest !== undefined && semver.gt(newest, current) ? newest : current);
+        });
+      '';
+    in
     {
+      packages.dsh-plugins-update = pkgs.writeShellApplication {
+        name = "dsh-plugins-update";
+        runtimeInputs = [
+          pkgs.coreutils
+          pkgs.curl
+          pkgs.jq
+          pkgs.nodejs
+        ];
+        text = ''
+          if [ "$#" -ne 2 ]; then
+            echo "usage: dsh-plugins-update <dsh-plugins.json> <dsh version>" >&2
+            exit 2
+          fi
+          plugins_file=$1
+          dsh_version=$2
+
+          if ! names=$(jq -er 'keys_unsorted[]' "$plugins_file"); then
+            echo "reading the plugin names from $plugins_file failed; expected a JSON object of package names to versions. Check the file, then run dsh-plugins-update again" >&2
+            exit 1
+          fi
+
+          new=$(<"$plugins_file")
+          summary=
+          while IFS= read -r name; do
+            current=$(jq -er --arg name "$name" '.[$name]' "$plugins_file")
+            if ! metadata=$(curl -fsS "https://registry.npmjs.org/$name"); then
+              echo "fetching $name from registry.npmjs.org failed; $plugins_file is unchanged. Check the network, then run dsh-plugins-update again" >&2
+              exit 1
+            fi
+            if ! latest=$(node ${newestCompatible} "$current" "$dsh_version" <<<"$metadata"); then
+              echo "selecting a version of $name compatible with dsh $dsh_version failed; $plugins_file is unchanged. Check the registry metadata of $name, then run dsh-plugins-update again" >&2
+              exit 1
+            fi
+            if [ "$latest" != "$current" ]; then
+              new=$(jq --arg name "$name" --arg version "$latest" '.[$name] = $version' <<<"$new")
+              summary+="$name $current -> $latest"$'\n'
+            fi
+          done <<<"$names"
+
+          if [ -z "$summary" ]; then
+            echo "dsh plugins are up to date for dsh $dsh_version"
+            exit 0
+          fi
+
+          temporary=$(mktemp)
+          printf '%s\n' "$new" >"$temporary"
+          chmod --reference="$plugins_file" "$temporary"
+          mv "$temporary" "$plugins_file"
+          printf '%s' "$summary"
+        '';
+      };
+
       checks.dsh-config =
         pkgs.runCommand "dsh-config-check"
           {
