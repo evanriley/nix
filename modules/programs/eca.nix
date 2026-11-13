@@ -1,6 +1,7 @@
 { config, ... }:
 let
   inherit (config.meta) user secrets;
+  inherit (config.flake.lib) fetchPin pinVersion;
   ecaNetrc = {
     file = secrets + "/eca-netrc.age";
     owner = user.name;
@@ -22,22 +23,13 @@ in
       isLinux = pkgs.stdenv.hostPlatform.isLinux;
       isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
 
-      serverVersion = "0.163.1";
-      desktopVersion = "0.10.3";
+      serverVersion = pinVersion ./eca-server.json;
+      desktopVersion = pinVersion ./eca-desktop.json;
 
       ecaServer = pkgs.stdenv.mkDerivation {
         pname = "eca";
         version = serverVersion;
-        src = pkgs.fetchurl {
-          url = "https://github.com/editor-code-assistant/eca/releases/download/${serverVersion}/eca-native-${
-            if isLinux then "static-linux-amd64" else "macos-aarch64"
-          }.zip";
-          hash =
-            if isLinux then
-              "sha256-yzesKVPBSA/zFeaywVtK/y9fAasiuEPuONIcEkW10hY="
-            else
-              "sha256-3+wZ6RG/9t3S4wWFLNLuxAodJiZ93jo2etAwG3+b7uQ=";
-        };
+        src = fetchPin pkgs ./eca-server.json pkgs.stdenv.hostPlatform.system;
         nativeBuildInputs = [ pkgs.unzip ];
         dontUnpack = true;
         installPhase = ''
@@ -51,10 +43,7 @@ in
         meta.mainProgram = "eca";
       };
 
-      ecaDesktopSrc = pkgs.fetchurl {
-        url = "https://github.com/editor-code-assistant/eca-desktop/releases/download/v${desktopVersion}/eca-linux-x86_64.AppImage";
-        hash = "sha256-fEYyFUZBEzWtYqEuJHmSePfU/OS5IgVQpwrpNgLuYqM=";
-      };
+      ecaDesktopSrc = fetchPin pkgs ./eca-desktop.json "appimage";
       ecaDesktopContents = pkgs.appimageTools.extract {
         pname = "eca-desktop";
         version = desktopVersion;
@@ -83,10 +72,7 @@ in
         };
       };
 
-      ecaDesktopDmg = pkgs.fetchurl {
-        url = "https://github.com/editor-code-assistant/eca-desktop/releases/download/v${desktopVersion}/eca-mac-arm64.dmg";
-        hash = "sha256-2sQ9/ImbDU4mPlCCC4ZtYeGMNlX35jUj+YfydNhXm5c=";
-      };
+      ecaDesktopDmg = fetchPin pkgs ./eca-desktop.json "dmg";
     in
     {
       programs.emacs.extraPackages = _: [ ecaServer ];

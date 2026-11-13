@@ -1,6 +1,6 @@
 { config, inputs, ... }:
 let
-  inherit (config.flake.lib) mkScript;
+  inherit (config.flake.lib) fetchPin mkScript pinVersion;
   inherit (config.meta) user secrets;
   openrouterKey = {
     file = secrets + "/openrouter-key.age";
@@ -255,11 +255,8 @@ in
 
       nodeTypes = pkgs.stdenv.mkDerivation {
         pname = "node-types";
-        version = "26.6.5";
-        src = pkgs.fetchurl {
-          url = "https://registry.npmjs.org/@types/node/-/node-26.6.5.tgz";
-          hash = "sha256-5OR9rIYEaapap5BDprgzlimdnNbuI7MPyyB0YlrI298=";
-        };
+        version = pinVersion ./node-types.json;
+        src = fetchPin pkgs ./node-types.json "tarball";
         dontUnpack = true;
         installPhase = ''
           mkdir -p $out
