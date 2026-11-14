@@ -361,6 +361,7 @@ in
           run_update eca-server ${lib.getExe inputs.self.packages.x86_64-linux.pin-update} nix/modules/programs/eca-server.json
           run_update eca-desktop ${lib.getExe inputs.self.packages.x86_64-linux.pin-update} nix/modules/programs/eca-desktop.json
           run_update node-types ${lib.getExe inputs.self.packages.x86_64-linux.pin-update} nix/modules/programs/node-types.json
+          run_update tradeskillmaster ${lib.getExe inputs.self.packages.x86_64-linux.pin-update} nix/modules/programs/tradeskillmaster.json
           run_update scapectl ${lib.getExe scapectlUpdate}
 
           if dsh_version=$(nix eval --raw --impure --expr "(builtins.getFlake \"git+file://$PWD?dir=nix\").inputs.llm-agents.packages.x86_64-linux.dsh.version"); then
