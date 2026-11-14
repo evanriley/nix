@@ -1,0 +1,11 @@
+{
+  "source": "electron-updater:https://desktop-backend.tradeskillmaster.com/app-updates/release",
+  "tagPrefix": "",
+  "version": "1.0.11",
+  "assets": {
+    "appimage": {
+      "url": "https://tsm-desktop-app-builds-production.nyc3.cdn.digitaloceanspaces.com/versions/{version}/TradeSkillMaster.AppImage",
+      "hash": "sha256-1StxZs7Dheb1kqe8AI5/QpvtySHFvNXk1L/PJS4zu4Y="
+    }
+  }
+}

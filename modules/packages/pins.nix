@@ -26,6 +26,7 @@ in
           pkgs.coreutils
           pkgs.curl
           pkgs.jq
+          pkgs.yq-go
         ];
         text = ''
           if [ "$#" -lt 1 ]; then
@@ -34,7 +35,7 @@ in
           fi
 
           update_pin() {
-            local file=$1 name current source tag_prefix endpoint field latest tag temporary new key url hash
+            local file=$1 name current source tag_prefix endpoint parser field latest tag temporary new key url hash
 
             name=$(basename "$file" .json)
             if ! current=$(jq -er .version "$file") \
@@ -47,19 +48,26 @@ in
             case $source in
               github:*)
                 endpoint=https://api.github.com/repos/''${source#github:}/releases/latest
+                parser=(jq -er)
                 field=.tag_name
                 ;;
               npm:*)
                 endpoint=https://registry.npmjs.org/''${source#npm:}/latest
+                parser=(jq -er)
+                field=.version
+                ;;
+              electron-updater:*)
+                endpoint=''${source#electron-updater:}/latest-linux.yml
+                parser=(yq -e)
                 field=.version
                 ;;
               *)
-                echo "the source '$source' in $file is neither github:<owner>/<repo> nor npm:<name>; $file is unchanged. Fix the source, then run pin-update again" >&2
+                echo "the source '$source' in $file is none of github:<owner>/<repo>, npm:<name> or electron-updater:<feed url>; $file is unchanged. Fix the source, then run pin-update again" >&2
                 return 1
                 ;;
             esac
 
-            if ! tag=$(curl -fsS "$endpoint" | jq -er "$field"); then
+            if ! tag=$(curl -fsSL "$endpoint" | "''${parser[@]}" "$field"); then
               echo "fetching the latest release of $source from $endpoint failed; $file is unchanged. Check the network and the API rate limit, then run pin-update again" >&2
               return 1
             fi

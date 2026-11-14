@@ -1,7 +1,7 @@
 { config, inputs, ... }:
 let
   inherit (config.meta) user;
-  inherit (config.flake.lib) sessionService;
+  inherit (config.flake.lib) sessionService fetchPin pinVersion;
   replaysDir = "Videos/Replays";
 in
 {
@@ -67,6 +67,34 @@ in
       notifySaved = pkgs.writeShellScript "replay-saved" ''
         exec ${pkgs.libnotify}/bin/notify-send --app-name=Replay "Replay saved" "$1"
       '';
+
+      tradeskillmasterVersion = pinVersion ./tradeskillmaster.json;
+      tradeskillmasterSrc = fetchPin pkgs ./tradeskillmaster.json "appimage";
+      tradeskillmasterContents = pkgs.appimageTools.extract {
+        pname = "tradeskillmaster";
+        version = tradeskillmasterVersion;
+        src = tradeskillmasterSrc;
+      };
+      tradeskillmaster = pkgs.appimageTools.wrapType2 {
+        pname = "tradeskillmaster";
+        version = tradeskillmasterVersion;
+        src = tradeskillmasterSrc;
+        extraInstallCommands = ''
+          install -Dm444 ${tradeskillmasterContents}/TradeSkillMaster.desktop \
+            $out/share/applications/TradeSkillMaster.desktop
+          substituteInPlace $out/share/applications/TradeSkillMaster.desktop \
+            --replace-fail 'Exec=AppRun' 'Exec=tradeskillmaster'
+          mkdir -p $out/share/icons
+          cp -r --no-preserve=mode ${tradeskillmasterContents}/usr/share/icons/hicolor $out/share/icons/hicolor
+        '';
+        meta = {
+          description = "TradeSkillMaster desktop app for World of Warcraft";
+          homepage = "https://www.tradeskillmaster.com";
+          license = lib.licenses.unfree;
+          platforms = [ "x86_64-linux" ];
+          mainProgram = "tradeskillmaster";
+        };
+      };
     in
     {
       options.gaming.replay.enable = lib.mkEnableOption "the GPU Screen Recorder replay buffer";
@@ -98,6 +126,7 @@ in
         # configurations and cannot fetch the private repository.
         home.packages = [
           pkgs.wowup-cf
+          tradeskillmaster
           inputs.manta.packages.${pkgs.stdenv.hostPlatform.system}.default
         ];
 
