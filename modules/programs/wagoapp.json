@@ -1,0 +1,11 @@
+{
+  "source": "electron-updater:https://cdn.wago.io/wagoapp",
+  "tagPrefix": "",
+  "version": "3.0.2",
+  "assets": {
+    "appimage": {
+      "url": "https://cdn.wago.io/wagoapp/WagoApp_{version}.AppImage",
+      "hash": "sha256-NFvyvDjATNXU+SLodwvxiZqnGKqPbVC/kq9s573THUI="
+    }
+  }
+}

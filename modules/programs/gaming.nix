@@ -95,6 +95,33 @@ in
           mainProgram = "tradeskillmaster";
         };
       };
+
+      wagoappVersion = pinVersion ./wagoapp.json;
+      wagoappSrc = fetchPin pkgs ./wagoapp.json "appimage";
+      wagoappContents = pkgs.appimageTools.extract {
+        pname = "wagoapp";
+        version = wagoappVersion;
+        src = wagoappSrc;
+      };
+      wagoapp = pkgs.appimageTools.wrapType2 {
+        pname = "wagoapp";
+        version = wagoappVersion;
+        src = wagoappSrc;
+        extraInstallCommands = ''
+          install -Dm444 ${wagoappContents}/WagoApp.desktop \
+            $out/share/applications/WagoApp.desktop
+          substituteInPlace $out/share/applications/WagoApp.desktop \
+            --replace-fail 'Exec=AppRun' 'Exec=wagoapp'
+          install -Dm444 ${wagoappContents}/WagoApp.png $out/share/pixmaps/WagoApp.png
+        '';
+        meta = {
+          description = "Wago addon and WeakAura manager for World of Warcraft";
+          homepage = "https://addons.wago.io/app";
+          license = lib.licenses.unfree;
+          platforms = [ "x86_64-linux" ];
+          mainProgram = "wagoapp";
+        };
+      };
     in
     {
       options.gaming.replay.enable = lib.mkEnableOption "the GPU Screen Recorder replay buffer";
@@ -127,6 +154,7 @@ in
         home.packages = [
           pkgs.wowup-cf
           tradeskillmaster
+          wagoapp
           inputs.manta.packages.${pkgs.stdenv.hostPlatform.system}.default
         ];
 
