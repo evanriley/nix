@@ -225,7 +225,7 @@ in
       scapectlUpdate = pkgs.writeShellApplication {
         name = "scapectl-update";
         runtimeInputs = [
-          pkgs.nix-update
+          (pkgs.nix-update.override { nix = config.nix.package; })
           config.nix.package
         ];
         text = ''
