@@ -68,6 +68,23 @@ in
         exec ${pkgs.libnotify}/bin/notify-send --app-name=Replay "Replay saved" "$1"
       '';
 
+      craftplanDir = "%h/Developer/craftplan";
+      craftplanSnapshotService =
+        { description, scope }:
+        {
+          Unit = {
+            Description = description;
+            ConditionPathExists = "${craftplanDir}/gold/__main__.py";
+          };
+          Service = {
+            Type = "oneshot";
+            WorkingDirectory = craftplanDir;
+            ExecStart = "${pkgs.python314}/bin/python3 -m gold snapshot ${scope}";
+            Nice = 19;
+            IOSchedulingClass = "idle";
+          };
+        };
+
       tradeskillmasterVersion = pinVersion ./tradeskillmaster.json;
       tradeskillmasterSrc = fetchPin pkgs ./tradeskillmaster.json "appimage";
       tradeskillmasterContents = pkgs.appimageTools.extract {
@@ -143,6 +160,34 @@ in
               exec = "/run/current-system/sw/bin/gpu-screen-recorder -w screen ${sizeArg} -f 60 -k av1 -bm cbr -q 40000 -r 60 -c mkv -a default_output -sc ${notifySaved} -o ${replayDir}";
               service.ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${replayDir}";
             });
+
+        systemd.user.services.craftplan-snapshot = craftplanSnapshotService {
+          description = "Snapshot tracked auction house prices";
+          scope = "--tracked";
+        };
+
+        systemd.user.services.craftplan-snapshot-full = craftplanSnapshotService {
+          description = "Snapshot the full auction house market";
+          scope = "--full";
+        };
+
+        systemd.user.timers.craftplan-snapshot = {
+          Unit.Description = "Snapshot tracked auction house prices hourly";
+          Timer = {
+            OnCalendar = "*:35";
+            Persistent = true;
+          };
+          Install.WantedBy = [ "timers.target" ];
+        };
+
+        systemd.user.timers.craftplan-snapshot-full = {
+          Unit.Description = "Snapshot the full auction house market daily";
+          Timer = {
+            OnCalendar = "*-*-* 04:45:00";
+            Persistent = true;
+          };
+          Install.WantedBy = [ "timers.target" ];
+        };
 
         # Steam and Faugus both list compatibilitytools.d. Not named GE-Proton: umu
         # treats that name as "download the latest GE-Proton".
