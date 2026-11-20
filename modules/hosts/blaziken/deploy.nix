@@ -39,6 +39,7 @@ in
           profile=/nix/var/nix/profiles/system
           main_builds_url="https://api.buildkite.com/v2/organizations/riley-industries/pipelines/maybe/builds?branch=main&per_page=100"
           health_check=${config.blaziken.healthCheck}/bin/blaziken-health-check
+          deploy_ping=${config.blaziken.deployPing}/bin/healthchecks-deploy-ping
           max_backup_age_seconds=$((36 * 3600))
           settle_seconds=300
           settle_interval_seconds=30
@@ -133,6 +134,7 @@ in
 
           if [ "$(readlink -f "$new")" = "$(readlink -f /run/current-system)" ]; then
             echo "already running $label"
+            "$deploy_ping" ok < /dev/null || true
             settle_boot
             exit 0
           fi
@@ -219,7 +221,24 @@ in
           fi
 
           echo "deployed $label"
+          "$deploy_ping" ok < /dev/null || true
           settle_boot
+        '';
+      };
+
+      reportFailure = pkgs.writeShellApplication {
+        name = "blaziken-deploy-report-failure";
+        runtimeInputs = [
+          pkgs.coreutils
+          config.systemd.package
+        ];
+        text = ''
+          if [ "''${SERVICE_RESULT:-}" = success ]; then
+            exit 0
+          fi
+          journalctl -u blaziken-deploy.service _SYSTEMD_INVOCATION_ID="''${INVOCATION_ID:-}" -o cat --no-pager \
+            | tail -n 100 \
+            | ${config.blaziken.deployPing}/bin/healthchecks-deploy-ping fail || true
         '';
       };
     in
@@ -244,6 +263,7 @@ in
         serviceConfig = {
           Type = "oneshot";
           ExecStart = "${deploy}/bin/blaziken-deploy";
+          ExecStopPost = "${reportFailure}/bin/blaziken-deploy-report-failure";
           TimeoutStartSec = "2h";
           StateDirectory = "blaziken-deploy";
         };

@@ -163,6 +163,7 @@ in
 
       heartbeatPing = mkPing "healthchecks-heartbeat-ping" config.age.secrets.healthchecks-heartbeat.path;
       disksPing = mkPing "healthchecks-disks-ping" config.age.secrets.healthchecks-disks.path;
+      deployPing = mkPing "healthchecks-deploy-ping" config.age.secrets.healthchecks-deploy.path;
 
       rootArray = "/dev/md/root";
 
@@ -407,11 +408,19 @@ in
         description = "The blaziken-health-check script, shared with blaziken-deploy.";
       };
 
+      options.blaziken.deployPing = lib.mkOption {
+        type = lib.types.package;
+        readOnly = true;
+        default = deployPing;
+        description = "The healthchecks-deploy-ping script, used by blaziken-deploy.";
+      };
+
       config = {
         environment.systemPackages = [ healthCheck ];
 
         age.secrets.healthchecks-heartbeat.file = secrets + "/blaziken/healthchecks-heartbeat.age";
         age.secrets.healthchecks-disks.file = secrets + "/blaziken/healthchecks-disks.age";
+        age.secrets.healthchecks-deploy.file = secrets + "/blaziken/healthchecks-deploy.age";
 
         boot.swraid.mdadmConf = "PROGRAM ${mdadmAlert}/bin/blaziken-mdadm-alert";
 
