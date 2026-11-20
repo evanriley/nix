@@ -72,7 +72,7 @@ in
             name = "gerrit-oauth-provider.jar";
             path = ./gerrit-oauth-provider.jar;
             recursive = false;
-            sha256 = "sha256-R6IahUTXS294nnxXB1WI4gREg5sqUn6sahtKfvaNfZI=";
+            sha256 = "sha256-j66C6GCLFeUGzC0rjO4aZ54/M7O5BJYJcZd+Y8lOdDk=";
           })
         ];
         settings = {
