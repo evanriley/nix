@@ -57,6 +57,7 @@ shared [ "cinderace" "blaziken" ] "evan-password.age"
   "lidarr.env.age"
   "slskd.env.age"
   "soularr-config.age"
+  "craftplan-anthropic-key.age"
 ]
 // hostSecrets "blaziken" [
   "cloudflare-dns.age"

@@ -1,6 +1,6 @@
 { config, inputs, ... }:
 let
-  inherit (config.meta) user;
+  inherit (config.meta) user secrets;
   inherit (config.flake.lib) sessionService fetchPin pinVersion;
   replaysDir = "Videos/Replays";
 in
@@ -11,6 +11,11 @@ in
       home = config.users.users.${user.name}.home;
     in
     {
+      age.secrets.craftplan-anthropic-key = {
+        file = secrets + "/cinderace/craftplan-anthropic-key.age";
+        owner = user.name;
+      };
+
       programs.steam.enable = true;
       # No capSysNice: Steam's sandbox then refuses to start gamescope (nixpkgs#351516).
       programs.gamescope.enable = true;
@@ -169,6 +174,22 @@ in
         systemd.user.services.craftplan-snapshot-full = craftplanSnapshotService {
           description = "Snapshot the full auction house market";
           scope = "--full";
+        };
+
+        systemd.user.services.craftplan-web = {
+          Unit = {
+            Description = "Serve the craftplan gold web UI";
+            ConditionPathExists = "${craftplanDir}/gold/__main__.py";
+          };
+          Service = {
+            WorkingDirectory = craftplanDir;
+            ExecStart = "${pkgs.python314}/bin/python3 -m gold serve --reload";
+            Environment = "CRAFTPLAN_ANTHROPIC_KEY_FILE=/run/agenix/craftplan-anthropic-key";
+            Restart = "always";
+            RestartSec = 2;
+            Nice = 10;
+          };
+          Install.WantedBy = [ "default.target" ];
         };
 
         systemd.user.timers.craftplan-snapshot = {
