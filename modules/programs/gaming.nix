@@ -80,6 +80,7 @@ in
           Unit = {
             Description = description;
             ConditionPathExists = "${craftplanDir}/gold/__main__.py";
+            OnSuccess = "craftplan-alerts.service";
           };
           Service = {
             Type = "oneshot";
@@ -174,6 +175,21 @@ in
         systemd.user.services.craftplan-snapshot-full = craftplanSnapshotService {
           description = "Snapshot the full auction house market";
           scope = "--full";
+        };
+
+        systemd.user.services.craftplan-alerts = {
+          Unit = {
+            Description = "Check craftplan gold alerts";
+            ConditionPathExists = "${craftplanDir}/gold/alerts_engine.py";
+          };
+          Service = {
+            Type = "oneshot";
+            WorkingDirectory = craftplanDir;
+            ExecStart = "${pkgs.python314}/bin/python3 -m gold.alerts check";
+            Environment = "PATH=${pkgs.libnotify}/bin";
+            Nice = 19;
+            IOSchedulingClass = "idle";
+          };
         };
 
         systemd.user.services.craftplan-web = {
