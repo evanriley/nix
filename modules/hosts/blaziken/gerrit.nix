@@ -1,6 +1,7 @@
 { config, lib, ... }:
 let
   inherit (config.meta) secrets domain;
+  nixos = config.flake.modules.nixos;
   changesQuery = "q/status:open+-is:wip";
   oauthProviderSection = "gerrit-oauth-provider-discovery-oauth";
 in
@@ -12,6 +13,8 @@ in
       ...
     }:
     {
+      imports = [ nixos.gerrit-site-upgrade ];
+
       # The upstream module runs Gerrit under a dynamic user; cgit needs to
       # read the bare repositories, so run it as a static user instead.
       users.users.gerrit = {
