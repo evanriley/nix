@@ -26,8 +26,10 @@ in
           pkgs.openssh
           pkgs.util-linux
           config.nix.package
+          config.systemd.package
         ]
-        ++ lib.attrValues config.bootTrial.commands;
+        ++ lib.attrValues config.bootTrial.commands
+        ++ lib.attrValues config.deployState.commands;
         text = ''
           export LC_ALL=C
 
@@ -40,6 +42,7 @@ in
           max_backup_age_seconds=$((36 * 3600))
           settle_seconds=300
           settle_interval_seconds=30
+          state_snapshot=$state/state-snapshot
 
           settle_boot() {
             boot-trial-fallback
@@ -166,10 +169,25 @@ in
 
           previous=$(readlink -f /run/current-system)
 
+          echo "--- snapshotting the state that changes between $previous and $new"
+          if ! deploy-state-snapshot "$previous" "$new" "$state_snapshot"; then
+            echo "deploy-state-snapshot for $new failed; expected a copy of the state of every service whose key changed. Nothing was switched. Read the output above, then start blaziken-deploy.service again" >&2
+            exit 1
+          fi
+
+          start_snapshot_units() {
+            local snapshot_units
+            mapfile -t snapshot_units < <(deploy-state-units "$state_snapshot" || true)
+            if [ "''${#snapshot_units[@]}" -gt 0 ]; then
+              systemctl start -- "''${snapshot_units[@]}" || true
+            fi
+          }
+
           echo "--- switching to $new"
           nix-env -p "$profile" --set "$new"
           switch_status=0
           "$new/bin/switch-to-configuration" switch || switch_status=$?
+          start_snapshot_units
 
           echo "--- health check after switching to $new"
           deadline=$((SECONDS + settle_seconds))
@@ -189,12 +207,14 @@ in
               echo "new failures since before the deploy:" >&2
               lines "$new_failures" >&2
             fi
-            if ! nix-env -p "$profile" --set "$previous" \
+            if ! deploy-state-restore "$state_snapshot" \
+              || ! nix-env -p "$profile" --set "$previous" \
               || ! "$previous/bin/switch-to-configuration" switch; then
-              echo "ROLLBACK FAILED: blaziken may be half-switched between $new and $previous. Log in over Tailscale and run: nix-env -p $profile --set $previous && $previous/bin/switch-to-configuration switch" >&2
+              echo "ROLLBACK FAILED: blaziken may be half-switched between $new and $previous, and its state may be half-restored from $state_snapshot. Log in over Tailscale and run: deploy-state-restore $state_snapshot && nix-env -p $profile --set $previous && $previous/bin/switch-to-configuration switch" >&2
               exit 1
             fi
-            echo "rolled back to $previous after failing to deploy $label; expected a deploy with no new failures. Fix the cause, then start blaziken-deploy.service again" >&2
+            start_snapshot_units
+            echo "rolled back to $previous after failing to deploy $label, and restored the state snapshotted before the deploy; writes made since the snapshot were discarded. Expected a deploy with no new failures. Fix the cause, then start blaziken-deploy.service again" >&2
             exit 1
           fi
 

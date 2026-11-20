@@ -24,6 +24,7 @@ in
         nixos.server
         nixos.backup
         nixos.boot-trial
+        nixos.deploy-state
       ];
       networking.hostName = "blaziken";
 
