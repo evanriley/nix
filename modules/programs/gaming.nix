@@ -209,6 +209,20 @@ in
           };
         };
 
+        systemd.user.services.craftplan-postqueue-refresh = {
+          Unit = {
+            Description = "Rewrite the craftplan post queue when its inputs change";
+            ConditionPathExists = "${craftplanDir}/gold/postqueue.py";
+          };
+          Service = {
+            Type = "oneshot";
+            WorkingDirectory = craftplanDir;
+            ExecStart = "${pkgs.python314}/bin/python3 -m gold postqueue --if-changed";
+            Nice = 19;
+            IOSchedulingClass = "idle";
+          };
+        };
+
         systemd.user.services.craftplan-web = {
           Unit = {
             Description = "Serve the craftplan gold web UI";
@@ -231,6 +245,12 @@ in
             OnCalendar = "*:35";
             Persistent = true;
           };
+          Install.WantedBy = [ "timers.target" ];
+        };
+
+        systemd.user.timers.craftplan-postqueue-refresh = {
+          Unit.Description = "Check the craftplan post queue inputs every 5 minutes";
+          Timer.OnCalendar = "*:0/5";
           Install.WantedBy = [ "timers.target" ];
         };
 
