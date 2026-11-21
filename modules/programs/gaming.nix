@@ -86,11 +86,15 @@ in
               "craftplan-route.service"
               "craftplan-track-record.service"
             ];
+            StartLimitIntervalSec = "30min";
+            StartLimitBurst = 4;
           };
           Service = {
             Type = "oneshot";
             WorkingDirectory = craftplanDir;
             ExecStart = "${pkgs.python314}/bin/python3 -m gold snapshot ${scope}";
+            Restart = "on-failure";
+            RestartSec = "2min";
             Nice = 19;
             IOSchedulingClass = "idle";
           };
