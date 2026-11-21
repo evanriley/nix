@@ -83,6 +83,7 @@ in
             OnSuccess = [
               "craftplan-alerts.service"
               "craftplan-postqueue.service"
+              "craftplan-track-record.service"
             ];
           };
           Service = {
@@ -223,6 +224,34 @@ in
           };
         };
 
+        systemd.user.services.craftplan-track-record = {
+          Unit = {
+            Description = "Log the craftplan Today recommendations";
+            ConditionPathExists = "${craftplanDir}/gold/trackrecord.py";
+          };
+          Service = {
+            Type = "oneshot";
+            WorkingDirectory = craftplanDir;
+            ExecStart = "${pkgs.python314}/bin/python3 -m gold track record";
+            Nice = 19;
+            IOSchedulingClass = "idle";
+          };
+        };
+
+        systemd.user.services.craftplan-track-score = {
+          Unit = {
+            Description = "Score the craftplan recommendations past their horizon";
+            ConditionPathExists = "${craftplanDir}/gold/trackrecord.py";
+          };
+          Service = {
+            Type = "oneshot";
+            WorkingDirectory = craftplanDir;
+            ExecStart = "${pkgs.python314}/bin/python3 -m gold track score";
+            Nice = 19;
+            IOSchedulingClass = "idle";
+          };
+        };
+
         systemd.user.services.craftplan-web = {
           Unit = {
             Description = "Serve the craftplan gold web UI";
@@ -251,6 +280,15 @@ in
         systemd.user.timers.craftplan-postqueue-refresh = {
           Unit.Description = "Check the craftplan post queue inputs every 5 minutes";
           Timer.OnCalendar = "*:0/5";
+          Install.WantedBy = [ "timers.target" ];
+        };
+
+        systemd.user.timers.craftplan-track-score = {
+          Unit.Description = "Score the craftplan recommendations every 6 hours";
+          Timer = {
+            OnCalendar = "00/6:50";
+            Persistent = true;
+          };
           Install.WantedBy = [ "timers.target" ];
         };
 
