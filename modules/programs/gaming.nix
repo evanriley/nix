@@ -80,7 +80,10 @@ in
           Unit = {
             Description = description;
             ConditionPathExists = "${craftplanDir}/gold/__main__.py";
-            OnSuccess = "craftplan-alerts.service";
+            OnSuccess = [
+              "craftplan-alerts.service"
+              "craftplan-postqueue.service"
+            ];
           };
           Service = {
             Type = "oneshot";
@@ -187,6 +190,20 @@ in
             WorkingDirectory = craftplanDir;
             ExecStart = "${pkgs.python314}/bin/python3 -m gold.alerts check";
             Environment = "PATH=${pkgs.libnotify}/bin";
+            Nice = 19;
+            IOSchedulingClass = "idle";
+          };
+        };
+
+        systemd.user.services.craftplan-postqueue = {
+          Unit = {
+            Description = "Write the craftplan auction house post queue";
+            ConditionPathExists = "${craftplanDir}/gold/postqueue.py";
+          };
+          Service = {
+            Type = "oneshot";
+            WorkingDirectory = craftplanDir;
+            ExecStart = "${pkgs.python314}/bin/python3 -m gold postqueue";
             Nice = 19;
             IOSchedulingClass = "idle";
           };
