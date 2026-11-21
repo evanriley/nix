@@ -83,6 +83,7 @@ in
             OnSuccess = [
               "craftplan-alerts.service"
               "craftplan-postqueue.service"
+              "craftplan-route.service"
               "craftplan-track-record.service"
             ];
           };
@@ -224,6 +225,20 @@ in
           };
         };
 
+        systemd.user.services.craftplan-route = {
+          Unit = {
+            Description = "Rewrite the craftplan in-game gathering routes when they change";
+            ConditionPathExists = "${craftplanDir}/gold/routefile.py";
+          };
+          Service = {
+            Type = "oneshot";
+            WorkingDirectory = craftplanDir;
+            ExecStart = "${pkgs.python314}/bin/python3 -m gold route --if-changed";
+            Nice = 19;
+            IOSchedulingClass = "idle";
+          };
+        };
+
         systemd.user.services.craftplan-track-record = {
           Unit = {
             Description = "Log the craftplan Today recommendations";
@@ -274,6 +289,12 @@ in
             OnCalendar = "*:35";
             Persistent = true;
           };
+          Install.WantedBy = [ "timers.target" ];
+        };
+
+        systemd.user.timers.craftplan-route = {
+          Unit.Description = "Check the craftplan gathering routes every 5 minutes";
+          Timer.OnCalendar = "*:0/5";
           Install.WantedBy = [ "timers.target" ];
         };
 
