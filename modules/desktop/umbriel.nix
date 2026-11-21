@@ -106,7 +106,7 @@ in
               follows_focus = true;
             };
             focus = {
-              follows_mouse = true;
+              follows_mouse = "sloppy";
               follows_mouse_max_scroll = 0.1;
             };
           };
