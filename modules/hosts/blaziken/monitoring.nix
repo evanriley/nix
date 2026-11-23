@@ -233,18 +233,35 @@ in
             done
           fi
 
-          check_site() {
-            local site="$1" expected="$2" host code
+          site_status() {
+            local site="$1" host code
             host="''${site%%/*}"
             code="$(curl -sS -o /dev/null -m 15 -w '%{http_code}' \
               --resolve "$host:443:127.0.0.1" "https://$site")" || code=000
-            if [ "$code" != "$expected" ]; then
-              failures+=("https://$site returned $code, expected $expected")
+            echo "$code"
+          }
+
+          failed_sites=()
+          check_site() {
+            local site="$1" expected="$2"
+            if [ "$(site_status "$site")" != "$expected" ]; then
+              failed_sites+=("$site" "$expected")
             fi
           }
           ${lib.concatMapStrings (
             site: "check_site ${lib.escapeShellArg site.url} ${toString site.expect}\n"
           ) sites}
+          if [ "''${#failed_sites[@]}" -gt 0 ]; then
+            sleep 10
+            for ((i = 0; i < ''${#failed_sites[@]}; i += 2)); do
+              site="''${failed_sites[i]}"
+              expected="''${failed_sites[i + 1]}"
+              code="$(site_status "$site")"
+              if [ "$code" != "$expected" ]; then
+                failures+=("https://$site returned $code, expected $expected")
+              fi
+            done
+          fi
 
           for port in ${lib.escapeShellArgs (map toString ports)}; do
             if ! timeout 5 bash -c "exec 3<>/dev/tcp/127.0.0.1/\$1" _ "$port" 2> /dev/null; then
