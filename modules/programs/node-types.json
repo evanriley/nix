@@ -1,11 +1,11 @@
 {
   "source": "npm:@types/node",
   "tagPrefix": "",
-  "version": "26.6.6",
+  "version": "26.6.10",
   "assets": {
     "tarball": {
       "url": "https://registry.npmjs.org/@types/node/-/node-{version}.tgz",
-      "hash": "sha256-fvAGhC96ZHho6dU1iBSMsFgAixB66mpygUNzC+4CBFY="
+      "hash": "sha256-niWGlvS+VvOK3nzc5VNdn2qc3UDcxy/EJcazsDYES/o="
     }
   }
 }
