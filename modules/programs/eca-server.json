@@ -1,15 +1,15 @@
 {
   "source": "github:editor-code-assistant/eca",
   "tagPrefix": "",
-  "version": "0.173.2",
+  "version": "0.174.0",
   "assets": {
     "x86_64-linux": {
       "url": "https://github.com/editor-code-assistant/eca/releases/download/{version}/eca-native-static-linux-amd64.zip",
-      "hash": "sha256-kO7zPw8R1GDlBm3xSnMNY78/t90dr8EiseWzjgNABIs="
+      "hash": "sha256-Y6eZfEa1nnjoVq1HPrfkMk79XS/RSewI37TTBd9N4h0="
     },
     "aarch64-darwin": {
       "url": "https://github.com/editor-code-assistant/eca/releases/download/{version}/eca-native-macos-aarch64.zip",
-      "hash": "sha256-/4G4ScLfFohwzzvpWJ1rx669GxKOnsKZqIsGAYYZWAk="
+      "hash": "sha256-OF8xJ9GYDD+i3deOvpizdLNcc7uy6cbYqU9DCIj5178="
     }
   }
 }
