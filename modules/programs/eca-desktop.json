@@ -1,15 +1,15 @@
 {
   "source": "github:editor-code-assistant/eca-desktop",
   "tagPrefix": "v",
-  "version": "0.15.1",
+  "version": "0.15.2",
   "assets": {
     "appimage": {
       "url": "https://github.com/editor-code-assistant/eca-desktop/releases/download/v{version}/eca-linux-x86_64.AppImage",
-      "hash": "sha256-lsp/fFZcrBOJgbsIcmpIU8YeLbzypkkJh8ooOJZohTE="
+      "hash": "sha256-T4LKQzH1hCijdjC5pFZIt+CSWNuJg5V5iGxkhWIobqM="
     },
     "dmg": {
       "url": "https://github.com/editor-code-assistant/eca-desktop/releases/download/v{version}/eca-mac-arm64.dmg",
-      "hash": "sha256-bpVDPeloIrB342hRH73h0MFePnHoiDPPIuZnohkdVag="
+      "hash": "sha256-Gf8u1g9nQV20XQCkg6Tm/w6YIN4VlLy3R9Fpc7pEo9Y="
     }
   }
 }
